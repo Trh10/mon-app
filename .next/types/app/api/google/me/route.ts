@@ -1,4 +1,4 @@
-// File: C:\pepite-mail-proto\src\app\api\google\me\route.ts
+// File: /home/runner/work/mon-app/mon-app/src/app/api/google/me/route.ts
 import * as entry from '../../../../../../src/app/api/google/me/route.js'
 import type { NextRequest } from 'next/server.js'
 

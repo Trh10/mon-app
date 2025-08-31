@@ -1,4 +1,4 @@
-// File: C:\pepite-mail-proto\src\app\api\email\universal-connect\route.ts
+// File: /home/runner/work/mon-app/mon-app/src/app/api/email/universal-connect/route.ts
 import * as entry from '../../../../../../src/app/api/email/universal-connect/route.js'
 import type { NextRequest } from 'next/server.js'
 
