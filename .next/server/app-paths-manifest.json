@@ -1,7 +1,0 @@
-{
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js",
-  "/api/google/me/route": "app/api/google/me/route.js",
-  "/api/email/universal-connect/route": "app/api/email/universal-connect/route.js",
-  "/api/ai/summarize/route": "app/api/ai/summarize/route.js"
-}

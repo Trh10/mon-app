@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { LeftPane } from "@/components/LeftPane";
@@ -21,7 +22,9 @@ function normCreds(c: any) {
   if (typeof out.secure === "boolean" && typeof out.imapTls !== "boolean") out.imapTls = out.secure;
   return out;
 }
+
 export default function Page() {
+  const router = useRouter();
   const [items, setItems] = useState<Email[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,23 +32,52 @@ export default function Page() {
   const [focusMode, setFocusMode] = useState(false);
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
   const [source, setSource] = useState("email");
-  
-  // États fixes pour éviter l'hydratation
-  const emailCredentials = {
-    email: "terachenzo7@gmail.com",
-    provider: "gmail",
-    userName: "Trh10"
-  };
-  
-  const userInfo = {
-    userName: "Trh10",
-    email: "terachenzo7@gmail.com",
-    provider: "gmail",
-    timestamp: "2025-08-30 20:40:54"
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [emailCredentials, setEmailCredentials] = useState<any>(null);
+  const [userInfo, setUserInfo] = useState<any>(null);
+
+  // Vérifier l'authentification au montage
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const savedCredentials = localStorage.getItem('email_credentials');
+        if (savedCredentials) {
+          const credentials = JSON.parse(atob(savedCredentials));
+          const normalizedCredentials = normCreds(credentials);
+          
+          setEmailCredentials(normalizedCredentials);
+          setUserInfo({
+            userName: normalizedCredentials.userName || normalizedCredentials.email?.split('@')[0] || "Utilisateur",
+            email: normalizedCredentials.email,
+            provider: normalizedCredentials.provider,
+            timestamp: normalizedCredentials.timestamp || new Date().toISOString()
+          });
+          setIsAuthenticated(true);
+        } else {
+          // Pas de credentials, rediriger vers login
+          router.push('/login');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification d\'authentification:', error);
+        router.push('/login');
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // Fonction de déconnexion
+  const handleLogout = () => {
+    localStorage.removeItem('email_credentials');
+    router.push('/login');
   };
 
   // Fonction pour charger les emails
   const loadEmailData = useCallback(async (folder: string = 'INBOX') => {
+    if (!emailCredentials || !isAuthenticated) {
+      return; // Ne pas charger si pas authentifié
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -101,12 +133,14 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [emailCredentials, isAuthenticated]);
 
   // Chargement initial
   useEffect(() => {
-    loadEmailData(currentFolder);
-  }, [currentFolder, loadEmailData]);
+    if (isAuthenticated && emailCredentials) {
+      loadEmailData(currentFolder);
+    }
+  }, [currentFolder, loadEmailData, isAuthenticated, emailCredentials]);
 
   const handleRefresh = () => {
     loadEmailData(currentFolder);
@@ -118,8 +152,7 @@ export default function Page() {
   };
 
   const handleDisconnect = () => {
-    // Fonction vide pour éviter les erreurs
-    console.log("Déconnexion désactivée");
+    handleLogout();
   };
 
   const handleSourceChange = (newSource: string) => {
@@ -154,6 +187,18 @@ export default function Page() {
     );
   }
 
+  // Afficher un loader pendant la vérification d'authentification
+  if (!isAuthenticated || !emailCredentials || !userInfo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <AIProvider>
       <div className="h-screen flex flex-col">
@@ -172,8 +217,8 @@ export default function Page() {
         <div className="bg-gradient-to-r from-blue-50 to-green-50 border-b border-blue-200 px-4 py-2 text-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-blue-700 font-medium">📊 Source: {source}</span>
-            <span className="text-green-700 font-medium">👤 Trh10</span>
-            <span className="text-blue-600">📧 terachenzo7@...</span>
+            <span className="text-green-700 font-medium">👤 {userInfo.userName}</span>
+            <span className="text-blue-600">📧 {userInfo.email}</span>
             <span className="text-orange-600 font-medium">📁 {currentFolder}</span>
             <span className="text-blue-600">📧 {items.length} emails</span>
           </div>
