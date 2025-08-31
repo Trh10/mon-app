@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Palette Icones adaptée - VIOLET → BLEU */
+  --primary-blue: #1a365d;
+  --primary-blue-light: #2c5aa0;
+  --gradient-cyan: #06b6d4;
+  --gradient-blue: #2563eb;  /* ← Remplace violet */
+  --gradient-orange: #2416e7;
+  --gradient-pink: #ec4899;
+  
+  /* Couleurs système */
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  --text-primary: #1a365d;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  
+  /* Dégradés - VIOLET → BLEU */
+  --gradient-main: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #2916f9 100%);
+  --gradient-subtle: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 50%, #fff7ed 100%);
+}
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--text-primary);
+  }
+}
+
+@layer components {
+  .gradient-button {
+    @apply bg-gradient-to-r from-cyan-400 via-blue-500 to-orange-500 text-white font-semibold px-4 py-2 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105;
+  }
+  
+  .gradient-card {
+    @apply bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.02) 0%, rgba(37, 99, 235, 0.02) 50%, rgba(249, 115, 22, 0.02) 100%);
+  }
+  
+  .gradient-border {
+    background: var(--gradient-main);
+    padding: 2px;
+    border-radius: 12px;
+  }
+  
+  .gradient-border-inner {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+  }
+
+  .icones-header {
+    background: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #141ae0 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .icones-sidebar {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-right: 1px solid #e2e8f0;
+  }
+
+  .icones-panel {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Styles existants adaptés */
+.debug-rightpane {
+  background: linear-gradient(135deg, #fef7f0 0%, #fef2f2 100%) !important;
+  border: 2px solid #f97316 !important;
+  min-height: 100% !important;
+}
+
+.debug-leftpane {
+  background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%) !important;
+  border: 2px solid #06b6d4 !important;
+}
+
+.debug-sidebar {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%) !important;
+  border: 2px solid #2563eb !important;
+}
+
+.panel {
+  @apply icones-panel;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 transition-all duration-200 text-slate-700 font-medium cursor-pointer;
+}
+
+.btn:hover {
+  @apply bg-gradient-to-r from-cyan-50 via-blue-50 to-orange-50 border-slate-400;
+}
+
+.btn-sm {
+  @apply px-3 py-1 text-sm;
+}
+
+.tab {
+  @apply px-4 py-2 rounded-lg border border-slate-300 bg-white cursor-pointer transition-all duration-200 text-slate-700;
+}
+
+.tab:hover {
+  @apply bg-gradient-to-r from-cyan-50 via-blue-50 to-orange-50;
+}
+
+.tab.active {
+  @apply bg-gradient-to-r from-cyan-400 via-blue-500 to-orange-500 text-white border-transparent;
+}

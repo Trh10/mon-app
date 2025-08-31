@@ -1,0 +1,39 @@
+{
+  "name": "pepite-mail-proto",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@types/cookie": "^0.6.0",
+    "@types/imap": "^0.8.42",
+    "classnames": "^2.5.1",
+    "clsx": "^2.1.1",
+    "cookie": "^1.0.2",
+    "firebase": "^12.2.1",
+    "google-auth-library": "^10.3.0",
+    "googleapis": "^158.0.0",
+    "imap": "^0.8.19",
+    "lucide-react": "^0.441.0",
+    "mailparser": "^3.7.4",
+    "next": "14.2.5",
+    "nodemailer": "^6.10.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tailwind-merge": "^3.3.1",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.13",
+    "@types/node": "^20.12.12",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.9",
+    "typescript": "^5.5.4"
+  }
+}

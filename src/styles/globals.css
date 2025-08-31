@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --muted: #64748b;
+  --border: #e2e8f0;
+}
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  @apply bg-[var(--bg)] text-gray-900;
+  font-feature-settings: "cv02","cv03","cv04","cv11";
+}
+
+.panel {
+  @apply bg-[var(--panel)] border border-[var(--border)] rounded-lg;
+}
+
+.badge {
+  @apply text-xs px-1.5 py-0.5 rounded-full border;
+}
+
+.btn {
+  @apply inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-transparent hover:bg-gray-100 transition;
+}
+
+.btn-ghost {
+  @apply px-2 py-1 rounded-md hover:bg-gray-100;
+}
+
+.icon-btn {
+  @apply p-1.5 rounded-md hover:bg-gray-100 transition;
+}
+
+.row {
+  @apply grid grid-cols-[auto_1fr_auto] items-center gap-3 px-3;
+}
+
+.row-sep {
+  @apply border-t border-[var(--border)];
+}
+
+.tab {
+  @apply px-3 py-2 rounded-md hover:bg-gray-100;
+}

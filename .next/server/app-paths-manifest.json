@@ -1,0 +1,9 @@
+{
+  "/page": "app/page.js",
+  "/needs/page": "app/needs/page.js",
+  "/api/email/universal-connect/route": "app/api/email/universal-connect/route.js",
+  "/api/google/me/route": "app/api/google/me/route.js",
+  "/api/google/message/route": "app/api/google/message/route.js",
+  "/api/google/callback/route": "app/api/google/callback/route.js",
+  "/api/google/auth/route": "app/api/google/auth/route.js"
+}
