@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useUI } from "@/store";
-import type { Email } from "@/lib/types";
+import type { Email } from "@/lib/email-types";
 import { ExpandedEmailReader } from "@/components/ExpandedEmailReader";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { EmailComposer } from "@/components/EmailComposer"; // NOUVEAU
@@ -98,7 +98,8 @@ export function RightPane({
   onRefresh?: () => void;
   checkedEmails?: Set<string>;
 }) {
-  const { selectedEmailId, readingTab, setTab } = useUI();
+  const { selectedEmailId } = useUI();
+  const [readingTab, setTab] = useState("read");
 
   const [expandedView, setExpandedView] = useState(false);
   const [detail, setDetail] = useState<any>(null);
@@ -265,7 +266,7 @@ export function RightPane({
       const subjects = checkedEmailsList.map(e => e.subject || "Sans sujet");
       const senders = checkedEmailsList.map(e => e.fromName || e.from || "Expéditeur inconnu");
       const urgentCount = checkedEmailsList.filter(e => 
-        e.urgency === "high" || e.priority === "high" || 
+        e.priority === "high" || 
         (e.subject && /urgent|asap|emergency|critical/i.test(e.subject))
       ).length;
       
@@ -343,7 +344,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
   };
 
   const importanceChip = (() => {
-    const level = ai?.urgency || (email?.urgency as any) || "low";
+    const level = ai?.urgency || email?.priority || "normal";
     if (level === "high") return <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Très important</span>;
     if (level === "medium") return <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs">Important</span>;
     return <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs">Normal</span>;
@@ -391,7 +392,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
                     <Package className="w-4 h-4" />
                     {checkedEmailsList.filter(e => e.unread).length} non lus
                   </span>
-                  {checkedEmailsList.some(e => e.urgency === "high" || e.priority === "high") && (
+                  {checkedEmailsList.some(e => e.priority === "high") && (
                     <span className="flex items-center gap-1 text-red-600">
                       <AlertTriangle className="w-4 h-4" />
                       Emails urgents détectés
@@ -584,7 +585,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
                       <div className="font-medium truncate">{email.subject || "Sans sujet"}</div>
                       <div className="text-gray-500 text-xs truncate">{email.fromName || email.from}</div>
                     </div>
-                    {email.urgency === "high" && <AlertTriangle className="w-3 h-3 text-red-500" />}
+                    {email.priority === "high" && <AlertTriangle className="w-3 h-3 text-red-500" />}
                   </div>
                 ))}
                 {checkedEmailsList.length > 5 && (
@@ -782,7 +783,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
                   <div className="flex items-center gap-2">
                     <span className="text-gray-600">Niveau:</span>
                     {(() => {
-                      const level = ai?.urgency || (email?.urgency as any) || "low";
+                      const level = ai?.urgency || email?.priority || "normal";
                       if (level === "high") return <span className="px-2 py-0.5 rounded bg-red-100 text-red-700">ÉLEVÉ</span>;
                       if (level === "medium") return <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">MOYEN</span>;
                       return <span className="px-2 py-0.5 rounded bg-green-100 text-green-700">FAIBLE</span>;

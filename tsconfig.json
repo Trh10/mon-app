@@ -18,6 +18,9 @@
       "@lib/*": [
         "lib/*"
       ],
+      "@hooks/*": [
+        "hooks/*"
+      ],
       "@store": [
         "store.ts"
       ]

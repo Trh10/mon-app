@@ -79,8 +79,8 @@ export function getAuthedGmail() {
   return google.gmail({ version: "v1", auth: oAuth2Client });
 }
 
-export function normalizeHeader(headers: Array<{ name: string; value: string }> | undefined, key: string) {
-  const h = headers?.find((x) => x.name.toLowerCase() === key.toLowerCase());
+export function normalizeHeader(headers: Array<{ name?: string | null; value?: string | null }> | undefined, key: string) {
+  const h = headers?.find((x) => x.name?.toLowerCase() === key.toLowerCase());
   return h?.value || "";
 }
 

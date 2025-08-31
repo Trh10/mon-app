@@ -1,7 +1,7 @@
 'use server';
 import 'server-only';
 import { google } from 'googleapis';
-import type { Email, Attachment } from '@/lib/types';
+import type { Email, Attachment } from '@/lib/email-types';
 
 // Helpers
 function b64urlDecode(data?: string): string {

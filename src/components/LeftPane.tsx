@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState, useEffect } from "react";
 import { useUI } from "@store";
-import type { Email } from "@lib/types";
+import type { Email } from "@/lib/email-types";
 import { ExpandedEmailReader } from "@components/ExpandedEmailReader";
 import { EmailActions } from "@components/EmailActions";
 import { AlertTriangle, Paperclip, Mail, MailOpen, Archive, Trash2, Check, CheckSquare, Square, User, Calendar } from "lucide-react";
@@ -263,7 +263,7 @@ export function LeftPane({
   );
 }
 
-function getDensityStyles(density: ReturnType<typeof useUI>["density"]) {
+function getDensityStyles(density: "compact" | "dense" | "ultra") {
   if (density === "compact") return { itemClass: "px-2 py-1.5", titleClass: "text-sm", metaClass: "text-xs", spacingClass: "space-y-1" };
   if (density === "dense") return { itemClass: "px-3 py-2", titleClass: "text-sm", metaClass: "text-xs", spacingClass: "space-y-1.5" };
   if (density === "ultra") return { itemClass: "px-4 py-3", titleClass: "text-base", metaClass: "text-sm", spacingClass: "space-y-2" };

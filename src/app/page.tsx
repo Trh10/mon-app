@@ -8,7 +8,7 @@ import { RightPane } from "@/components/RightPane";
 import { ResizablePane } from "@/components/ResizablePane";
 import FocusInboxView from "@/components/FocusInboxView";
 import { AIProvider } from "@/components/AIContext";
-import type { Email } from "@/lib/types";
+import type { Email } from "@/lib/email-types";
 import { deriveUserName, nowUTCString } from "@/lib/email/credentials";
 
 // Ajoute ces helpers en haut du fichier (après les imports)
@@ -212,7 +212,6 @@ export default function Page() {
                     items={items}
                     onRefresh={handleRefresh}
                     checkedEmails={checkedEmails}
-                    userInfo={userInfo}
                   />
                 </div>
               }

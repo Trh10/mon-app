@@ -1,9 +1,9 @@
 "use client";
 import React from 'react';
-import { useAI } from './AIContext';
+import { useAI } from '../AIContext';
 
 export default function ResumeButton({ email }: { email: any }) {
-  const { setSummaryData, setSelectedEmail, isLoading, setIsLoading } = useAI();
+  const { setSummaryData, setSelectedEmailForAI, isLoadingAI, setIsLoadingAI } = useAI();
 
   async function handleResume() {
     if (!email?.content) {
@@ -15,8 +15,8 @@ export default function ResumeButton({ email }: { email: any }) {
       return;
     }
 
-    setIsLoading(true);
-    setSelectedEmail(email);
+    setIsLoadingAI(true);
+    setSelectedEmailForAI(email);
     setSummaryData(null); // Reset previous summary
     
     try {
@@ -39,9 +39,9 @@ export default function ResumeButton({ email }: { email: any }) {
       setSummaryData({
         summary: data.summary,
         urgency: data.urgency,
-        keyPoints: data.keyPoints,
-        actionItems: data.actionItems,
-        sentiment: data.sentiment,
+        highlights: data.keyPoints,
+        actions: data.actionItems,
+        language: data.sentiment,
         loading: false
       });
 
@@ -54,17 +54,17 @@ export default function ResumeButton({ email }: { email: any }) {
         loading: false
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingAI(false);
     }
   }
 
   return (
     <button 
       onClick={handleResume}
-      disabled={isLoading}
+      disabled={isLoadingAI}
       className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded-full text-sm disabled:opacity-50"
     >
-      {isLoading ? "Analyse..." : "🧠 Résumer"}
+      {isLoadingAI ? "Analyse..." : "🧠 Résumer"}
     </button>
   );
 }

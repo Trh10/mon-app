@@ -28,7 +28,7 @@ import {
   Check,
   AlertCircle
 } from "lucide-react";
-import type { Email } from "@/lib/types";
+import type { Email } from "@/lib/email-types";
 
 interface ExpandedEmailReaderProps {
   messageId: string;
@@ -191,7 +191,7 @@ export function ExpandedEmailReader({
       setShowCc(false);
     } else if (type === 'replyAll') {
       setComposeTo(email?.from || '');
-      setComposeCc(email?.cc || '');
+      setComposeCc(''); // cc not available in current Email type
       setComposeSubject(`Re: ${email?.subject || ''}`);
       setShowCc(true);
     } else if (type === 'forward') {
@@ -204,7 +204,7 @@ export function ExpandedEmailReader({
     const signature = `\n\n--\n${userInfo?.userName || 'Trh10'}\n${userInfo?.email || 'trh10@company.com'}`;
     
     if (type === 'forward') {
-      const forwardedContent = `\n\n---------- Message transféré ----------\nDe: ${email?.fromName || email?.from}\nDate: ${new Date(email?.date || '').toLocaleString()}\nObjet: ${email?.subject}\nÀ: ${email?.to}\n\n${email?.snippet || ''}`;
+      const forwardedContent = `\n\n---------- Message transféré ----------\nDe: ${email?.fromName || email?.from}\nDate: ${new Date(email?.date || '').toLocaleString()}\nObjet: ${email?.subject}\n\n${email?.snippet || ''}`;
       setComposeBody(signature + forwardedContent);
     } else {
       const originalContent = `\n\nLe ${new Date(email?.date || '').toLocaleDateString()} à ${new Date(email?.date || '').toLocaleTimeString()}, ${email?.fromName || email?.from} a écrit :\n> ${(email?.snippet || '').replace(/\n/g, '\n> ')}`;
