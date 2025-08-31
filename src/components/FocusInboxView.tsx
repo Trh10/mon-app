@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Email } from "@/lib/types";
+import type { Email } from "@/lib/email-types";
 
 type Props = {
   currentFolder: string;

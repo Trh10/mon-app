@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { addSharedFile, uploadsDir } from "../../../../lib/files/store";
 import { hub } from "../../../../lib/realtime/hub";
 import { addAudit } from "../../../../lib/audit/store";
+import type { Role } from "../../../../lib/auth/role";
 
 export const runtime = "nodejs";
 
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     // Diffusion temps réel
     const envelope = {
-      user: { id: actorId, name: actorName, role: actorRole },
+      user: { id: actorId, name: actorName, role: actorRole as Role },
       payload: {
         id: record.id,
         name: record.name,
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
       ts: createdAt,
       room: scope === "room" ? room : "direct",
       event: "file:upload",
-      user: { id: actorId, name: actorName, role: actorRole },
+      user: { id: actorId, name: actorName, role: actorRole as Role },
       payload: { fileId: id, name: cleanName, size: buffer.length, scope, toUserId, room },
       summary:
         scope === "room"

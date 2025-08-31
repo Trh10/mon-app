@@ -1,4 +1,4 @@
-import type { Role } from "../auth/roles";
+import type { Role } from "../auth/role";
 
 export type AuditUser = { id: string; name: string; role: Role };
 export type AuditEvent = {

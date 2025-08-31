@@ -3,8 +3,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useUI } from "@store";
 import CollabPanel from "./Collab/CollabPanel";
-import TeamPanel from "./Team/TeamPanel";
-import TasksPanel from "./Tasks/TasksPanel";
+import TeamPanel from "./team/TeamPanel";
+import TasksPanel from "./tasks/TasksPanel";
 import { Inbox, Star, Send, FileText, CheckSquare, Users, Link2, LogOut, ClipboardList } from "lucide-react";
 
 export function Sidebar({ 

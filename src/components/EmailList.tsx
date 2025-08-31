@@ -1,16 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
-import { Email } from "@/lib/types";
+import { Email } from "@/lib/email-types";
 import { useUI } from "@/store";
 import { cn } from "./cn";
 import { FileText, Reply, Share2, Sparkles, Minus } from "lucide-react";
 
 export function EmailList({ items }: { items: Email[] }) {
-  const { density, miniRows } = useUI();
+  const { density } = useUI();
   const sorted = useMemo(() => {
-    const order = { P1: 0, P2: 1, P3: 2 } as any;
-    return [...items].sort((a, b) => order[a.priority] - order[b.priority]);
+    const order = { high: 0, normal: 1, low: 2, P1: 0, P2: 1, P3: 2 } as any;
+    return [...items].sort((a, b) => {
+      const aPriority = a.priority || 'normal';
+      const bPriority = b.priority || 'normal';
+      return (order[aPriority] || 1) - (order[bPriority] || 1);
+    });
   }, [items]);
 
   return (
@@ -20,7 +24,7 @@ export function EmailList({ items }: { items: Email[] }) {
         <MiniToggle />
       </div>
       <div className="flex-1 overflow-auto">
-        <ul className={cn("divide-y divide-[var(--border)]", rowHeightClass(density, miniRows))}>
+        <ul className={cn("divide-y divide-[var(--border)]", rowHeightClass(density))}>
           {sorted.map((e) => (
             <EmailRow key={e.id} email={e} />
           ))}
@@ -30,8 +34,7 @@ export function EmailList({ items }: { items: Email[] }) {
   );
 }
 
-function rowHeightClass(density: ReturnType<typeof useUI>["density"], mini: boolean) {
-  if (mini) return "text-xs [&_li]:py-0.5";
+function rowHeightClass(density: "compact" | "dense" | "ultra") {
   switch (density) {
     case "compact":
       return "text-sm [&_li]:py-2";
@@ -39,11 +42,13 @@ function rowHeightClass(density: ReturnType<typeof useUI>["density"], mini: bool
       return "text-[13px] [&_li]:py-1.5";
     case "ultra":
       return "text-[12px] [&_li]:py-1";
+    default:
+      return "text-sm [&_li]:py-2";
   }
 }
 
 function EmailRow({ email }: { email: Email }) {
-  const { selectEmail, setTab, selectedEmailId } = useUI();
+  const { setSelectedEmailId, selectedEmailId } = useUI();
 
   const checked = selectedEmailId === email.id;
 
@@ -51,30 +56,25 @@ function EmailRow({ email }: { email: Email }) {
     e.stopPropagation();
     if (!checked) {
       console.debug("[EmailList] select for summary:", email.id);
-      selectEmail(email.id);
-      setTab("summary");
+      setSelectedEmailId?.(email.id);
     } else {
-      // Option (désélection) : implémente clearSelectedEmail() dans le store si tu veux décocher.
       console.debug("[EmailList] already selected:", email.id);
+      setSelectedEmailId?.(null);
     }
   };
 
   const onRead = () => {
-    selectEmail(email.id);
-    setTab("read");
+    setSelectedEmailId?.(email.id);
   };
   const onSummary = () => {
-    selectEmail(email.id);
-    setTab("summary");
+    setSelectedEmailId?.(email.id);
   };
   const onReply = () => {
-    selectEmail(email.id);
-    setTab("read");
+    setSelectedEmailId?.(email.id);
     window.dispatchEvent(new CustomEvent("pepite:reply"));
   };
   const onForward = () => {
-    selectEmail(email.id);
-    setTab("read");
+    setSelectedEmailId?.(email.id);
     window.dispatchEvent(new CustomEvent("pepite:forward"));
   };
 
@@ -94,8 +94,7 @@ function EmailRow({ email }: { email: Email }) {
         />
 
         <PriorityBadge p={email.priority} />
-        {email.urgent && <span className="badge border-urgent/40 text-urgent">Urgent</span>}
-        {email.important && <span className="badge border-important/40 text-important">Important</span>}
+        {email.priority === 'high' && <span className="badge border-red-400 text-red-600">Urgent</span>}
       </div>
 
       {/* Colonne centrale: contenu */}
@@ -139,13 +138,19 @@ function PriorityBadge({ p }: { p: Email["priority"] }) {
 }
 
 function MiniToggle() {
-  const { miniRows, toggleMiniRows } = useUI();
+  const { density, setDensity } = useUI();
+  const isMini = density === "ultra";
+  
+  const toggle = () => {
+    setDensity?.(isMini ? "dense" : "ultra");
+  };
+  
   return (
     <button
-      className={cn("btn text-xs", miniRows ? "bg-gray-900 text-white hover:bg-gray-800" : "")}
-      onClick={toggleMiniRows}
+      className={cn("btn text-xs", isMini ? "bg-gray-900 text-white hover:bg-gray-800" : "")}
+      onClick={toggle}
     >
-      {miniRows ? "Vue Mini (ON)" : "Vue Mini (OFF)"}
+      {isMini ? "Vue Mini (ON)" : "Vue Mini (OFF)"}
     </button>
   );
 }

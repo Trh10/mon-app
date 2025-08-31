@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialise Firebase Auth côté client uniquement
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      import('@/lib/firebase/config').then(({ auth: firebaseAuth }) => {
+      import('@/lib/firebase').then(({ auth: firebaseAuth }) => {
         setAuth(firebaseAuth);
         
         if (firebaseAuth) {

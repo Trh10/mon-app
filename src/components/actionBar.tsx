@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Email } from "@lib/types";
+import type { Email } from "@/lib/email-types";
 
 type Props = {
   onMessagesLoaded?: (items: Email[]) => void; // optionnel: callback si tu veux récupérer les mails chargés
