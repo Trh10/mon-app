@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 import { LeftPane } from "@/components/LeftPane";
@@ -11,7 +12,30 @@ import { AIProvider } from "@/components/AIContext";
 import type { Email } from "@/lib/email-types";
 import { deriveUserName, nowUTCString } from "@/lib/email/credentials";
 
-// Ajoute ces helpers en haut du fichier (après les imports)
+// Authentication helper
+function getStoredCredentials() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('email_credentials');
+    const userRole = localStorage.getItem('user_role') || 'employe';
+    const userName = localStorage.getItem('user_name') || 'User';
+    const organizationId = localStorage.getItem('organization_id') || 'company-1';
+    
+    if (!stored) return null;
+    
+    const credentials = JSON.parse(atob(stored));
+    return {
+      ...credentials,
+      userRole,
+      userName,
+      organizationId
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Helpers for credential normalization
 function normCreds(c: any) {
   const out = { ...(c || {}) };
   if (out.provider === "firebase_gmail") out.provider = "gmail";
@@ -21,7 +45,9 @@ function normCreds(c: any) {
   if (typeof out.secure === "boolean" && typeof out.imapTls !== "boolean") out.imapTls = out.secure;
   return out;
 }
+
 export default function Page() {
+  const router = useRouter();
   const [items, setItems] = useState<Email[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,39 +55,41 @@ export default function Page() {
   const [focusMode, setFocusMode] = useState(false);
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
   const [source, setSource] = useState("email");
-  
-  // États fixes pour éviter l'hydratation
-  const emailCredentials = {
-    email: "terachenzo7@gmail.com",
-    provider: "gmail",
-    userName: "Trh10"
-  };
-  
-  const userInfo = {
-    userName: "Trh10",
-    email: "terachenzo7@gmail.com",
-    provider: "gmail",
-    timestamp: "2025-08-30 20:40:54"
-  };
+  const [credentials, setCredentials] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const storedCreds = getStoredCredentials();
+    if (!storedCreds || !storedCreds.email) {
+      router.push('/login');
+      return;
+    }
+    
+    setCredentials(storedCreds);
+    setIsAuthenticated(true);
+  }, [router]);
 
   // Fonction pour charger les emails
   const loadEmailData = useCallback(async (folder: string = 'INBOX') => {
+    if (!credentials) return;
+    
     try {
       setLoading(true);
       setError(null);
       
-      console.log("Chargement emails pour:", emailCredentials.email);
+      console.log("Chargement emails pour:", credentials.email);
       
       const response = await fetch('/api/email/universal-connect', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${btoa(JSON.stringify(emailCredentials))}`
+          'Authorization': `Bearer ${btoa(JSON.stringify(credentials))}`
         },
         body: JSON.stringify({
-          email: emailCredentials.email,
-          provider: emailCredentials.provider,
-          userName: emailCredentials.userName,
+          email: credentials.email,
+          provider: credentials.provider,
+          userName: credentials.userName,
           folder: folder,
           timestamp: nowUTCString(),
           forceRefresh: true
@@ -91,7 +119,7 @@ export default function Page() {
           from: 'test@example.com',
           fromName: 'Test System',
           date: new Date().toISOString(),
-          snippet: "L'interface fonctionne correctement. Problème d'authentification Gmail à résoudre.",
+          snippet: "L'interface fonctionne correctement. Problème d'authentification à résoudre.",
           unread: true,
           hasAttachments: false
         }
@@ -101,12 +129,14 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [credentials]);
 
   // Chargement initial
   useEffect(() => {
-    loadEmailData(currentFolder);
-  }, [currentFolder, loadEmailData]);
+    if (credentials && isAuthenticated) {
+      loadEmailData(currentFolder);
+    }
+  }, [currentFolder, loadEmailData, credentials, isAuthenticated]);
 
   const handleRefresh = () => {
     loadEmailData(currentFolder);
@@ -118,8 +148,11 @@ export default function Page() {
   };
 
   const handleDisconnect = () => {
-    // Fonction vide pour éviter les erreurs
-    console.log("Déconnexion désactivée");
+    localStorage.removeItem('email_credentials');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('organization_id');
+    router.push('/login');
   };
 
   const handleSourceChange = (newSource: string) => {
@@ -143,12 +176,33 @@ export default function Page() {
     }
   };
 
+  // Show loading while checking authentication
+  if (!isAuthenticated) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const userInfo = {
+    userName: credentials?.userName || 'User',
+    email: credentials?.email || '',
+    provider: credentials?.provider || 'unknown',
+    userRole: credentials?.userRole || 'employe',
+    organizationId: credentials?.organizationId || 'company-1',
+    timestamp: new Date().toISOString()
+  };
+
   if (focusMode) {
     return (
       <FocusInboxView 
         currentFolder={currentFolder}
         onClose={() => setFocusMode(false)}
-        emailCredentials={emailCredentials}
+        emailCredentials={credentials}
         userInfo={userInfo}
       />
     );
@@ -163,7 +217,7 @@ export default function Page() {
           currentFolder={currentFolder}
           onFolderChange={handleFolderChange}
           onFocusMode={() => setFocusMode(true)}
-          emailCredentials={emailCredentials}
+          emailCredentials={credentials}
           onDisconnect={handleDisconnect}
           onRefresh={handleRefresh}
           userInfo={userInfo}
@@ -172,8 +226,9 @@ export default function Page() {
         <div className="bg-gradient-to-r from-blue-50 to-green-50 border-b border-blue-200 px-4 py-2 text-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-blue-700 font-medium">📊 Source: {source}</span>
-            <span className="text-green-700 font-medium">👤 Trh10</span>
-            <span className="text-blue-600">📧 terachenzo7@...</span>
+            <span className="text-green-700 font-medium">👤 {userInfo.userName}</span>
+            <span className="text-purple-600 font-medium">🏢 {userInfo.userRole}</span>
+            <span className="text-blue-600">📧 {userInfo.email.split('@')[0]}@...</span>
             <span className="text-orange-600 font-medium">📁 {currentFolder}</span>
             <span className="text-blue-600">📧 {items.length} emails</span>
           </div>
