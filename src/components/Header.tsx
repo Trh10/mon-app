@@ -1,19 +1,21 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useUI } from "@store";
-import { ChevronDown, Folder, RefreshCw, LogOut, Focus, Layout } from "lucide-react";
+import { ChevronDown, Folder, RefreshCw, LogOut, Layout } from "lucide-react";
+import EmailAccountSelector from "./HeaderEmailSelector";
+import EmailLoginModal from "./EmailLoginModal";
 
 type Props = {
   source: string;
   onSourceChange: (s: string) => void;
   currentFolder: string;
   onFolderChange: (f: string) => void;
-  onFocusMode: () => void;
   emailCredentials?: any;
   onDisconnect: () => void;
   onRefresh: () => void;
   userInfo?: { email?: string; provider?: string };
+  onAccountChange?: (account: any) => void;
 };
 
 export function Header({
@@ -21,26 +23,34 @@ export function Header({
   onSourceChange,
   currentFolder,
   onFolderChange,
-  onFocusMode,
   emailCredentials,
   onDisconnect,
   onRefresh,
   userInfo,
+  onAccountChange
 }: Props) {
   const { density, setDensity } = useUI();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Source dynamique selon provider
   const sourceLabel = useMemo(() => {
     const p = String(userInfo?.provider || emailCredentials?.provider || "").toLowerCase();
-    if (!p) return "Emails réels";
-    if (p.includes("gmail")) return "Gmail";
-    if (p.includes("imap")) return "Email IMAP";
-    if (p.includes("outlook")) return "Outlook";
-    if (p.includes("yahoo")) return "Yahoo";
-    if (p.includes("exchange")) return "Exchange";
-    if (p.includes("auto")) return "Auto";
-    return "Emails réels";
+    if (!p) return "Déconnecté";
+    if (p.includes("gmail")) return "Connecté à Gmail";
+    if (p.includes("imap")) return "Connecté IMAP";
+    if (p.includes("outlook")) return "Connecté à Outlook";
+    if (p.includes("yahoo")) return "Connecté à Yahoo";
+    if (p.includes("exchange")) return "Connecté à Exchange";
+    if (p.includes("auto")) return "Auto-détection";
+    return "Connecté";
   }, [userInfo?.provider, emailCredentials?.provider]);
+
+  const handleAccountSuccess = (newAccount: any) => {
+    // Appeler le callback parent pour mettre à jour l'état
+    if (onAccountChange) {
+      onAccountChange(newAccount);
+    }
+  };
 
   const densityLabel = useMemo(() => {
     if (density === "ultra") return "Ultra";
@@ -55,7 +65,7 @@ export function Header({
   return (
     <div className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
       <div className="max-w-[1400px] mx-auto flex items-center gap-2">
-        <div className="text-lg font-semibold flex-1">Pépite Mail IA</div>
+        <div className="text-lg font-semibold flex-1">ICONES BOX</div>
 
         {/* Source dynamique */}
         <div className="flex items-center gap-2">
@@ -99,7 +109,7 @@ export function Header({
           </div>
         </div>
 
-        {/* Dossier courant */}
+        {/* Dossier */}
         <div className="flex items-center gap-2">
           <Folder className="w-4 h-4 text-blue-100" />
           <div className="relative group">
@@ -121,17 +131,31 @@ export function Header({
           </div>
         </div>
 
-        {/* Boutons actions */}
-        <button onClick={onFocusMode} className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
-          <Focus className="w-4 h-4" /> Focus
-        </button>
+        {/* Boutons d'action */}
         <button onClick={onRefresh} className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
           <RefreshCw className="w-4 h-4" /> Rafraîchir
         </button>
-        <button onClick={onDisconnect} className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
-          <LogOut className="w-4 h-4" /> Déconnexion
-        </button>
+        
+        {/* Sélecteur de comptes email */}
+        <div className="flex items-center gap-2">
+          <EmailAccountSelector 
+            onAccountChange={(account) => {
+              console.log('Changement de compte:', account);
+              if (onAccountChange) {
+                onAccountChange(account);
+              }
+            }}
+            onConnectNew={() => setShowLoginModal(true)}
+          />
+        </div>
       </div>
+
+      {/* Modal de connexion email */}
+      <EmailLoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={handleAccountSuccess}
+      />
     </div>
   );
 }

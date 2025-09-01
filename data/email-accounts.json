@@ -1,0 +1,23 @@
+{
+  "accounts": [
+    {
+      "id": "w7ct077dh7",
+      "email": "terachenzo7@gmail.com",
+      "provider": {
+        "id": "gmail",
+        "name": "Gmail",
+        "type": "gmail",
+        "icon": "📧",
+        "color": "bg-red-500"
+      },
+      "isConnected": true,
+      "unreadCount": 100,
+      "connectedAt": "2025-08-31T23:39:18.200Z",
+      "credentials": {
+        "email": "terachenzo7@gmail.com",
+        "oauth": "google"
+      }
+    }
+  ],
+  "activeAccount": "w7ct077dh7"
+}

@@ -1,3 +1,5 @@
+import { gmail_v1 } from 'googleapis';
+
 export type MimeAttachment = {
   filename: string;
   contentType: string; // ex: application/pdf
@@ -75,4 +77,47 @@ export function buildMimeMessage(opts: {
   const mime = lines.join("\r\n");
   const rawB64 = Buffer.from(mime, "utf8").toString("base64");
   return toBase64Url(rawB64);
+}
+
+interface MimeMessageOptions {
+  to: string;
+  from: string;
+  subject: string;
+  threadId: string;
+  inReplyTo?: string;
+  references?: string;
+}
+
+export function createMimeMessage(options: MimeMessageOptions, originalMessage: gmail_v1.Schema$Message, body: string) {
+  const { to, from, subject, threadId } = options;
+
+  const payload = originalMessage.payload;
+  const headers = payload?.headers;
+
+  const inReplyToHeader = headers?.find((h) => h.name === 'Message-ID');
+  const referencesHeader = headers?.find((h) => h.name === 'References');
+
+  const emailHeaders: { [key: string]: string | null | undefined } = {
+    'To': to,
+    'From': from,
+    'Subject': subject,
+    'In-Reply-To': inReplyToHeader?.value,
+    'References': referencesHeader?.value,
+    'Content-Type': 'text/html; charset=utf-8'
+  };
+
+  let email = '';
+  for (const header in emailHeaders) {
+    if (emailHeaders[header]) {
+      email += `${header}: ${emailHeaders[header]}\r\n`;
+    }
+  }
+  email += '\r\n' + body;
+
+  const base64EncodedEmail = Buffer.from(email).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  return {
+    raw: base64EncodedEmail,
+    threadId: threadId
+  };
 }

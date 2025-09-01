@@ -1,0 +1,32 @@
+[
+  {
+    "id": "user001",
+    "code": "ADMIN",
+    "name": "Administrateur Système",
+    "email": "admin@company.com",
+    "level": 7,
+    "levelName": "Administrateur",
+    "companyId": "default-company",
+    "companyCode": "COMP-001",
+    "department": "IT",
+    "position": "Administrateur",
+    "isActive": true,
+    "createdAt": "2025-09-01T06:43:26.017Z",
+    "updatedAt": "2025-09-01T06:43:26.017Z"
+  },
+  {
+    "id": "user002",
+    "code": "DG001",
+    "name": "Directeur Général",
+    "email": "dg@company.com",
+    "level": 10,
+    "levelName": "Directeur Général",
+    "companyId": "default-company",
+    "companyCode": "COMP-001",
+    "department": "Direction",
+    "position": "Directeur Général",
+    "isActive": true,
+    "createdAt": "2025-09-01T06:43:26.017Z",
+    "updatedAt": "2025-09-01T06:43:26.017Z"
+  }
+]

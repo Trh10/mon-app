@@ -1,27 +1,47 @@
 import { google } from 'googleapis';
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
-// Cette fonction sera utilisée par TOUTES les routes API
-export function getAuthenticatedClient() {
+export async function getGoogleAuth(req: NextRequest) {
   const cookieStore = cookies();
-  const tokenCookie = cookieStore.get('google-tokens');
+  const tokenCookie = cookieStore.get('google-tokens') || cookieStore.get('pepite_google_tokens');
 
   if (!tokenCookie) {
-    throw new Error('Not Authenticated: No token cookie found.');
+    return null;
   }
 
   try {
-    const { access_token } = JSON.parse(tokenCookie.value);
-    if (!access_token) {
-      throw new Error('Not Authenticated: Invalid token in cookie.');
-    }
+    const tokens = JSON.parse(tokenCookie.value);
+    const auth = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    auth.setCredentials(tokens);
+    return auth;
+  } catch (error) {
+    console.error('Error parsing token cookie:', error);
+    return null;
+  }
+}
 
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token });
-    return oauth2Client;
+// Simple helper used by API routes expecting a ready OAuth2 client or throwing if missing
+export function getAuthenticatedClient() {
+  const cookieStore = cookies();
+  const tokenCookie = cookieStore.get('google-tokens') || cookieStore.get('pepite_google_tokens');
 
-  } catch (e) {
-    throw new Error('Not Authenticated: Cookie parsing failed.');
+  if (!tokenCookie) {
+    throw new Error('Utilisateur non authentifié à Google');
+  }
+
+  try {
+    const tokens = JSON.parse(tokenCookie.value);
+    const auth = new (google as any).auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    auth.setCredentials(tokens);
+    return auth;
+  } catch (error) {
+    throw new Error('Jetons Google invalides');
   }
 }

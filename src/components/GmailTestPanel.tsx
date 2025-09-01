@@ -28,7 +28,7 @@ export function GmailTestPanel() {
       const me = await gmailActions.me();
       await gmailActions.send({
         to: me.emailAddress,
-        subject: "Test depuis Pepite Mail",
+        subject: "Test depuis ICONES BOX",
         html: "<p>Ceci est un test d'envoi depuis l'application.</p>"
       });
       setStatus("Test envoyé avec succès");

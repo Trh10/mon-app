@@ -10,7 +10,7 @@ import {
   Mail, Maximize2, User, Clock, AlertTriangle,
   Brain, Stars, Lightbulb, FileText, CheckCircle2,
   Loader2, ChevronDown, ChevronRight, Wand2, Sparkles, Upload, ShieldAlert,
-  CheckSquare, Users, Package,
+  CheckSquare, Users, Package, Globe,
   PenTool, Reply, Send // NOUVEAU - Icônes pour la rédaction
 } from "lucide-react";
 import { extractFromGmailMessage } from "@/lib/mail/extract";
@@ -27,6 +27,14 @@ type AIResult = {
   subjects?: string[];
   senders?: string[];
   urgentEmails?: number;
+  // NOUVEAU : Fonctionnalités IA avancées
+  category?: string;
+  sentiment?: "positive" | "negative" | "neutral";
+  suggestedReplies?: string[];
+  translation?: { [key: string]: string };
+  confidence?: number;
+  keywords?: string[];
+  priority?: number;
 };
 
 function isValidGmailId(id?: string | null) {
@@ -98,7 +106,8 @@ export function RightPane({
   onRefresh?: () => void;
   checkedEmails?: Set<string>;
 }) {
-  const { selectedEmailId, readingTab, setTab } = useUI();
+  const { selectedEmailId } = useUI();
+  const [currentTab, setCurrentTab] = useState("summary");
 
   const [expandedView, setExpandedView] = useState(false);
   const [detail, setDetail] = useState<any>(null);
@@ -119,6 +128,20 @@ export function RightPane({
 
   // NOUVEAU : State pour le mode de résumé
   const [summaryMode, setSummaryMode] = useState<"single" | "multiple">("single");
+
+  // NOUVEAU : States pour les fonctionnalités IA avancées
+  const [aiAdvanced, setAiAdvanced] = useState<{
+    classification?: string;
+    sentiment?: "positive" | "negative" | "neutral";
+    suggestedReplies?: string[];
+    translation?: { [key: string]: string };
+    priority?: number;
+    provider?: string; // NOUVEAU : Indicateur du provider utilisé
+    responseTime?: number; // NOUVEAU : Temps de réponse
+  } | null>(null);
+  const [loadingAdvanced, setLoadingAdvanced] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [targetLanguage, setTargetLanguage] = useState("en");
 
   // NOUVEAU : States pour la rédaction IA
   const [showComposer, setShowComposer] = useState(false);
@@ -183,7 +206,7 @@ export function RightPane({
 
     const shouldRun =
       (autoSummarize && lastSummarizedId.current !== selectedEmailId) ||
-      readingTab === "summary";
+      currentTab === "summary";
 
     if (!shouldRun) return;
 
@@ -224,7 +247,7 @@ export function RightPane({
         }
       } catch {}
     })();
-  }, [autoSummarize, email?.id, detail?.id, selectedEmailId, readingTab]);
+  }, [autoSummarize, email?.id, detail?.id, selectedEmailId, currentTab]);
 
   // NOUVEAU : Fonction pour résumer un seul email
   async function handleSummarizeClick() {
@@ -242,7 +265,7 @@ export function RightPane({
 
     if (!subject && !bodyHtml && !bodyText) return;
 
-    setTab?.("summary");
+    setCurrentTab("summary");
     setAiBusy(true);
     console.debug("[RightPane] summarize (manual) start:", { id: selectedEmailId });
     const result = await summarizePayload({ subject, bodyHtml, bodyText, lang: "fr" });
@@ -256,7 +279,7 @@ export function RightPane({
     if (checkedEmailsList.length === 0) return;
 
     setAiBusy(true);
-    setTab?.("summary");
+    setCurrentTab("summary");
     
     try {
       console.debug("[RightPane] summarize multiple emails:", checkedEmailsList.length);
@@ -265,7 +288,7 @@ export function RightPane({
       const subjects = checkedEmailsList.map(e => e.subject || "Sans sujet");
       const senders = checkedEmailsList.map(e => e.fromName || e.from || "Expéditeur inconnu");
       const urgentCount = checkedEmailsList.filter(e => 
-        e.urgency === "high" || e.priority === "high" || 
+        e.priority === "P1" || 
         (e.subject && /urgent|asap|emergency|critical/i.test(e.subject))
       ).length;
       
@@ -315,6 +338,117 @@ Aperçu: ${email.snippet || "Pas d'aperçu"}
     }
   }
 
+  // NOUVEAU : Fonctions IA avancées
+  async function analyzeEmailAdvanced(emailContent: { subject: string; content: string; from: string }) {
+    setLoadingAdvanced(true);
+    const startTime = Date.now();
+    let usedProvider = "fallback";
+    
+    try {
+      // Tous les appels en parallèle pour la vitesse
+      const [classifyRes, sentimentRes, priorityRes, repliesRes] = await Promise.allSettled([
+        fetch("/api/ai/classify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(emailContent),
+        }).then(r => r.json()),
+        
+        fetch("/api/ai/sentiment", {
+          method: "POST", 
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(emailContent),
+        }).then(r => r.json()),
+        
+        fetch("/api/ai/predict-priority", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(emailContent),
+        }).then(r => r.json()),
+        
+        fetch("/api/ai/suggest-replies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(emailContent),
+        }).then(r => r.json())
+      ]);
+
+      const responseTime = Date.now() - startTime;
+      
+      // Extraire les données des résultats
+      const classification = classifyRes.status === "fulfilled" ? classifyRes.value : {};
+      const sentiment = sentimentRes.status === "fulfilled" ? sentimentRes.value : {};
+      const priority = priorityRes.status === "fulfilled" ? priorityRes.value : {};
+      const replies = repliesRes.status === "fulfilled" ? repliesRes.value : {};
+
+      // Déterminer le provider utilisé (prendre le premier disponible)
+      if (sentiment.provider) usedProvider = sentiment.provider;
+      else if (priority.provider) usedProvider = priority.provider;
+      else if (classification.provider) usedProvider = classification.provider;
+
+      setAiAdvanced({
+        classification: classification.category || "Général",
+        sentiment: sentiment.sentiment || "neutral",
+        suggestedReplies: replies.suggestions || [],
+        priority: priority.priority || 3,
+        provider: usedProvider,
+        responseTime
+      });
+
+      console.log(`🤖 Analyse IA avancée terminée avec ${usedProvider} en ${responseTime}ms:`, {
+        classification: classification.category,
+        sentiment: sentiment.sentiment,
+        priority: priority.priority,
+        repliesCount: replies.suggestions?.length || 0,
+      });
+    } catch (error) {
+      console.error("❌ Erreur analyse IA avancée:", error);
+      setAiAdvanced({
+        provider: "fallback",
+        responseTime: Date.now() - startTime
+      });
+    } finally {
+      setLoadingAdvanced(false);
+    }
+  }
+
+  // NOUVEAU : Traduction automatique
+  async function translateEmail(text: string, targetLang: string) {
+    try {
+      const response = await fetch("/api/ai/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, targetLanguage: targetLang }),
+      });
+      const data = await response.json();
+      
+      if (data.translation) {
+        setAiAdvanced(prev => ({
+          ...prev,
+          translation: { [targetLang]: data.translation }
+        }));
+        setShowTranslation(true);
+      }
+    } catch (error) {
+      console.error("❌ Erreur traduction:", error);
+    }
+  }
+
+  // NOUVEAU : Auto-analyse quand un email est sélectionné
+  useEffect(() => {
+    if (!email || !detail) return;
+
+    const { subject: s, bodyText: content } = extractFromGmailMessage(detail);
+    const emailContent = {
+      subject: s || email.subject || "",
+      content: content || email.snippet || "",
+      from: email.from || ""
+    };
+
+    if (emailContent.subject || emailContent.content) {
+      analyzeEmailAdvanced(emailContent);
+    }
+  }, [email?.id, detail?.id]);
+
   async function handleAnalyzeFreeText() {
     const text = freeText.trim();
     if (!text) return;
@@ -343,7 +477,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
   };
 
   const importanceChip = (() => {
-    const level = ai?.urgency || (email?.urgency as any) || "low";
+    const level = ai?.urgency || "low";
     if (level === "high") return <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-xs flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Très important</span>;
     if (level === "medium") return <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs">Important</span>;
     return <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs">Normal</span>;
@@ -391,7 +525,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
                     <Package className="w-4 h-4" />
                     {checkedEmailsList.filter(e => e.unread).length} non lus
                   </span>
-                  {checkedEmailsList.some(e => e.urgency === "high" || e.priority === "high") && (
+                  {checkedEmailsList.some(e => e.priority === "P1") && (
                     <span className="flex items-center gap-1 text-red-600">
                       <AlertTriangle className="w-4 h-4" />
                       Emails urgents détectés
@@ -584,7 +718,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
                       <div className="font-medium truncate">{email.subject || "Sans sujet"}</div>
                       <div className="text-gray-500 text-xs truncate">{email.fromName || email.from}</div>
                     </div>
-                    {email.urgency === "high" && <AlertTriangle className="w-3 h-3 text-red-500" />}
+                    {email.priority === "P1" && <AlertTriangle className="w-3 h-3 text-red-500" />}
                   </div>
                 ))}
                 {checkedEmailsList.length > 5 && (
@@ -673,6 +807,184 @@ Contenu: ${emailData.content.substring(0, 150)}...
               </div>
             </div>
           )}
+
+          {/* NOUVEAU : Cards d'analyse IA avancée */}
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 shadow-sm">
+            <h3 className="font-semibold text-purple-800 flex items-center gap-2 mb-4">
+              <Brain className="w-5 h-5" />
+              🤖 Intelligence Artificielle Avancée
+              {loadingAdvanced && (
+                <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
+              )}
+              {aiAdvanced?.provider && (
+                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                  {aiAdvanced.provider === "groq" && "⚡ Groq"}
+                  {aiAdvanced.provider === "openai" && "🤖 OpenAI"} 
+                  {aiAdvanced.provider === "anthropic" && "🧠 Claude"}
+                  {aiAdvanced.provider === "fallback" && "🔄 Fallback"}
+                  {aiAdvanced.responseTime && ` (${aiAdvanced.responseTime}ms)`}
+                </span>
+              )}
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Classification automatique */}
+              <div className="bg-white border rounded-lg p-3 shadow-sm">
+                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-2">
+                  <CheckSquare className="w-4 h-4 text-blue-500" />
+                  Classification
+                </h4>
+                {aiAdvanced?.classification ? (
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                      {aiAdvanced.classification}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">Analyse en cours...</div>
+                )}
+              </div>
+
+              {/* Analyse de sentiment */}
+              <div className="bg-white border rounded-lg p-3 shadow-sm">
+                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-2">
+                  <Stars className="w-4 h-4 text-green-500" />
+                  Sentiment
+                </h4>
+                {aiAdvanced?.sentiment ? (
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      aiAdvanced.sentiment === "positive" ? "bg-green-100 text-green-700" :
+                      aiAdvanced.sentiment === "negative" ? "bg-red-100 text-red-700" :
+                      "bg-gray-100 text-gray-700"
+                    }`}>
+                      {aiAdvanced.sentiment === "positive" ? "😊 Positif" :
+                       aiAdvanced.sentiment === "negative" ? "😞 Négatif" : "😐 Neutre"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">Analyse en cours...</div>
+                )}
+              </div>
+
+              {/* Priorité prédite */}
+              <div className="bg-white border rounded-lg p-3 shadow-sm">
+                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  Priorité IA
+                </h4>
+                {aiAdvanced?.priority ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 rounded-full ${
+                            i < (aiAdvanced.priority || 0) ? "bg-red-500" : "bg-gray-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-gray-600">{aiAdvanced.priority}/5</span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">Calcul en cours...</div>
+                )}
+              </div>
+            </div>
+
+            {/* Réponses suggérées */}
+            {aiAdvanced?.suggestedReplies && aiAdvanced.suggestedReplies.length > 0 && (
+              <div className="mt-4 bg-white border rounded-lg p-3 shadow-sm">
+                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-3">
+                  <Reply className="w-4 h-4 text-blue-500" />
+                  💬 Réponses suggérées par IA
+                </h4>
+                <div className="space-y-2">
+                  {aiAdvanced.suggestedReplies.slice(0, 3).map((reply, index) => (
+                    <div key={index} className="bg-blue-50 border border-blue-200 rounded p-2">
+                      <p className="text-sm text-gray-700 mb-2">{reply}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setComposerMode("reply");
+                            setShowComposer(true);
+                            // Pré-remplir avec la réponse suggérée
+                          }}
+                          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Utiliser cette réponse
+                        </button>
+                        <button
+                          onClick={() => navigator.clipboard.writeText(reply)}
+                          className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                        >
+                          Copier
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Traduction */}
+            <div className="mt-4 bg-white border rounded-lg p-3 shadow-sm">
+              <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-3">
+                <Globe className="w-4 h-4 text-indigo-500" />
+                🌍 Traduction automatique
+              </h4>
+              <div className="flex gap-2 items-center mb-3">
+                <select
+                  value={targetLanguage}
+                  onChange={(e) => setTargetLanguage(e.target.value)}
+                  className="text-xs border rounded px-2 py-1"
+                >
+                  <option value="en">🇺🇸 Anglais</option>
+                  <option value="es">🇪🇸 Espagnol</option>
+                  <option value="de">🇩🇪 Allemand</option>
+                  <option value="it">🇮🇹 Italien</option>
+                  <option value="pt">🇵🇹 Portugais</option>
+                  <option value="zh">🇨🇳 Chinois</option>
+                  <option value="ja">🇯🇵 Japonais</option>
+                  <option value="ar">🇸🇦 Arabe</option>
+                </select>
+                <button
+                  onClick={() => {
+                    const content = detail ? extractFromGmailMessage(detail).bodyText : email?.snippet;
+                    if (content) {
+                      translateEmail(content, targetLanguage);
+                    }
+                  }}
+                  disabled={!email || loadingAdvanced}
+                  className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  Traduire
+                </button>
+              </div>
+              
+              {aiAdvanced?.translation && showTranslation && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-indigo-800">Traduction en {targetLanguage}:</span>
+                    <button
+                      onClick={() => setShowTranslation(false)}
+                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-700">{aiAdvanced.translation[targetLanguage]}</p>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(aiAdvanced.translation?.[targetLanguage] || "")}
+                    className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 mt-2"
+                  >
+                    Copier traduction
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Cards d'analyse - mises à jour pour le mode multiple */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -782,7 +1094,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
                   <div className="flex items-center gap-2">
                     <span className="text-gray-600">Niveau:</span>
                     {(() => {
-                      const level = ai?.urgency || (email?.urgency as any) || "low";
+                      const level = ai?.urgency || "low";
                       if (level === "high") return <span className="px-2 py-0.5 rounded bg-red-100 text-red-700">ÉLEVÉ</span>;
                       if (level === "medium") return <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">MOYEN</span>;
                       return <span className="px-2 py-0.5 rounded bg-green-100 text-green-700">FAIBLE</span>;

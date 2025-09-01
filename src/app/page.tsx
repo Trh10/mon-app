@@ -6,8 +6,9 @@ import Sidebar from "@/components/Sidebar";
 import { LeftPane } from "@/components/LeftPane";
 import { RightPane } from "@/components/RightPane";
 import { ResizablePane } from "@/components/ResizablePane";
-import FocusInboxView from "@/components/FocusInboxView";
 import { AIProvider } from "@/components/AIContext";
+import { CodeAuthProvider } from "@/components/auth/CodeAuthContext";
+import { AppWithAuth } from "@/components/AppWithAuth";
 import type { Email } from "@/lib/types";
 import { deriveUserName, nowUTCString } from "@/lib/email/credentials";
 
@@ -22,95 +23,179 @@ function normCreds(c: any) {
   return out;
 }
 export default function Page() {
+  return (
+    <CodeAuthProvider>
+      <AppWithAuth>
+        <EmailApp />
+      </AppWithAuth>
+    </CodeAuthProvider>
+  );
+}
+
+function EmailApp() {
   const [items, setItems] = useState<Email[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentFolder, setCurrentFolder] = useState("INBOX");
-  const [focusMode, setFocusMode] = useState(false);
   const [checkedEmails, setCheckedEmails] = useState<Set<string>>(new Set());
   const [source, setSource] = useState("email");
   
-  // États fixes pour éviter l'hydratation
-  const emailCredentials = {
-    email: "terachenzo7@gmail.com",
-    provider: "gmail",
-    userName: "Trh10"
-  };
-  
-  const userInfo = {
-    userName: "Trh10",
-    email: "terachenzo7@gmail.com",
-    provider: "gmail",
-    timestamp: "2025-08-30 20:40:54"
-  };
+  // États pour le compte actif
+  const [activeAccount, setActiveAccount] = useState<any>(null);
+  const [isCheckingAccount, setIsCheckingAccount] = useState(true);
 
-  // Fonction pour charger les emails
-  const loadEmailData = useCallback(async (folder: string = 'INBOX') => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log("Chargement emails pour:", emailCredentials.email);
-      
-      const response = await fetch('/api/email/universal-connect', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${btoa(JSON.stringify(emailCredentials))}`
-        },
-        body: JSON.stringify({
-          email: emailCredentials.email,
-          provider: emailCredentials.provider,
-          userName: emailCredentials.userName,
-          folder: folder,
-          timestamp: nowUTCString(),
-          forceRefresh: true
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.emails && Array.isArray(data.emails)) {
-          setItems(data.emails);
-        } else {
-          setItems([]);
-        }
-      } else {
-        throw new Error(`Erreur ${response.status}`);
-      }
-      
-    } catch (e: any) {
-      console.error("Erreur chargement:", e);
-      setError(e.message);
-      
-      // Emails de test en cas d'erreur
-      const testEmails: Email[] = [
-        {
-          id: 'test-1',
-          subject: "Email de test - Interface fonctionnelle",
-          from: 'test@example.com',
-          fromName: 'Test System',
-          date: new Date().toISOString(),
-          snippet: "L'interface fonctionne correctement. Problème d'authentification Gmail à résoudre.",
-          unread: true,
-          hasAttachments: false
-        }
-      ] as any[];
-      
-      setItems(testEmails);
-    } finally {
-      setLoading(false);
+  // Vérifier les paramètres URL pour Gmail success
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gmail_connected') === 'success') {
+      // Supprimer le paramètre de l'URL et recharger les comptes
+      window.history.replaceState({}, document.title, window.location.pathname);
+      console.log('🎉 Gmail connecté avec succès, rechargement des comptes...');
+      setTimeout(() => {
+        checkActiveAccount();
+      }, 1000);
+    } else if (params.get('gmail_connected') === 'error') {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      console.error('❌ Erreur connexion Gmail');
+      setError('Erreur lors de la connexion Gmail');
     }
   }, []);
 
+  // Vérifier le compte actif au chargement
+  useEffect(() => {
+    checkActiveAccount();
+  }, []);
+
+  const checkActiveAccount = async () => {
+    try {
+      setIsCheckingAccount(true);
+      const response = await fetch('/api/email/active');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.hasActiveAccount) {
+          setActiveAccount(data.activeAccount);
+          loadEmailData(currentFolder, data.activeAccount);
+        } else {
+          setActiveAccount(null);
+          loadWelcomeEmails();
+        }
+      } else {
+        setActiveAccount(null);
+        loadWelcomeEmails();
+      }
+    } catch (error) {
+      console.error("Erreur vérification compte:", error);
+      setActiveAccount(null);
+      loadWelcomeEmails();
+    } finally {
+      setIsCheckingAccount(false);
+    }
+  };
+
+  const loadWelcomeEmails = () => {
+    const welcomeEmails: Email[] = [
+      {
+        id: 'welcome-1',
+        subject: "🔗 Connectez votre premier compte email",
+        from: 'system@pepitemail.com',
+        fromName: 'ICONES BOX',
+        date: new Date().toISOString(),
+        snippet: "Cliquez sur le sélecteur de comptes dans le header pour vous connecter à Gmail, Outlook ou d'autres providers.",
+        unread: true,
+        hasAttachments: false
+      }
+    ] as any[];
+    setItems(welcomeEmails);
+  };
+
+  // Fonction pour charger les emails avec pagination infinie
+  const loadEmailData = useCallback(async (folder: string = 'INBOX', account: any = null, append: boolean = false) => {
+    const currentAccount = account || activeAccount;
+    
+    if (!currentAccount) {
+      loadWelcomeEmails();
+      return;
+    }
+
+    try {
+      if (!append) {
+        setLoading(true);
+        setError(null);
+      }
+      
+      console.log("Chargement emails pour compte:", currentAccount.email, "dossier:", folder);
+      
+      const currentCount = append ? items.length : 0;
+      
+      // Charger les emails via l'API avec pagination
+      const response = await fetch(`/api/email/emails?folder=${folder}&skip=${currentCount}&limit=100`);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur API: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log(`📧 ${data.emails.length} emails chargés pour ${data.account.email}`);
+        
+        if (append) {
+          // Ajouter les nouveaux emails en évitant les doublons
+          setItems(prevItems => {
+            const existingIds = new Set(prevItems.map(item => item.id));
+            const newEmails = data.emails.filter((email: any) => !existingIds.has(email.id));
+            return [...prevItems, ...newEmails];
+          });
+        } else {
+          setItems(data.emails);
+        }
+      } else {
+        throw new Error(data.error || 'Erreur de chargement');
+      }
+      
+    } catch (e: any) {
+      console.error("Erreur chargement emails:", e);
+      setError(e.message);
+      
+      // En cas d'erreur, garder la liste telle quelle et afficher l'erreur
+      if (!append) {
+        setItems([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [activeAccount, items.length]);
+
+  // Fonction pour charger plus d'emails (scroll infini)
+  const loadMoreEmails = useCallback(() => {
+    if (!loading && activeAccount) {
+      loadEmailData(currentFolder, activeAccount, true);
+    }
+  }, [loadEmailData, loading, activeAccount, currentFolder]);
+
   // Chargement initial
   useEffect(() => {
-    loadEmailData(currentFolder);
-  }, [currentFolder, loadEmailData]);
+    if (!isCheckingAccount && activeAccount) {
+      loadEmailData(currentFolder);
+    }
+  }, [currentFolder, loadEmailData, isCheckingAccount, activeAccount]);
 
   const handleRefresh = () => {
-    loadEmailData(currentFolder);
+    if (activeAccount) {
+      loadEmailData(currentFolder);
+    } else {
+      checkActiveAccount();
+    }
     setCheckedEmails(new Set());
+  };
+
+  const handleAccountChange = (account: any) => {
+    setActiveAccount(account);
+    if (account) {
+      loadEmailData(currentFolder, account);
+    } else {
+      loadWelcomeEmails();
+    }
   };
 
   const handleFolderChange = (newFolder: string) => {
@@ -124,35 +209,8 @@ export default function Page() {
 
   const handleSourceChange = (newSource: string) => {
     setSource(newSource);
-    if (newSource === "mock") {
-      const mockEmails: Email[] = [
-        {
-          id: 'mock-1',
-          subject: "Email de démonstration",
-          from: 'demo@test.com',
-          fromName: 'Démonstration',
-          date: new Date().toISOString(),
-          snippet: "Ceci est un email de démonstration pour tester l'interface.",
-          unread: true,
-          hasAttachments: false
-        }
-      ] as any[];
-      setItems(mockEmails);
-    } else {
-      handleRefresh();
-    }
+    handleRefresh();
   };
-
-  if (focusMode) {
-    return (
-      <FocusInboxView 
-        currentFolder={currentFolder}
-        onClose={() => setFocusMode(false)}
-        emailCredentials={emailCredentials}
-        userInfo={userInfo}
-      />
-    );
-  }
 
   return (
     <AIProvider>
@@ -162,18 +220,27 @@ export default function Page() {
           onSourceChange={handleSourceChange}
           currentFolder={currentFolder}
           onFolderChange={handleFolderChange}
-          onFocusMode={() => setFocusMode(true)}
-          emailCredentials={emailCredentials}
+          emailCredentials={undefined}
           onDisconnect={handleDisconnect}
           onRefresh={handleRefresh}
-          userInfo={userInfo}
+          userInfo={undefined}
+          onAccountChange={handleAccountChange}
         />
 
         <div className="bg-gradient-to-r from-blue-50 to-green-50 border-b border-blue-200 px-4 py-2 text-sm flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="text-blue-700 font-medium">📊 Source: {source}</span>
-            <span className="text-green-700 font-medium">👤 Trh10</span>
-            <span className="text-blue-600">📧 terachenzo7@...</span>
+            {isCheckingAccount ? (
+              <span className="text-orange-600">🔄 Vérification compte...</span>
+            ) : activeAccount ? (
+              <>
+                <span className="text-green-700 font-medium">👤 {activeAccount.email.split('@')[0]}</span>
+                <span className="text-blue-600">📧 {activeAccount.email}</span>
+                <span className="text-purple-600">🔗 {activeAccount.provider.name}</span>
+              </>
+            ) : (
+              <span className="text-red-600">❌ Aucun compte connecté</span>
+            )}
             <span className="text-orange-600 font-medium">📁 {currentFolder}</span>
             <span className="text-blue-600">📧 {items.length} emails</span>
           </div>
@@ -186,9 +253,9 @@ export default function Page() {
             <Sidebar 
               currentFolder={currentFolder}
               onFolderChange={handleFolderChange}
-              userInfo={userInfo}
+              userInfo={undefined}
               onRefresh={handleRefresh}
-              isConnected={true}
+              isConnected={false}
             />
           </div>
           
@@ -202,7 +269,12 @@ export default function Page() {
                     onRefresh={handleRefresh}
                     checkedEmails={checkedEmails}
                     setCheckedEmails={setCheckedEmails}
-                    userInfo={userInfo}
+                    userInfo={{
+                      userName: activeAccount?.email?.split('@')[0] || 'User',
+                      email: activeAccount?.email || '',
+                      provider: activeAccount?.provider?.name || ''
+                    }}
+                    onLoadMore={loadMoreEmails}
                   />
                 </div>
               }
@@ -212,7 +284,6 @@ export default function Page() {
                     items={items}
                     onRefresh={handleRefresh}
                     checkedEmails={checkedEmails}
-                    userInfo={userInfo}
                   />
                 </div>
               }

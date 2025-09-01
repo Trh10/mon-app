@@ -4,11 +4,15 @@ import type { NextResponse } from "next/server";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
-  "https://www.googleapis.com/auth/gmail.send"
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.modify"
 ];
 
 function getRedirectUri() {
-  return process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI || "http://localhost:3000/api/google/callback";
+  // Priorité à l'URI explicite, sinon construit à partir de BASE_URL pour éviter tout décalage
+  if (process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI) return process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
+  if (process.env.NEXT_PUBLIC_BASE_URL) return `${process.env.NEXT_PUBLIC_BASE_URL}/api/google/callback`;
+  return "http://localhost:3000/api/google/callback";
 }
 
 export function getOAuthClient() {

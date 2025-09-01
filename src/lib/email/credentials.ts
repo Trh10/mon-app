@@ -1,11 +1,20 @@
+export type CompanyRole = 'directeur' | 'manager' | 'assistant' | 'employe';
+
 export type StoredCredentials = {
   email?: string;
   provider?: string;
   userName?: string;
+  companyRole?: CompanyRole;
   googleAccessToken?: string;
   googleRefreshToken?: string;
   imap?: { host?: string; port?: number; secure?: boolean; user?: string; pass?: string };
   smtp?: { host?: string; port?: number; secure?: boolean; user?: string; pass?: string };
+  imapHost?: string;
+  imapPort?: number;
+  smtpHost?: string;
+  smtpPort?: number;
+  secure?: boolean;
+  timestamp?: string;
   [k: string]: any;
 };
 

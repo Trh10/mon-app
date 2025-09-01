@@ -56,15 +56,69 @@ export async function POST(req: NextRequest) {
     if (event === "chat") {
       const id = String(payload?.id || `${now}-${Math.random().toString(36).slice(2, 8)}`);
       const text = String(payload?.text || "").slice(0, 2000);
-      addChatMessage(room, { id, room, user, text, ts: now });
+      const replyTo = payload?.replyTo ? String(payload.replyTo) : undefined;
+      const reactions = payload?.reactions || {};
+      
+      addChatMessage(room, { 
+        id, 
+        room, 
+        user, 
+        text, 
+        ts: now, 
+        replyTo,
+        reactions 
+      });
 
-      hub.broadcast(room, "chat", { user, payload: { id, text }, ts: now });
+      hub.broadcast(room, "chat", { 
+        user, 
+        payload: { id, text, replyTo, reactions }, 
+        ts: now 
+      });
 
       addAudit({
         ts: now, room, event: "chat", user,
-        payload: { id, text },
+        payload: { id, text, replyTo },
         summary: `${user.name} a envoyé un message: "${text.slice(0, 60)}"`,
       });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Réactions sur les messages
+    if (event === "reaction") {
+      const messageId = String(payload?.messageId || "");
+      const emoji = String(payload?.emoji || "");
+      const action = String(payload?.action || "add"); // "add" ou "remove"
+      
+      if (!messageId || !emoji) {
+        return NextResponse.json({ error: "Missing messageId or emoji" }, { status: 400 });
+      }
+
+      hub.broadcast(room, "reaction", { 
+        user, 
+        payload: { messageId, emoji, action }, 
+        ts: now 
+      });
+
+      addAudit({
+        ts: now, room, event: "reaction", user,
+        payload: { messageId, emoji, action },
+        summary: `${user.name} a ${action === "add" ? "ajouté" : "retiré"} la réaction ${emoji}`,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    // Indicateurs de frappe
+    if (event === "typing") {
+      const typing = Boolean(payload?.typing);
+      
+      // Diffuser seulement aux autres utilisateurs (pas à soi-même)
+      hub.broadcast(room, "typing", { 
+        user, 
+        payload: { typing }, 
+        ts: now 
+      });
+      
+      // Pas d'audit pour les indicateurs de frappe (trop verbeux)
       return NextResponse.json({ ok: true });
     }
 

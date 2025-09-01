@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripHtml, cleanEmailBody } from "../../../../lib/ai/cleanEmail";
-import { summarizeText } from "../../../../lib/ai/provider";
+import SmartAIProvider from "../../../../lib/ai/smart-provider";
 
 export const runtime = "nodejs";
 
@@ -20,10 +20,14 @@ export async function POST(req: NextRequest) {
     }
 
     const cleaned = cleanEmailBody({ subject, text });
-    const out = await summarizeText(cleaned, lang);
+    
+    // Utiliser le nouveau provider intelligent
+    const aiProvider = SmartAIProvider.getInstance();
+    const result = await aiProvider.summarizeEmail(subject, cleaned, lang);
 
-    return NextResponse.json({ ok: true, ...out });
+    return NextResponse.json({ ok: true, ...result });
   } catch (e: any) {
+    console.error("🚨 Summarize API error:", e);
     return NextResponse.json({ ok: false, error: e?.message || "server error" }, { status: 500 });
   }
 }

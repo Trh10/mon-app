@@ -44,6 +44,7 @@ export function ExpandedEmailReader({
   userInfo 
 }: ExpandedEmailReaderProps) {
   const [email, setEmail] = useState<Email | null>(null);
+  const [inlineImages, setInlineImages] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isStarred, setIsStarred] = useState(false);
@@ -84,45 +85,32 @@ export function ExpandedEmailReader({
     try {
       setLoading(true);
       setError(null);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setEmail({
-        id: messageId,
-        subject: "Validation du projet - Phase finale",
-        from: "project.manager@company.com", 
-        fromName: "Sophie Martin",
-        to: userInfo?.email || "trh10@company.com",
-        cc: "team@company.com",
-        date: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-        snippet: "Bonjour, le projet arrive en phase finale...",
-        body: `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6;">
-            <p>Bonjour ${userInfo?.userName || 'Trh10'},</p>
-            <p>J'espère que vous allez bien. Le projet arrive en phase finale et nous devons valider les derniers éléments.</p>
-            <h3>Points à valider :</h3>
-            <ul>
-              <li><strong>Interface utilisateur :</strong> Validation finale des maquettes</li>
-              <li><strong>Tests fonctionnels :</strong> Vérification de tous les cas d'usage</li>
-              <li><strong>Performance :</strong> Optimisation et tests de charge</li>
-              <li><strong>Documentation :</strong> Guide utilisateur et technique</li>
-            </ul>
-            <h3>Prochaines étapes :</h3>
-            <ol>
-              <li>Réunion de validation demain à 14h</li>
-              <li>Corrections éventuelles d'ici vendredi</li>
-              <li>Livraison prévue lundi prochain</li>
-            </ol>
-            <p>Merci de confirmer votre disponibilité pour la réunion.</p>
-            <p>Excellente journée,<br>Sophie Martin<br>Chef de projet</p>
-          </div>
-        `,
-        unread: false,
-        hasAttachments: true
-      } as any);
-      
+      const response = await fetch(`/api/email/message?id=${messageId}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erreur de réseau ou de serveur');
+      }
+      const data = await response.json();
+      if (data.success && data.email) {
+        setEmail(data.email);
+        // Préparer les images inline (cid)
+        if (data.email.attachments && Array.isArray(data.email.attachments)) {
+          const cidMap: Record<string, string> = {};
+          data.email.attachments.forEach((att: any) => {
+            if (att.contentId && att.content && att.mimeType?.startsWith('image/')) {
+              // Correction du base64 si besoin
+              let b64 = att.content.replace(/\r|\n/g, '');
+              cidMap[att.contentId.replace(/[<>]/g, '')] = `data:${att.mimeType};base64,${b64}`;
+            }
+          });
+          setInlineImages(cidMap);
+        }
+      } else {
+        throw new Error(data.error || 'Format de réponse invalide');
+      }
     } catch (err: any) {
-      setError('Erreur lors du chargement de l\'email');
+      console.log('❌ Erreur chargement email:', err.message);
+      setError(`Erreur lors du chargement de l'email: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -191,7 +179,7 @@ export function ExpandedEmailReader({
       setShowCc(false);
     } else if (type === 'replyAll') {
       setComposeTo(email?.from || '');
-      setComposeCc(email?.cc || '');
+      setComposeCc(Array.isArray(email?.cc) ? email.cc.join(', ') : email?.cc || '');
       setComposeSubject(`Re: ${email?.subject || ''}`);
       setShowCc(true);
     } else if (type === 'forward') {
@@ -237,16 +225,46 @@ export function ExpandedEmailReader({
       return;
     }
     
+    if (!composeSubject.trim()) {
+      showNotification('error', 'Veuillez saisir un objet');
+      return;
+    }
+    
     try {
       setActionLoading('send');
-      await new Promise(resolve => setTimeout(resolve, 1200));
       
-      showNotification('success', 'Email envoyé avec succès !');
-      setIsComposing(false);
-      cancelCompose();
+      // Envoi réel via notre API
+      const response = await fetch('/api/email/send-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originalEmailId: email?.id,
+          replyType: composeType,
+          subject: composeSubject,
+          content: composeBody,
+          to: composeTo.split(',').map(s => s.trim()).filter(Boolean),
+          cc: composeCc ? composeCc.split(',').map(s => s.trim()).filter(Boolean) : [],
+          sender: {
+            email: userInfo?.email || 'user@example.com',
+            name: userInfo?.userName || 'Utilisateur'
+          }
+        })
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        showNotification('success', '✅ Email envoyé avec succès !');
+        setIsComposing(false);
+        cancelCompose();
+        onRefresh?.(); // Actualiser la liste
+      } else {
+        showNotification('error', `❌ Erreur: ${result.error || 'Envoi échoué'}`);
+      }
       
     } catch (err) {
-      showNotification('error', 'Erreur lors de l\'envoi de l\'email');
+      console.error('Erreur envoi email:', err);
+      showNotification('error', '❌ Erreur de connexion lors de l\'envoi');
     } finally {
       setActionLoading(null);
     }
@@ -464,34 +482,136 @@ export function ExpandedEmailReader({
             </div>
 
             <div className="mb-8 text-sm leading-relaxed">
-              {email.body ? (
-                <div 
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: email.body }} 
-                />
-              ) : (
-                <div className="text-gray-900 whitespace-pre-wrap">
-                  {email.snippet}
-                </div>
-              )}
+              {(() => {
+                // Affichage HTML riche avec remplacement des images inline cid
+                if (email.bodyHtml) {
+                  let html = email.bodyHtml;
+                  // Remplacer les cid:xxx par data:image/xxx;base64,...
+                  Object.entries(inlineImages).forEach(([cid, dataUrl]) => {
+                    html = html.replace(new RegExp(`src=["']cid:${cid}["']`, 'g'), `src=\"${dataUrl}\"`);
+                  });
+                  return (
+                    <div
+                      className="prose prose-sm max-w-none email-content gmail-rich"
+                      dangerouslySetInnerHTML={{ __html: html }}
+                    />
+                  );
+                } else if (email.bodyText) {
+                  // Texte brut enrichi (liens cliquables)
+                  const textWithLinks = email.bodyText.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+                  return (
+                    <div className="text-gray-900 whitespace-pre-wrap font-mono text-sm email-content gmail-rich" dangerouslySetInnerHTML={{ __html: textWithLinks }} />
+                  );
+                } else if (email.body) {
+                  return <div className="text-gray-900 whitespace-pre-wrap email-content gmail-rich">{email.body}</div>;
+                } else {
+                  return <div className="text-gray-900 whitespace-pre-wrap email-content gmail-rich">{email.snippet || 'Aucun contenu disponible'}</div>;
+                }
+              })()}
             </div>
 
-            {email.hasAttachments && (
-              <div className="mb-8 p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center gap-2 text-sm">
-                  <Paperclip className="w-4 h-4 text-gray-600" />
-                  <span className="font-medium">Pièces jointes (2)</span>
-                  <button 
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      showNotification('success', 'Téléchargement des pièces jointes...');
-                    }}
-                    className="ml-auto text-blue-600 hover:underline"
-                  >
-                    Tout télécharger
-                  </button>
+            {/* Affichage des pièces jointes */}
+            {email.attachments && email.attachments.length > 0 && (
+              <div className="mb-6 border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                  <Paperclip className="w-4 h-4" />
+                  Pièces jointes ({email.attachments.length})
+                </h3>
+                <div className="space-y-2">
+                  {email.attachments.map((attachment: any, index: number) => (
+                    <div 
+                      key={index} 
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white rounded border">
+                          {attachment.mimeType?.startsWith('image/') ? (
+                            <ImageIcon className="w-4 h-4 text-blue-500" />
+                          ) : attachment.mimeType?.includes('pdf') ? (
+                            <div className="w-4 h-4 bg-red-500 text-white text-xs font-bold rounded flex items-center justify-center">
+                              PDF
+                            </div>
+                          ) : attachment.mimeType?.includes('doc') ? (
+                            <div className="w-4 h-4 bg-blue-500 text-white text-xs font-bold rounded flex items-center justify-center">
+                              DOC
+                            </div>
+                          ) : (
+                            <Paperclip className="w-4 h-4 text-gray-500" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-gray-900">
+                            {attachment.filename || attachment.name || 'Fichier sans nom'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {attachment.size ? (
+                              attachment.size > 1024 * 1024 
+                                ? `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`
+                                : `${Math.round(attachment.size / 1024)} KB`
+                            ) : 'Taille inconnue'}
+                            {attachment.mimeType && (
+                              <span className="ml-2">• {attachment.mimeType}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {attachment.mimeType?.startsWith('image/') && (
+                          <button
+                            onClick={() => {
+                              // Ouvrir l'image dans une nouvelle fenêtre pour prévisualisation
+                              if (attachment.content) {
+                                let b64 = attachment.content.replace(/\r|\n/g, '');
+                                const byteCharacters = atob(b64);
+                                const byteNumbers = new Array(byteCharacters.length);
+                                for (let i = 0; i < byteCharacters.length; i++) {
+                                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                }
+                                const byteArray = new Uint8Array(byteNumbers);
+                                const blob = new Blob([byteArray], {
+                                  type: attachment.mimeType
+                                });
+                                const url = URL.createObjectURL(blob);
+                                window.open(url, '_blank');
+                                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                              }
+                            }}
+                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            Aperçu image
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            // Télécharger le fichier
+                            if (attachment.content) {
+                              let b64 = attachment.content.replace(/\r|\n/g, '');
+                              const byteCharacters = atob(b64);
+                              const byteNumbers = new Array(byteCharacters.length);
+                              for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                              }
+                              const byteArray = new Uint8Array(byteNumbers);
+                              const blob = new Blob([byteArray], {
+                                type: attachment.mimeType || 'application/octet-stream'
+                              });
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = attachment.filename || attachment.name || 'fichier';
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              URL.revokeObjectURL(url);
+                            }
+                          }}
+                          className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                        >
+                          Télécharger
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

@@ -500,7 +500,7 @@ export class UniversalCompleteClient {
 
     console.log(`✉️ Envoi email SMTP - To: ${to} - Subject: ${subject} - User: Trh10 - 2025-08-29 12:06:49`);
 
-    const transporter = nodemailer.createTransport({
+    const transporter = nodemailer.createTransporter({
       host: this.config.smtp.host,
       port: this.config.smtp.port,
       secure: this.config.smtp.secure || false,

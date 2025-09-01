@@ -183,7 +183,7 @@ export default function UniversalEmailLogin({ onConnect }: UniversalEmailLoginPr
           <div className="mx-auto h-20 w-20 bg-gradient-to-r from-blue-600 to-green-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
             📧
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Pépite Mail IA</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">ICONES BOX</h2>
           <p className="mt-2 text-sm text-gray-600">Connexion universelle à votre email</p>
           {user?.email && (
             <div className="mt-2 p-2 bg-green-100 rounded-lg">

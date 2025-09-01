@@ -1,7 +1,39 @@
 'use server';
 import 'server-only';
 import { google } from 'googleapis';
-import type { Email, Attachment } from '@/lib/types';
+
+// Types de base
+export interface Email {
+  id: string;
+  subject: string;
+  from: string;
+  fromName?: string;
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  date: string;
+  snippet: string;
+  unread: boolean;
+  hasAttachments: boolean;
+  attachments?: Attachment[];
+  body?: string;
+  bodyHtml?: string;
+  bodyText?: string;
+  html?: string;
+  priority?: "P1" | "P2" | "P3";
+  labels?: string[];
+  threadId?: string;
+}
+
+export interface Attachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  data?: string;
+  contentId?: string;
+  contentType?: string;
+}
 
 // Helpers
 function b64urlDecode(data?: string): string {
@@ -60,10 +92,12 @@ function extractFromPayload(payload: any): Extracted {
       // Si c'est une pièce jointe (filename présent)
       if (part.filename) {
         const attachment: Attachment = {
-          filename: part.filename,
+          id: part.body?.attachmentId || `att-${Date.now()}-${Math.random()}`,
+          filename: part.filename || 'attachment',
+          mimeType: part.mimeType || 'application/octet-stream',
           contentType: part.mimeType || 'application/octet-stream',
           size: part.body?.size || 0,
-          contentId: contentIdHeader(part.headers || undefined)?.replace(/[<>]/g, ''),
+          contentId: contentIdHeader(part.headers),
         };
         out.attachments.push(attachment);
       }
@@ -156,8 +190,7 @@ export async function getGmailEmails(
         body, // IMPORTANT: rempli pour ton UI
         attachments: atts,
         // optionnels selon ton type
-        priority: 'normal',
-        read: !unread,
+        priority: undefined,
       };
 
       emails.push(email);

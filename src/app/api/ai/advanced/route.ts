@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
+import { SmartAIProvider } from '@/lib/ai/SmartAIProvider';
 
 export async function POST(request: NextRequest) {
   try {
     const { mode, prompt, context, options = {} } = await request.json();
+    console.log(`[AI Advanced] 🧠 Mode: ${mode}, Prompt: ${prompt?.substring(0, 50)}...`);
 
-    if (!GROQ_API_KEY) {
-      return NextResponse.json(
-        { error: "Configuration API manquante" },
-        { status: 500 }
-      );
-    }
+    const aiProvider = SmartAIProvider.getInstance();
+    const startTime = Date.now();
 
     let systemPrompt = "";
     let userPrompt = "";
-    let maxTokens = 800;
+    let result;
 
     switch (mode) {
       case "tone_analyzer":
@@ -29,7 +25,7 @@ Réponds au format JSON:
   "confidence": 0.85
 }`;
         userPrompt = `Analyse le ton de cet email:\n\n${context}`;
-        maxTokens = 400;
+        result = await aiProvider.analyzeText(context, "tone_analysis");
         break;
 
       case "email_classifier":
@@ -44,7 +40,7 @@ Réponds au format JSON:
   "timeToRespond": "immédiat|24h|semaine"
 }`;
         userPrompt = `Classe cet email:\n\n${context}`;
-        maxTokens = 300;
+        result = await aiProvider.classifyEmail(context);
         break;
 
       case "smart_reply":
@@ -62,13 +58,12 @@ Réponds au format JSON:
   "concise": "réponse concise..."
 }`;
         userPrompt = `Email original:\n${context}\n\nInstructions: ${prompt}`;
-        maxTokens = 900;
+        result = await aiProvider.suggestReplies(context, prompt || "Génère des options de réponse professionnelles");
         break;
 
       case "translation":
-        systemPrompt = `Tu es un traducteur expert. Traduis l'email en gardant le ton et le contexte professionnel.`;
-        userPrompt = `Traduis cet email en ${options.targetLanguage || 'anglais'}:\n\n${context}`;
-        maxTokens = 600;
+        const targetLang = options.targetLanguage || 'anglais';
+        result = await aiProvider.translateText(context, targetLang);
         break;
 
       case "template_generator":
@@ -77,9 +72,11 @@ Réponds au format JSON:
 Crée un template réutilisable avec des variables {nom}, {entreprise}, etc.
 Inclus des variations pour différents contextes.`;
         userPrompt = `Crée un template pour: ${prompt}`;
-        maxTokens = 500;
+        result = await aiProvider.callAI([
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ], { maxTokens: 500 });
         break;
-
       case "meeting_scheduler":
         systemPrompt = `Tu es un assistant qui aide à organiser des réunions. 
         
@@ -95,7 +92,10 @@ Réponds au format JSON:
   "agenda": ["point1", "point2"]
 }`;
         userPrompt = `Demande de réunion pour: ${prompt}\nContexte: ${context || ''}`;
-        maxTokens = 600;
+        result = await aiProvider.callAI([
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ], { maxTokens: 600 });
         break;
 
       case "follow_up":
@@ -104,9 +104,19 @@ Réponds au format JSON:
 Propose 3 niveaux de relance:
 1. Relance polie (1ère fois)
 2. Relance insistante (2ème fois)  
-3. Relance finale (dernière chance)`;
+3. Relance finale (dernière chance)
+
+Réponds au format JSON:
+{
+  "gentle": "relance polie...",
+  "firm": "relance insistante...",
+  "final": "relance finale..."
+}`;
         userPrompt = `Email de suivi pour: ${prompt}\nEmail original: ${context}`;
-        maxTokens = 700;
+        result = await aiProvider.callAI([
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt }
+        ], { maxTokens: 700 });
         break;
 
       default:
@@ -116,52 +126,34 @@ Propose 3 niveaux de relance:
         );
     }
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.7,
-        top_p: 0.9
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erreur Groq: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices[0]?.message?.content;
+    const responseTime = Date.now() - startTime;
+    console.log(`[AI Advanced] ✅ ${mode} traité en ${responseTime}ms avec ${result.provider}`);
 
     // Essayer de parser le JSON pour certains modes
-    let parsedContent = content;
-    const jsonModes = ["tone_analyzer", "email_classifier", "smart_reply", "meeting_scheduler"];
+    let parsedContent = result.content;
+    const jsonModes = ["tone_analyzer", "email_classifier", "smart_reply", "meeting_scheduler", "follow_up"];
     
     if (jsonModes.includes(mode)) {
       try {
-        parsedContent = JSON.parse(content);
+        if (typeof result.content === 'string') {
+          parsedContent = JSON.parse(result.content);
+        }
       } catch {
         // Si le parsing échoue, garder le texte brut
-        parsedContent = { raw: content, error: "Format JSON invalide" };
+        parsedContent = { raw: result.content, error: "Format JSON invalide" };
       }
     }
 
     return NextResponse.json({
       mode,
       content: parsedContent,
+      provider: result.provider,
+      responseTime,
       timestamp: new Date().toISOString()
     });
 
   } catch (error: any) {
-    console.error('[AI Advanced] Erreur:', error);
+    console.error('[AI Advanced] ❌ Erreur:', error);
     return NextResponse.json(
       { error: error.message || "Erreur IA avancée" },
       { status: 500 }

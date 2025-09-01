@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
   // Pour l'instant, on laisse passer toutes les requêtes
-  // Tu peux ajouter une logique Firebase Auth plus tard si besoin
+  // Le système de notifications sera initialisé via l'API
   return NextResponse.next();
 }
 

@@ -1,14 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { detectSentiment } from "@/lib/ai";
+import SmartAIProvider from "@/lib/ai/smart-provider";
+
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { content = "" } = body || {};
-    if (!content) return NextResponse.json({ error: "content is required" }, { status: 400 });
-    const result = detectSentiment({ content });
-    return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
+    const { subject = "", content = "", from = "" } = body || {};
+    
+    if (!content && !subject) {
+      return NextResponse.json({ error: "content or subject is required" }, { status: 400 });
+    }
+
+    // Utiliser le nouveau provider intelligent
+    const aiProvider = SmartAIProvider.getInstance();
+    const result = await aiProvider.analyzesentiment(subject, content, from);
+
+    return NextResponse.json({
+      ok: true,
+      ...result
+    });
+
+  } catch (error: any) {
+    console.error("🚨 Sentiment analysis error:", error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || "Sentiment analysis failed" },
+      { status: 500 }
+    );
   }
 }

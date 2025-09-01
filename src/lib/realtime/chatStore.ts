@@ -10,6 +10,9 @@ export type ChatMessage = {
   user: RTUser;
   text: string;
   ts: number;
+  replyTo?: string;
+  reactions?: Record<string, string[]>;
+  isEdited?: boolean;
 };
 
 const g = globalThis as any;

@@ -6,9 +6,6 @@ type UIState = {
   selectedEmailId?: string | null;
   setSelectedEmailId?: (id: string | null) => void;
 
-  focusInbox?: boolean;
-  toggleFocus?: () => void;
-
   density: Density;
   setDensity?: (d: Density) => void;
 };
@@ -23,9 +20,6 @@ function loadDensity(): Density {
 export const useUI = create<UIState>((set, get) => ({
   selectedEmailId: null,
   setSelectedEmailId: (id) => set({ selectedEmailId: id }),
-
-  focusInbox: false,
-  toggleFocus: () => set({ focusInbox: !get().focusInbox }),
 
   density: loadDensity(),
   setDensity: (d) => {

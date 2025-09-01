@@ -13,16 +13,18 @@ export function LeftPane({
   onRefresh,
   checkedEmails,
   setCheckedEmails,
-  userInfo
+  userInfo,
+  onLoadMore
 }: { 
   items: Email[]; 
   loading?: boolean;
   onRefresh?: () => void;
   checkedEmails?: Set<string>;
   setCheckedEmails?: (emails: Set<string>) => void;
-  userInfo?: { userName: string; email: string; provider: string; timestamp: string; };
+  userInfo?: any;
+  onLoadMore?: () => void;
 }) {
-  const { selectedEmailId, setSelectedEmailId, density, focusInbox } = useUI();
+  const { selectedEmailId, setSelectedEmailId, density } = useUI();
 
   const [openMessageId, setOpenMessageId] = useState<string | null>(null);
   const [localItems, setLocalItems] = useState<Email[]>(items);
@@ -72,7 +74,7 @@ export function LeftPane({
 
   async function markAsRead(emailId: string) {
     const email = localItems.find(e => e.id === emailId);
-    const isUnread = email ? (email.unread || !email.read) && !readEmails.has(emailId) : false;
+    const isUnread = email ? email.unread && !readEmails.has(emailId) : false;
     if (!isUnread) return;
 
     setReadEmails(prev => new Set([...prev, emailId]));
@@ -100,14 +102,14 @@ export function LeftPane({
 
   const sortedItems = useMemo(() => {
     function isUrgent(e: Email) {
-      if (readEmails.has(e.id) || (!e.unread && e.read)) return false;
+      if (readEmails.has(e.id) || !e.unread) return false;
       const urgentKeywords = ["urgent","asap","immediately","emergency","critical","deadline","rapidement","immédiat"];
       const content = `${e.subject} ${e.snippet}`.toLowerCase();
-      return urgentKeywords.some(k => content.includes(k)) || e.priority === "high";
+      return urgentKeywords.some(k => content.includes(k)) || e.priority === "P1";
     }
     function isUnread(e: Email) {
       if (readEmails.has(e.id)) return false;
-      return e.unread || !e.read;
+      return e.unread;
     }
     return [...localItems].sort((a, b) => {
       const aUrg = isUrgent(a), bUrg = isUrgent(b);
@@ -122,7 +124,7 @@ export function LeftPane({
     });
   }, [localItems, readEmails]);
 
-  const unreadCount = sortedItems.filter(e => (e.unread || !e.read) && !readEmails.has(e.id)).length;
+  const unreadCount = sortedItems.filter(e => e.unread && !readEmails.has(e.id)).length;
 
   if (loading) {
     return (
@@ -136,7 +138,7 @@ export function LeftPane({
 
   return (
     <>
-      <aside className={cn("panel h-full overflow-auto", focusInbox ? "border-2 border-blue-200" : "")}>
+      <aside className="panel h-full overflow-auto">
         {/* Bandeau infos */}
         <div className="px-3 py-2 bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-200">
           <div className="flex items-center justify-between text-xs">
@@ -194,7 +196,7 @@ export function LeftPane({
         {/* Liste */}
         <ul className={styles.spacingClass}>
           {sortedItems.map((m) => {
-            const isUnread = (m.unread || !m.read) && !readEmails.has(m.id);
+            const isUnread = m.unread && !readEmails.has(m.id);
             const isChecked = localCheckedEmails.has(m.id);
             const hasAttach = m.hasAttachments || m.snippet?.toLowerCase().includes("attachment") || m.snippet?.toLowerCase().includes("pièce jointe");
 
@@ -245,6 +247,26 @@ export function LeftPane({
             );
           })}
         </ul>
+
+        {/* Bouton Charger plus */}
+        {onLoadMore && sortedItems.length >= 50 && (
+          <div className="p-4 border-t">
+            <button
+              onClick={onLoadMore}
+              disabled={loading}
+              className="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 animate-spin border-2 border-white border-t-transparent rounded-full" />
+                  Chargement...
+                </>
+              ) : (
+                'Charger plus d\'emails'
+              )}
+            </button>
+          </div>
+        )}
       </aside>
 
       {openMessageId && (
@@ -263,7 +285,7 @@ export function LeftPane({
   );
 }
 
-function getDensityStyles(density: ReturnType<typeof useUI>["density"]) {
+function getDensityStyles(density: any) {
   if (density === "compact") return { itemClass: "px-2 py-1.5", titleClass: "text-sm", metaClass: "text-xs", spacingClass: "space-y-1" };
   if (density === "dense") return { itemClass: "px-3 py-2", titleClass: "text-sm", metaClass: "text-xs", spacingClass: "space-y-1.5" };
   if (density === "ultra") return { itemClass: "px-4 py-3", titleClass: "text-base", metaClass: "text-sm", spacingClass: "space-y-2" };

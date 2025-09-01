@@ -3,7 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import ChatPanel from "./ChatPanel";
 import { getRealtimeClient } from "../../lib/realtime/provider";
-import { ensurePermission, showNotification, getNotifyEnabled, setNotifyEnabled, canNotifyNow } from "../../lib/notify/client";
+import { getNotificationManager } from "../../lib/notifications/manager";
+// Notifications simplifiées
+const getNotifyEnabled = () => localStorage.getItem("__notify_enabled") === "1";
+const setNotifyEnabled = (enabled: boolean) => localStorage.setItem("__notify_enabled", enabled ? "1" : "0");
+const canNotifyNow = () => !document.hasFocus();
+const showNotification = (title: string, body: string) => {
+  if (Notification.permission === "granted" && canNotifyNow()) {
+    new Notification(title, { body, icon: "/favicon.ico" });
+  }
+};
+const ensurePermission = async () => {
+  if (Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+};
 
 type Role = "chef" | "manager" | "assistant" | "employe";
 
@@ -12,13 +26,16 @@ export default function FloatingChat({
   userId,
   userName,
   role = "employe" as Role,
+  embedded = false,
 }: {
   roomId: string;
   userId: string;
   userName: string;
   role?: Role;
+  embedded?: boolean;
 }) {
   const rt = getRealtimeClient();
+  const notificationManager = getNotificationManager();
 
   const [pos, setPos] = useState<{ x: number; y: number }>(() => {
     if (typeof window === "undefined") return { x: 24, y: 24 };
@@ -42,6 +59,11 @@ export default function FloatingChat({
     return localStorage.getItem("__float_chat_min") === "1";
   });
 
+  const [hidden, setHidden] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("__float_chat_hidden") === "1";
+  });
+
   // Interrupteur notifications
   const [notifyEnabled, setNotifyEnabledState] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -63,6 +85,7 @@ export default function FloatingChat({
     try { localStorage.setItem("__float_chat_w", String(size.w)); localStorage.setItem("__float_chat_h", String(size.h)); } catch {}
   }, [size]);
   useEffect(() => { try { localStorage.setItem("__float_chat_min", min ? "1" : "0"); } catch {} }, [min]);
+  useEffect(() => { try { localStorage.setItem("__float_chat_hidden", hidden ? "1" : "0"); } catch {} }, [hidden]);
 
   // Drag
   const dragging = useRef(false);
@@ -135,15 +158,9 @@ export default function FloatingChat({
       const text = String(env?.payload?.text || "");
       bump(fromId);
       if (shouldNotify(fromId)) {
-        const perm = await ensurePermission();
-        if (perm === "granted") {
-          showNotification({
-            title: `Nouveau message de ${fromName || "Quelqu'un"}`,
-            body: text.slice(0, 140),
-            tag: `dm-${fromId}`,
-            targetId: fromId,
-            targetName: fromName,
-          });
+        await ensurePermission();
+        if (Notification.permission === "granted") {
+          notificationManager.addChatNotification(text.slice(0, 140), fromName || "Quelqu'un", roomId);
         }
       }
     }));
@@ -158,19 +175,12 @@ export default function FloatingChat({
       const note = env?.payload?.message ? ` · ${String(env?.payload?.message).slice(0, 80)}` : "";
       bump(fromId);
       if (shouldNotify(fromId)) {
-        const perm = await ensurePermission();
-        if (perm === "granted") {
-          showNotification({
-            title: `Fichier de ${fromName || "Quelqu'un"}`,
-            body: `${fname}${note}`,
-            tag: `file-${fromId}`,
-            targetId: fromId,
-            targetName: fromName,
-          });
+        await ensurePermission();
+        if (Notification.permission === "granted") {
+          notificationManager.addFileNotification(fname, fromName || "Quelqu'un");
         }
       }
     }));
-
     // Tâche privée
     offs.push(rt.subscribe(`user:${userId}`, "task", async (env) => {
       const t = env?.payload?.task;
@@ -182,15 +192,9 @@ export default function FloatingChat({
       const due = t?.dueAt ? ` · Échéance ${new Date(t.dueAt).toLocaleString()}` : "";
       bump(fromId);
       if (shouldNotify(fromId)) {
-        const perm = await ensurePermission();
-        if (perm === "granted") {
-          showNotification({
-            title: `Tâche de ${fromName || "Votre chef"}`,
-            body: `${title}${project ? ` (${project})` : ""}${due}`,
-            tag: `task-${fromId}`,
-            targetId: fromId,
-            targetName: fromName,
-          });
+        await ensurePermission();
+        if (Notification.permission === "granted") {
+          notificationManager.addTaskNotification(title, fromName || "Votre chef");
         }
       }
     }));
@@ -232,8 +236,8 @@ export default function FloatingChat({
   async function toggleNotify() {
     const next = !notifyEnabled;
     if (next) {
-      const perm = await ensurePermission();
-      if (perm !== "granted") {
+      await ensurePermission();
+      if (Notification.permission !== "granted") {
         // Permission refusée: on reste désactivé
         setNotifyEnabled(false);
         setNotifyEnabledState(false);
@@ -245,8 +249,30 @@ export default function FloatingChat({
     setNotifyEnabledState(next);
   }
 
+  // Toggle caché
+  function toggleHidden() { setHidden(!hidden); }
+
   const badge = unreadTotal > 0 ? (unreadTotal > 99 ? "99+" : String(unreadTotal)) : "";
 
+  // Si caché, ne rien afficher
+  if (hidden) return null;
+
+  // Mode embedded (intégré dans le panel)
+  if (embedded) {
+    return (
+      <div className="h-full flex flex-col">
+        <ChatPanel
+          roomId={roomId}
+          userId={userId}
+          user={userName}
+          role={role}
+          height={400}
+        />
+      </div>
+    );
+  }
+
+  // Mode floating (fenêtre flottante)
   return (
     <div
       style={{
@@ -283,8 +309,19 @@ export default function FloatingChat({
           >
             {notifyEnabled && canNotifyNow() ? "🔔" : "🔕"}
           </button>
-          <button onClick={(e) => { e.stopPropagation(); toggleMin(); }} className="text-white/90 hover:text-white text-sm">
-            {min ? "Ouvrir" : "Réduire"}
+          <button 
+            onClick={(e) => { e.stopPropagation(); toggleMin(); }} 
+            className="text-white/90 hover:text-white text-sm px-2 py-1 rounded hover:bg-white/10"
+            title={min ? "Agrandir" : "Réduire"}
+          >
+            {min ? "▢" : "−"}
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); toggleHidden(); }} 
+            className="text-white/90 hover:text-white text-sm px-2 py-1 rounded hover:bg-white/10"
+            title="Fermer le chat"
+          >
+            ✕
           </button>
         </div>
       </div>

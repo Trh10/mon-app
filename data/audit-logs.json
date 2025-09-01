@@ -1,0 +1,36 @@
+[
+  {
+    "id": "audit_1756708929592_bvxf45",
+    "requisitionId": "9jxek8i5c",
+    "userId": "SOKO-1000",
+    "userName": "terach",
+    "userLevel": 10,
+    "action": "created",
+    "timestamp": "2025-09-01T06:42:09.592Z",
+    "details": {
+      "newStatus": "soumis",
+      "budget": 500,
+      "category": "materiel",
+      "priority": "moyenne"
+    },
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+  },
+  {
+    "id": "audit_1756718091072_629tat",
+    "requisitionId": "62h4ws5sq",
+    "userId": "ALLI-1000",
+    "userName": "terach",
+    "userLevel": 10,
+    "action": "created",
+    "timestamp": "2025-09-01T09:14:51.072Z",
+    "details": {
+      "newStatus": "soumis",
+      "budget": 400,
+      "category": "materiel",
+      "priority": "urgente"
+    },
+    "ipAddress": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+  }
+]
