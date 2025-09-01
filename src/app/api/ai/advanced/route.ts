@@ -130,7 +130,7 @@ Réponds au format JSON:
     console.log(`[AI Advanced] ✅ ${mode} traité en ${responseTime}ms avec ${result.provider}`);
 
     // Essayer de parser le JSON pour certains modes
-    let parsedContent = result.content;
+    let parsedContent: any = result.content;
     const jsonModes = ["tone_analyzer", "email_classifier", "smart_reply", "meeting_scheduler", "follow_up"];
     
     if (jsonModes.includes(mode)) {
