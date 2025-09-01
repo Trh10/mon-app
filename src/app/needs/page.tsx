@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useCodeAuth } from "@/components/auth/CodeAuthContext";
-import { Need, CreateNeedData, CATEGORY_LABELS, PRIORITY_LABELS, STATUS_LABELS, PRIORITY_COLORS, STATUS_COLORS } from "@/lib/needs/need-types";
-import { Plus, Clock, CheckCircle, XCircle, FileText, Euro, Calendar, User, Building, ArrowLeft, X } from "lucide-react";
-import Link from "next/link";
+export default function NeedsPage() {
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Gestion des Besoins</h1>
+      <p className="text-gray-600">Module de gestion des besoins en cours de développement...</p>
+    </div>
+  );
+}
 
 // Composant FilterButton
 function FilterButton({ 
