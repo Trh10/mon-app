@@ -70,8 +70,25 @@ export async function POST(req: NextRequest) {
 
     console.log('Requête de connexion:', { code, name, companyName });
 
+    // Validation stricte des entrées
+    if (!code || !name || !companyName) {
+      return NextResponse.json({ 
+        error: 'Tous les champs sont requis: nom, code et entreprise' 
+      }, { status: 400 });
+    }
+
+    // Normaliser le nom de l'entreprise
+    const normalizedCompany = companyName.trim().toLowerCase();
+
     // Cas 1: Première entreprise - créer l'entreprise et le premier utilisateur DG
     if (isFirstCompany() && name && companyName) {
+      // Vérifier que c'est un code fondateur valide (doit être exactement 1234 pour créer la première entreprise)
+      if (code !== '1234') {
+        return NextResponse.json({ 
+          error: 'Code fondateur incorrect. Pour créer la première entreprise, utilisez le code 1234' 
+        }, { status: 401 });
+      }
+
       const companyCode = generateCompanyCode(companyName);
       const fullCode = `${companyCode}-1000`;
 
@@ -196,28 +213,34 @@ export async function POST(req: NextRequest) {
 
     // Cas 2: Connexion avec code existant
     if (code) {
-      const user = userCodes.find(u => u.code === code);
+      // D'abord, vérifier que l'entreprise existe
+      const company = companies.find(c => 
+        c.name.toLowerCase() === normalizedCompany && c.isActive
+      );
+      
+      if (!company) {
+        return NextResponse.json({
+          success: false,
+          message: `L'entreprise "${companyName}" n'existe pas. Vérifiez le nom ou créez une nouvelle entreprise.`
+        }, { status: 404 });
+      }
+
+      // Ensuite, vérifier que le code appartient à cette entreprise
+      const user = userCodes.find(u => 
+        u.code === code && u.companyId === company.id
+      );
       
       if (!user) {
         return NextResponse.json({
           success: false,
-          message: 'Code d\'accès invalide'
-        }, { status: 401 });
-      }
-
-      // Vérifier que l'entreprise est active
-      const company = companies.find(c => c.id === user.companyId);
-      if (!company || !company.isActive) {
-        return NextResponse.json({
-          success: false,
-          message: 'Entreprise inactive'
+          message: `Code d'accès invalide pour l'entreprise "${companyName}". Vérifiez votre code ou contactez votre administrateur.`
         }, { status: 401 });
       }
 
       // Mettre à jour la dernière utilisation
       user.lastUsed = new Date().toISOString();
 
-      console.log('Utilisateur connecté:', user);
+      console.log('Utilisateur connecté:', { name: user.name, company: company.name, level: user.level });
 
       // Configurer la session
       const cookieStore = cookies();
@@ -229,7 +252,8 @@ export async function POST(req: NextRequest) {
         levelName: user.levelName,
         permissions: user.permissions,
         companyId: user.companyId,
-        companyCode: user.companyCode
+        companyCode: user.companyCode,
+        company: company.name
       }), {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 jours
         httpOnly: true,

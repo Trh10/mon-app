@@ -1,32 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 import { ImapFlow } from 'imapflow';
+import { upsertAccount, setActiveAccount } from '@/lib/emailAccountsDb';
+import { getSession } from '@/lib/session';
 
-const ACCOUNTS_FILE = join(process.cwd(), 'data', 'email-accounts.json');
-
-type AccountsData = {
-  accounts: any[];
-  activeAccount: string | null;
-};
-
-function loadAccounts(): AccountsData {
-  try {
-    if (!existsSync(ACCOUNTS_FILE)) {
-      return { accounts: [], activeAccount: null };
-    }
-    const data = readFileSync(ACCOUNTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return { accounts: [], activeAccount: null };
-  }
-}
-
-function saveAccounts(data: AccountsData) {
-  const dataDir = join(process.cwd(), 'data');
-  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
-  writeFileSync(ACCOUNTS_FILE, JSON.stringify(data, null, 2));
-}
+type AccountsData = { accounts: any[]; activeAccount: string | null };
 
 function getProviderIcon(providerType: string): string {
   const icons: Record<string, string> = {
@@ -130,6 +107,8 @@ function formatImapError(err: any, providerType: string) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession(request);
+    if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const { provider, credentials } = await request.json();
     const type = String(provider?.type || '').toLowerCase();
     const email = String(credentials?.email || '');
@@ -169,29 +148,19 @@ export async function POST(request: NextRequest) {
       const finalSecure = multiResult.finalSecure!;
       displayName = `${domain} (${finalHost})`;
       
-      // Retourner directement le succès depuis l'essai multiple
-      const store = loadAccounts();
-      const existing = store.accounts.find(a => a.email === email && a.provider?.id === type);
-      const accountId = existing?.id || Math.random().toString(36).slice(2);
-      const account = {
-        id: accountId,
+      const created = await upsertAccount(session, {
         email,
         provider: { id: type, name: displayName, type, icon: getProviderIcon(type), color: getProviderColor(type) },
+        providerId: type,
+        providerName: displayName,
         isConnected: true,
         unreadCount: multiResult.unreadCount || 0,
         connectedAt: new Date().toISOString(),
         credentials: { email, password, imapServer: finalHost, imapPort: finalPort, useSSL: finalSecure }
-      };
+      });
+      await setActiveAccount(session, created.id);
 
-      if (existing) {
-        Object.assign(existing, account);
-      } else {
-        store.accounts.push(account);
-      }
-      if (!store.activeAccount) store.activeAccount = accountId;
-      saveAccounts(store);
-
-      return NextResponse.json({ success: true, accountId, unreadCount: account.unreadCount });
+      return NextResponse.json({ success: true, accountId: created.id, unreadCount: created.unreadCount });
     }
     else {
       return NextResponse.json({ success: false, error: 'Provider non supporté' }, { status: 400 });
@@ -208,29 +177,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: friendly }, { status: 401 });
     }
 
-    // Persist (no duplicates by email+type)
-    const store = loadAccounts();
-    const existing = store.accounts.find(a => a.email === email && a.provider?.id === type);
-    const accountId = existing?.id || Math.random().toString(36).slice(2);
-    const account = {
-      id: accountId,
+    const created = await upsertAccount(session, {
       email,
       provider: { id: type, name: displayName, type, icon: getProviderIcon(type), color: getProviderColor(type) },
+      providerId: type,
+      providerName: displayName,
       isConnected: true,
       unreadCount: auth.unreadCount || 0,
       connectedAt: new Date().toISOString(),
       credentials: { email, password, imapServer: imapHost, imapPort, useSSL: secure }
-    };
+    });
+    await setActiveAccount(session, created.id);
 
-    if (existing) {
-      Object.assign(existing, account);
-    } else {
-      store.accounts.push(account);
-    }
-    if (!store.activeAccount) store.activeAccount = accountId;
-    saveAccounts(store);
-
-    return NextResponse.json({ success: true, accountId, unreadCount: account.unreadCount });
+    return NextResponse.json({ success: true, accountId: created.id, unreadCount: created.unreadCount });
   } catch (e: any) {
     return NextResponse.json({ success: false, error: e?.message || 'Erreur de connexion' }, { status: 500 });
   }

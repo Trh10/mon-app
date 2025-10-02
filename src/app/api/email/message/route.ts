@@ -1,24 +1,12 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
 import { ImapFlow } from 'imapflow';
 import { google } from 'googleapis';
 import { simpleParser, Attachment } from 'mailparser';
 import { getAuthenticatedClient } from '@/lib/google-auth';
-
-const ACCOUNTS_FILE = join(process.cwd(), 'data', 'email-accounts.json');
-
+import { listAccounts } from '@/lib/emailAccountsDb';
+import { getSession } from '@/lib/session';
 type AccountsData = { accounts: any[]; activeAccount: string | null };
-
-function loadAccounts(): AccountsData {
-  try {
-    if (!existsSync(ACCOUNTS_FILE)) return { accounts: [], activeAccount: null };
-    const data = readFileSync(ACCOUNTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return { accounts: [], activeAccount: null };
-  }
-}
 
 // --- FONCTIONS GMAIL ---
 async function findBodyParts(parts: any[], gmail: any, messageId: string): Promise<{ text: string; html: string; attachments: any[] }> {
@@ -89,12 +77,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID du message requis' }, { status: 400 });
     }
 
-    const data = loadAccounts();
-    if (!data.activeAccount) {
+    const session = await getSession(request);
+    if (!session.organizationId || !session.userId) {
+      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
+    }
+    const dataStore = await listAccounts(session);
+    if (!dataStore.activeAccount) {
       return NextResponse.json({ success: false, error: 'Aucun compte actif' }, { status: 404 });
     }
-    
-    const account = data.accounts.find(a => a.id === data.activeAccount);
+    const account = (dataStore.accounts as any[]).find(a => a.id === dataStore.activeAccount);
     if (!account) {
       return NextResponse.json({ success: false, error: 'Compte actif non trouvé' }, { status: 404 });
     }

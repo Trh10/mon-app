@@ -1,44 +1,15 @@
 import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
-import { serialize } from 'cookie';
 import type { NextRequest } from 'next/server';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
-
-const ACCOUNTS_FILE = join(process.cwd(), 'data', 'email-accounts.json');
-
-type AccountsData = {
-  accounts: any[];
-  activeAccount: string | null;
-};
-
-function loadAccounts(): AccountsData {
-  try {
-    if (!existsSync(ACCOUNTS_FILE)) return { accounts: [], activeAccount: null };
-    const raw = readFileSync(ACCOUNTS_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch {
-    return { accounts: [], activeAccount: null };
-  }
-}
-
-function saveAccounts(data: AccountsData) {
-  const dataDir = join(process.cwd(), 'data');
-  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
-  writeFileSync(ACCOUNTS_FILE, JSON.stringify(data, null, 2));
-}
+import { upsertAccount, setActiveAccount } from '@/lib/emailAccountsDb';
+import { getSession } from '@/lib/session';
+import { getOAuthClient } from '@/lib/google';
+import { COOKIE_GOOGLE_PRIMARY, LEGACY_GOOGLE_COOKIES } from '@/config/branding';
 
 export async function GET(req: NextRequest) {
   console.log("--- Début du callback Google ---");
-
-  const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, NEXT_PUBLIC_BASE_URL } = process.env;
-
-  // Étape 1: Vérifier les variables d'environnement
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !NEXT_PUBLIC_BASE_URL) {
-    console.error("❌ ERREUR FATALE: Une ou plusieurs variables d'environnement Google sont manquantes.");
-    return NextResponse.json({ error: "Erreur de configuration du serveur." }, { status: 500 });
-  }
-  console.log("✅ Étape 1: Variables d'environnement vérifiées.");
+  // Les variables d'env sont vérifiées dans getOAuthClient(); ici on garde une trace
+  console.log("✅ Étape 1: Préparation client OAuth");
 
   // Étape 2: Récupérer le code d'autorisation
   const { searchParams } = new URL(req.url);
@@ -51,12 +22,8 @@ export async function GET(req: NextRequest) {
   console.log("✅ Étape 2: Code d'autorisation reçu de Google.");
 
   try {
-    // Étape 3: Initialiser le client OAuth2
-    const oauth2Client = new google.auth.OAuth2(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      `${NEXT_PUBLIC_BASE_URL}/api/google/callback`
-    );
+    // Étape 3: Initialiser le client OAuth2 (utilise redirectUri cohérente)
+    const oauth2Client = getOAuthClient();
     console.log("✅ Étape 3: Client OAuth2 initialisé.");
 
     // Étape 4: Échanger le code contre des jetons
@@ -90,43 +57,37 @@ export async function GET(req: NextRequest) {
       // ignore
     }
 
-    // Persister le compte directement
-    const store = loadAccounts();
-    const type = 'gmail';
-    const existing = store.accounts.find((a) => a.email === email && a.provider?.id === type);
-    const accountId = existing?.id || Math.random().toString(36).slice(2);
-    const account = {
-      id: accountId,
-      email,
-      provider: { id: type, name, type, icon: '📧', color: 'bg-red-500' },
-      isConnected: true,
-      unreadCount,
-      connectedAt: new Date().toISOString(),
-      credentials: { email, oauth: 'google' }
-    };
-
-    if (existing) {
-      Object.assign(existing, account);
-    } else {
-      store.accounts.push(account);
+    // Persister le compte dans la base (org/user scope via session)
+    const session = await getSession(req);
+    if (session.organizationId && session.userId) {
+      const created = await upsertAccount(session, {
+        email,
+        provider: { id: 'gmail', name, type: 'gmail', icon: '📧', color: 'bg-red-500' },
+        providerId: 'gmail',
+        providerName: name,
+        isConnected: true,
+        unreadCount,
+        connectedAt: new Date().toISOString(),
+        credentials: { email, oauth: 'google' }
+      });
+      await setActiveAccount(session, created.id);
     }
-    // Forcer le compte Gmail en tant que compte actif pour éviter de rester sur l'IMAP
-    store.activeAccount = accountId;
-    saveAccounts(store);
 
     // Étape 6: Créer le cookie et rediriger
-  const cookieValue = JSON.stringify({
+    const cookieValue = JSON.stringify({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       expiry_date: tokens.expiry_date,
     });
-  const useSecure = (process.env.NEXT_PUBLIC_BASE_URL || '').startsWith('https');
+    // Déterminer le flag secure à partir de BASE_URL si présent, sinon selon l'URL de la requête
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+    const useSecure = baseUrl.startsWith('https') || req.url.startsWith('https');
     console.log("✅ Étape 6: Cookie préparé et compte persisté.");
 
     const response = NextResponse.redirect(new URL('/?gmail_connected=success', req.url));
-    // Définir les 2 cookies pour compatibilité en utilisant l'API cookies()
+    // Définir cookies: primaire + un legacy pour compat
     response.cookies.set({
-      name: 'google-tokens',
+      name: COOKIE_GOOGLE_PRIMARY, // 'oauth_google_tokens'
       value: cookieValue,
       httpOnly: true,
       secure: useSecure,
@@ -134,6 +95,7 @@ export async function GET(req: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
     });
+    // Écrire aussi un cookie legacy attendu par certains anciens chemins
     response.cookies.set({
       name: 'pepite_google_tokens',
       value: cookieValue,
@@ -147,8 +109,21 @@ export async function GET(req: NextRequest) {
     console.log("--- Fin du callback Google (Succès) ---");
     return response;
 
-  } catch (error) {
-    console.error("❌ ERREUR pendant le traitement du callback Google :", error);
+  } catch (error: any) {
+    const errInfo: any = {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack?.split('\n').slice(0,4).join(' | ')
+    };
+    // Certaines libs renvoient error.response.data
+    if (error?.response?.data) {
+      try {
+        errInfo.responseData = typeof error.response.data === 'string'
+          ? error.response.data.slice(0,300)
+          : JSON.stringify(error.response.data).slice(0,300);
+      } catch {}
+    }
+    console.error("❌ ERREUR pendant le traitement du callback Google :", errInfo);
     console.log("--- Fin du callback Google (Échec) ---");
     return NextResponse.redirect(new URL('/?oauth=google_error&reason=token_exchange_failed', req.url));
   }

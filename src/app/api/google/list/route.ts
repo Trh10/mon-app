@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthedGmail, normalizeHeader, parseFrom, scorePriority } from "@lib/google";
 import { detectUrgency, hasAttachments, isUnread } from "@lib/gmail-utils";
@@ -46,7 +47,9 @@ export async function GET(req: NextRequest) {
             metadataHeaders: ["From", "Subject", "Date", "To", "Message-ID"]
           });
 
-          const headers = msg.data.payload?.headers || [];
+          // Normaliser les en-têtes Gmail vers le format attendu { name: string; value: string }
+          const rawHeaders = (msg.data.payload?.headers || []) as Array<{ name?: string | null; value?: string | null }>;
+          const headers = rawHeaders.map(h => ({ name: h.name ?? "", value: h.value ?? "" }));
           const subject = normalizeHeader(headers, "Subject");
           const from = normalizeHeader(headers, "From");
           const date = normalizeHeader(headers, "Date");

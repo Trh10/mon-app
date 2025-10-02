@@ -1,95 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
-
-const ACCOUNTS_FILE = join(process.cwd(), 'data', 'email-accounts.json');
-
-interface EmailAccount {
-  id: string;
-  email: string;
-  provider: {
-    id: string;
-    name: string;
-    type: string;
-  };
-  credentials: {
-    email: string;
-    password: string;
-    imapServer?: string;
-    imapPort?: string;
-    smtpServer?: string;
-    smtpPort?: string;
-    useSSL?: boolean;
-  };
-  isConnected: boolean;
-  lastSync: string;
-  unreadCount: number;
-  createdAt: string;
-}
-
-interface AccountsData {
-  accounts: EmailAccount[];
-  activeAccount: string | null;
-}
-
-function loadAccounts(): AccountsData {
-  try {
-    if (!existsSync(ACCOUNTS_FILE)) {
-      return { accounts: [], activeAccount: null };
-    }
-    const data = readFileSync(ACCOUNTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { accounts: [], activeAccount: null };
-  }
-}
-
-function saveAccounts(data: AccountsData) {
-  try {
-    // Créer le dossier data s'il n'existe pas
-    const dataDir = join(process.cwd(), 'data');
-    if (!existsSync(dataDir)) {
-      require('fs').mkdirSync(dataDir, { recursive: true });
-    }
-    writeFileSync(ACCOUNTS_FILE, JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('Erreur sauvegarde comptes:', error);
-  }
-}
+import { listAccounts, setActiveAccount, upsertAccount } from '@/lib/emailAccountsDb';
+import { getSession } from '@/lib/session';
+import { ImapFlow } from 'imapflow';
 
 function generateAccountId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-// Simuler la connexion email (en production, utiliser vraies APIs)
 async function testEmailConnection(provider: any, credentials: any): Promise<{ success: boolean; unreadCount?: number; error?: string }> {
-  // Simulation de test de connexion
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Vérifier les credentials basiques
-  if (!credentials.email || !credentials.password) {
+  if (!credentials?.email || !credentials?.password) {
     return { success: false, error: 'Email et mot de passe requis' };
   }
-  
-  // Pour Gmail, vérifier le format
-  if (provider.type === 'gmail' && !credentials.email.includes('@gmail.com')) {
+  const type = String(provider?.type || provider?.id || '').toLowerCase();
+  // Basic format validations
+  if (type === 'gmail' && !credentials.email.endsWith('@gmail.com')) {
     return { success: false, error: 'Adresse Gmail invalide' };
   }
-  
-  // Pour Outlook, vérifier le format
-  if (provider.type === 'outlook' && !credentials.email.includes('@outlook.') && !credentials.email.includes('@hotmail.')) {
+  if (type === 'outlook' && !(credentials.email.includes('@outlook.') || credentials.email.includes('@hotmail.'))) {
     return { success: false, error: 'Adresse Outlook/Hotmail invalide' };
   }
-  
-  // Simuler un nombre d'emails non lus
-  const unreadCount = Math.floor(Math.random() * 50);
-  
+
+  // If IMAP / manual provider use ImapFlow real connection.
+  // For gmail oauth flow (handled elsewhere) we accept here and unreadCount=0.
+  if (type === 'gmail' && credentials.oauth === 'google') {
+    return { success: true, unreadCount: 0 };
+  }
+
+  // Determine probable IMAP host if not provided.
+  let host = credentials.imapServer as string | undefined;
+  let port = Number(credentials.imapPort) || 993;
+  let secure = credentials.useSSL !== false; // default true
+  if (!host) {
+    const domain = credentials.email.split('@')[1];
+    host = type === 'outlook' ? 'outlook.office365.com' : type === 'gmail' ? 'imap.gmail.com' : `imap.${domain}`;
+  }
+
+  const client = new ImapFlow({
+    host,
+    port,
+    secure,
+    auth: { user: credentials.email, pass: credentials.password }
+  });
+  try {
+    await client.connect();
+    const lock = await client.getMailboxLock('INBOX');
+    try {
+  const unseen = await client.search({ seen: false });
+  const unreadCount = Array.isArray(unseen) ? unseen.length : 0;
   return { success: true, unreadCount };
+    } finally {
+      lock.release();
+    }
+  } catch (e: any) {
+    const msg = e?.message || 'Échec de connexion IMAP';
+    return { success: false, error: msg };
+  } finally {
+    try { await client.logout(); } catch {}
+  }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = loadAccounts();
+    const session = await getSession(request);
+    if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const data = await listAccounts(session);
     return NextResponse.json({
       success: true,
       accounts: data.accounts.map(acc => ({
@@ -103,15 +77,14 @@ export async function GET() {
       activeAccount: data.activeAccount
     });
   } catch (error) {
-    return NextResponse.json({
-      success: false,
-      error: 'Erreur chargement comptes'
-    }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Erreur chargement comptes' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession(request);
+    if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const { provider, credentials } = await request.json();
     
     if (!provider || !credentials) {
@@ -121,8 +94,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Tester la connexion
-    const connectionTest = await testEmailConnection(provider, credentials);
+  // Tester la connexion réelle (IMAP ou validation basique Gmail OAuth)
+  const connectionTest = await testEmailConnection(provider, credentials);
     
     if (!connectionTest.success) {
       return NextResponse.json({
@@ -131,45 +104,23 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
-    // Charger les comptes existants
-    const data = loadAccounts();
-    
-    // Vérifier si le compte existe déjà
-    const existingAccount = data.accounts.find(acc => acc.email === credentials.email);
-    if (existingAccount) {
-      return NextResponse.json({
-        success: false,
-        error: 'Ce compte email est déjà connecté'
-      }, { status: 400 });
-    }
-    
-    // Créer le nouveau compte
-    const accountId = generateAccountId();
-    const newAccount: EmailAccount = {
-      id: accountId,
-      email: credentials.email,
-      provider: provider,
-      credentials: credentials,
+    // Persist in DB (no duplicate check here; enforced by controller logic if needed)
+    const created = await upsertAccount(session, {
+      email: String(credentials.email),
+      provider,
+      providerId: String(provider?.type || provider?.id || 'imap'),
+      providerName: String(provider?.name || provider?.type || 'Email'),
+      credentials,
       isConnected: true,
       lastSync: new Date().toISOString(),
       unreadCount: connectionTest.unreadCount || 0,
-      createdAt: new Date().toISOString()
-    };
-    
-    // Ajouter à la liste
-    data.accounts.push(newAccount);
-    
-    // Si c'est le premier compte, le définir comme actif
-    if (!data.activeAccount) {
-      data.activeAccount = accountId;
-    }
-    
-    // Sauvegarder
-    saveAccounts(data);
+      connectedAt: new Date().toISOString()
+    });
+    await setActiveAccount(session, created.id);
     
     return NextResponse.json({
       success: true,
-      accountId: accountId,
+      accountId: created.id,
       unreadCount: connectionTest.unreadCount || 0,
       message: 'Compte connecté avec succès'
     });
@@ -185,37 +136,13 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const session = await getSession(request);
+    if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const { accountId } = await request.json();
-    
-    if (!accountId) {
-      return NextResponse.json({
-        success: false,
-        error: 'ID de compte requis'
-      }, { status: 400 });
-    }
-    
-    const data = loadAccounts();
-    
-    // Trouver l'index du compte à supprimer
-    const accountIndex = data.accounts.findIndex(acc => acc.id === accountId);
-    
-    if (accountIndex === -1) {
-      return NextResponse.json({
-        success: false,
-        error: 'Compte non trouvé'
-      }, { status: 404 });
-    }
-    
-    // Supprimer le compte
-    data.accounts.splice(accountIndex, 1);
-    
-    // Si c'était le compte actif, choisir un autre ou null
-    if (data.activeAccount === accountId) {
-      data.activeAccount = data.accounts.length > 0 ? data.accounts[0].id : null;
-    }
-    
-    // Sauvegarder
-    saveAccounts(data);
+    if (!accountId) return NextResponse.json({ success: false, error: 'ID de compte requis' }, { status: 400 });
+    const dbModule = await import('@/lib/emailAccountsDb');
+    const ok = await dbModule.removeAccount(session, accountId);
+    if (!ok) return NextResponse.json({ success: false, error: 'Compte non trouvé' }, { status: 404 });
     
     return NextResponse.json({
       success: true,

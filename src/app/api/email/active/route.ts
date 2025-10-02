@@ -1,38 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-
-const ACCOUNTS_FILE = join(process.cwd(), 'data', 'email-accounts.json');
-
-interface AccountsData {
-  accounts: any[];
-  activeAccount: string | null;
-}
-
-function loadAccounts(): AccountsData {
-  try {
-    if (!existsSync(ACCOUNTS_FILE)) {
-      return { accounts: [], activeAccount: null };
-    }
-    const data = readFileSync(ACCOUNTS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { accounts: [], activeAccount: null };
-  }
-}
+import { listAccounts } from '@/lib/emailAccountsDb';
+import { getSession } from '@/lib/session';
 
 export async function GET(request: NextRequest) {
   try {
-    const accountsData = loadAccounts();
-    const activeAccount = accountsData.accounts.find(
-      acc => acc.id === accountsData.activeAccount
-    );
+    const session = await getSession(request);
+    if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Unauthorized', hasActiveAccount: false, activeAccount: null }, { status: 401 });
+    const data = await listAccounts(session);
+    const activeAccount = (data.accounts || []).find(acc => acc.id === data.activeAccount) || null;
 
     return NextResponse.json({
       success: true,
       hasActiveAccount: !!activeAccount,
-      activeAccount: activeAccount || null,
-      totalAccounts: accountsData.accounts.length
+      activeAccount,
+      totalAccounts: (data.accounts || []).length
     });
 
   } catch (error) {

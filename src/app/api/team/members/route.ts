@@ -1,188 +1,143 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { COMPANY_DEFAULT, LEGACY_BRAND_NAMES } from "@/config/branding";
 
-export async function GET(req: NextRequest) {
+// Mock database pour les membres d'équipe avec hiérarchie
+const BRAND = LEGACY_BRAND_NAMES[1] || LEGACY_BRAND_NAMES[0] || COMPANY_DEFAULT;
+const mockTeamMembers = [
+  {
+    id: "user1",
+    name: "Marie Dubois",
+  email: `marie.dubois@${BRAND.toLowerCase()}.com`,
+    role: "DG",
+    level: 10,
+  company: BRAND,
+    department: "Direction",
+    status: "online",
+    avatar: null,
+    joinedAt: "2023-01-15T10:00:00Z",
+    lastSeen: new Date().toISOString()
+  },
+  {
+    id: "user2", 
+    name: "Pierre Martin",
+  email: `pierre.martin@${BRAND.toLowerCase()}.com`,
+    role: "Admin",
+    level: 8,
+  company: BRAND,
+    department: "Administration",
+    status: "online",
+    avatar: null,
+    joinedAt: "2023-02-01T09:00:00Z",
+    lastSeen: new Date(Date.now() - 300000).toISOString() // 5 min ago
+  },
+  {
+    id: "user3",
+    name: "Sophie Bernard",
+  email: `sophie.bernard@${BRAND.toLowerCase()}.com`, 
+    role: "Finance",
+    level: 8,
+  company: BRAND,
+    department: "Finances",
+    status: "away",
+    avatar: null,
+    joinedAt: "2023-02-15T08:30:00Z",
+    lastSeen: new Date(Date.now() - 1800000).toISOString() // 30 min ago
+  },
+  {
+    id: "user4",
+    name: "Thomas Leroy",
+  email: `thomas.leroy@${BRAND.toLowerCase()}.com`,
+    role: "Assistant",
+    level: 5,
+  company: BRAND, 
+    department: "Support",
+    status: "offline",
+    avatar: null,
+    joinedAt: "2023-03-01T14:00:00Z",
+    lastSeen: new Date(Date.now() - 7200000).toISOString() // 2h ago
+  },
+  {
+    id: "user5",
+    name: "Julie Moreau",
+  email: `julie.moreau@${BRAND.toLowerCase()}.com`,
+    role: "Employe",
+    level: 3,
+  company: BRAND,
+    department: "Production",
+    status: "busy",
+    avatar: null,
+    joinedAt: "2023-03-15T13:30:00Z",
+    lastSeen: new Date(Date.now() - 600000).toISOString() // 10 min ago
+  }
+];
+
+export async function GET(request: NextRequest) {
   try {
-    // Simuler une base de données d'équipe
-    const members = [
-      {
-        id: 'dir-001',
-        name: 'Marie Dubois',
-        email: 'marie.dubois@company.com',
-        role: 'directeur',
-        title: 'Directrice Générale',
-        department: 'Direction',
-        isOnline: true,
-        lastSeen: new Date().toISOString(),
-        avatar: null
-      },
-      {
-        id: 'mgr-001',
-        name: 'Pierre Martin',
-        email: 'pierre.martin@company.com',
-        role: 'manager',
-        title: 'Responsable Commercial',
-        department: 'Ventes',
-        isOnline: true,
-        lastSeen: new Date(Date.now() - 5 * 60000).toISOString(),
-        avatar: null
-      },
-      {
-        id: 'mgr-002',
-        name: 'Claire Moreau',
-        email: 'claire.moreau@company.com',
-        role: 'manager',
-        title: 'Responsable RH',
-        department: 'Ressources Humaines',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 15 * 60000).toISOString(),
-        avatar: null
-      },
-      {
-        id: 'ast-001',
-        name: 'Sophie Leroy',
-        email: 'sophie.leroy@company.com',
-        role: 'assistant',
-        title: 'Assistante Administrative',
-        department: 'Administration',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 30 * 60000).toISOString(),
-        avatar: null
-      },
-      {
-        id: 'ast-002',
-        name: 'Marc Petit',
-        email: 'marc.petit@company.com',
-        role: 'assistant',
-        title: 'Assistant RH',
-        department: 'Ressources Humaines',
-        isOnline: true,
-        lastSeen: new Date(Date.now() - 2 * 60000).toISOString(),
-        avatar: null
-      },
-      {
-        id: 'emp-001',
-        name: 'Thomas Durand',
-        email: 'thomas.durand@company.com',
-        role: 'employe',
-        title: 'Commercial Senior',
-        department: 'Ventes',
-        isOnline: true,
-        lastSeen: new Date().toISOString(),
-        avatar: null
-      },
-      {
-        id: 'emp-002',
-        name: 'Julie Bernard',
-        email: 'julie.bernard@company.com',
-        role: 'employe',
-        title: 'Comptable',
-        department: 'Finance',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 2 * 60 * 60000).toISOString(),
-        avatar: null
-      },
-      {
-        id: 'emp-003',
-        name: 'Antoine Roux',
-        email: 'antoine.roux@company.com',
-        role: 'employe',
-        title: 'Commercial Junior',
-        department: 'Ventes',
-        isOnline: true,
-        lastSeen: new Date(Date.now() - 10 * 60000).toISOString(),
-        avatar: null
-      },
-      {
-        id: 'emp-004',
-        name: 'Camille Blanc',
-        email: 'camille.blanc@company.com',
-        role: 'employe',
-        title: 'Analyste Financier',
-        department: 'Finance',
-        isOnline: false,
-        lastSeen: new Date(Date.now() - 4 * 60 * 60000).toISOString(),
-        avatar: null
-      }
-    ];
-
-    // Simuler une variation des statuts en ligne
-    const now = Date.now();
-    members.forEach(member => {
-      // 70% de chance d'être en ligne durant les heures de bureau
-      const currentHour = new Date().getHours();
-      const isBusinessHours = currentHour >= 9 && currentHour <= 18;
-      const onlineChance = isBusinessHours ? 0.7 : 0.3;
-      
-      member.isOnline = Math.random() < onlineChance;
-      
-      if (!member.isOnline) {
-        // Si hors ligne, mettre à jour lastSeen avec un délai aléatoire
-        const randomDelay = Math.floor(Math.random() * 4 * 60 * 60 * 1000); // 0-4 heures
-        member.lastSeen = new Date(now - randomDelay).toISOString();
-      } else {
-        // Si en ligne, lastSeen récent
-        const recentDelay = Math.floor(Math.random() * 5 * 60 * 1000); // 0-5 minutes
-        member.lastSeen = new Date(now - recentDelay).toISOString();
-      }
-    });
-
+    const { searchParams } = new URL(request.url);
+  const company = searchParams.get('company') || BRAND;
+    
+    // Filtrer par entreprise si spécifié
+    const filteredMembers = mockTeamMembers.filter(member => 
+      !company || member.company.toLowerCase() === company.toLowerCase()
+    );
+    
+    // Trier par niveau hiérarchique (DG en premier)
+    const sortedMembers = filteredMembers.sort((a, b) => b.level - a.level);
+    
     return NextResponse.json({
       success: true,
-      members,
-      stats: {
-        total: members.length,
-        online: members.filter(m => m.isOnline).length,
-        byRole: {
-          directeur: members.filter(m => m.role === 'directeur').length,
-          manager: members.filter(m => m.role === 'manager').length,
-          assistant: members.filter(m => m.role === 'assistant').length,
-          employe: members.filter(m => m.role === 'employe').length
-        }
-      }
+      members: sortedMembers,
+      totalCount: sortedMembers.length
     });
-
-  } catch (error: any) {
-    console.error('Erreur récupération équipe:', error);
+    
+  } catch (error) {
+    console.error('Erreur API team members:', error);
     return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
+      { success: false, error: 'Erreur serveur' },
       { status: 500 }
     );
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const body = await req.json();
-    const { action, memberId, data } = body;
-
-    // Gestion des actions sur les membres
+    const body = await request.json();
+    const { action, targetUserId, data } = body;
+    
     switch (action) {
-      case 'update_status':
-        // Mettre à jour le statut d'un membre
-        console.log(`Mise à jour statut membre ${memberId}:`, data);
-        return NextResponse.json({ success: true });
-
-      case 'send_message':
-        // Envoyer un message à un membre
-        console.log(`Message vers ${memberId}:`, data.message);
-        return NextResponse.json({ success: true });
-
-      case 'assign_task':
-        // Assigner une tâche à un membre
-        console.log(`Tâche assignée à ${memberId}:`, data);
-        return NextResponse.json({ success: true });
-
+      case 'update-status':
+        // Mettre à jour le statut d'un utilisateur
+        const memberIndex = mockTeamMembers.findIndex(m => m.id === targetUserId);
+        
+        if (memberIndex !== -1) {
+          mockTeamMembers[memberIndex].status = data.status;
+          mockTeamMembers[memberIndex].lastSeen = new Date().toISOString();
+        }
+        
+        return NextResponse.json({
+          success: true,
+          message: 'Statut mis à jour'
+        });
+        
+      case 'assign-task':
+        // Assigner une tâche
+        console.log(`Tâche assignée à ${targetUserId}:`, data);
+        return NextResponse.json({
+          success: true,
+          message: 'Tâche assignée'
+        });
+        
       default:
         return NextResponse.json(
-          { error: 'Action non reconnue' },
+          { success: false, error: 'Action non supportée' },
           { status: 400 }
         );
     }
-
-  } catch (error: any) {
-    console.error('Erreur action équipe:', error);
+    
+  } catch (error) {
+    console.error('Erreur API team POST:', error);
     return NextResponse.json(
-      { error: 'Erreur interne du serveur' },
+      { success: false, error: 'Erreur serveur' },
       { status: 500 }
     );
   }
