@@ -49,3 +49,9 @@ Thumbs.db
 # Logs
 logs
 *.log
+
+# Service accounts / secrets
+firebase-service-account.json
+firebase-service-account.json/*
+firebase-key-base64.txt
+*.service-account.json

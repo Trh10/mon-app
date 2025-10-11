@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { saveEmailCredentials } from "@/lib/email/credentials";
 import { X, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 interface EmailLoginModalProps {
@@ -151,6 +152,13 @@ export default function EmailLoginModal({ isOpen, onClose, onSuccess }: EmailLog
           unreadCount: data.unreadCount || 0,
           status: 'connected'
         };
+
+        // Sauvegarder les identifiants pour l'envoi SMTP côté client (sauf OAuth)
+        try {
+          if (selectedProvider?.oauth !== true) {
+            saveEmailCredentials({ email: email.trim(), provider: selectedProvider.id, password: password.trim() } as any);
+          }
+        } catch {}
 
         console.log('✅ Nouveau compte créé:', newAccount);
         onSuccess(newAccount);

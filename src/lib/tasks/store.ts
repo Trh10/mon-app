@@ -15,64 +15,8 @@ if (!g.__TASKS_STORE__) g.__TASKS_STORE__ = seed();
 const store: Task[] = g.__TASKS_STORE__;
 
 function seed(): Task[] {
-  const now = Date.now();
-  return [
-    {
-      id: "t-1",
-      userId: "u-alice",
-      title: "Kick-off client X",
-      project: "Client X",
-      status: "done",
-      updatedAt: now - 86400000 * 2,
-      createdAt: now - 86400000 * 3,
-      createdBy: { id: "u-dina", name: "Dina" },
-      dueAt: now - 86400000 * 2,
-    },
-    {
-      id: "t-2",
-      userId: "u-alice",
-      title: "Roadmap Q4",
-      project: "Interne",
-      status: "in_progress",
-      updatedAt: now - 3600_000,
-      createdAt: now - 86400000,
-      createdBy: { id: "u-dina", name: "Dina" },
-      dueAt: now + 2 * 86400000,
-    },
-    {
-      id: "t-3",
-      userId: "u-bob",
-      title: "Préparer devis",
-      project: "Client Y",
-      status: "in_progress",
-      updatedAt: now - 2 * 3600_000,
-      createdAt: now - 2 * 86400000,
-      createdBy: { id: "u-alice", name: "Alice" },
-      dueAt: now + 3600_000,
-    },
-    {
-      id: "t-4",
-      userId: "u-chris",
-      title: "Suivi prospects",
-      project: "CRM",
-      status: "todo",
-      updatedAt: now - 3 * 86400000,
-      createdAt: now - 3 * 86400000,
-      createdBy: { id: "u-alice", name: "Alice" },
-      dueAt: null,
-    },
-    {
-      id: "t-5",
-      userId: "u-dina",
-      title: "Budget 2025",
-      project: "Direction",
-      status: "in_progress",
-      updatedAt: now - 7200_000,
-      createdAt: now - 7200_000,
-      createdBy: { id: "u-dina", name: "Dina" },
-      dueAt: now + 5 * 86400000,
-    },
-  ];
+  // Pas de tâches fictives - les vraies tâches seront ajoutées dynamiquement
+  return [];
 }
 
 export function listTasksByUser(userId: string) {

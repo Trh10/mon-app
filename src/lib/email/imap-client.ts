@@ -1,5 +1,5 @@
 import Imap from 'imap';
-import { simpleParser } from 'mailparser';
+import { simpleParser, AddressObject } from 'mailparser';
 import nodemailer from 'nodemailer';
 
 export interface EmailMessage {
@@ -124,8 +124,19 @@ export class EmailClient {
                 emails.push({
                   id: seqno.toString(),
                   subject: parsed.subject || 'Sans sujet',
-                  from: parsed.from?.text || 'Expéditeur inconnu',
-                  fromName: parsed.from?.name || parsed.from?.address || 'Inconnu',
+                  from: (parsed as any)?.from?.text || 'Expéditeur inconnu',
+                  fromName: (() => {
+                    const a: any = (parsed as any).from;
+                    if (!a) return 'Inconnu';
+                    if (typeof a.text === 'string') {
+                      const m = a.text.match(/^(.*?)\s*<.*?>$/);
+                      return (m?.[1]?.trim()) || a.text || 'Inconnu';
+                    }
+                    if (Array.isArray(a.value) && a.value.length) {
+                      return a.value[0]?.name || a.value[0]?.address || 'Inconnu';
+                    }
+                    return 'Inconnu';
+                  })(),
                   date: parsed.date || new Date(),
                   snippet: (parsed.text || '').substring(0, 200),
                   unread: !attributes.flags.includes('\\Seen'),
@@ -151,7 +162,7 @@ export class EmailClient {
         });
       });
 
-      imap.once('error', (err) => {
+      imap.once('error', (err: unknown) => {
         reject(err);
       });
 
@@ -160,7 +171,7 @@ export class EmailClient {
   }
 
   async sendEmail(to: string, subject: string, content: string): Promise<any> {
-    const transporter = nodemailer.createTransporter(this.smtpConfig);
+    const transporter = nodemailer.createTransport(this.smtpConfig as any);
 
     const mailOptions = {
       to,

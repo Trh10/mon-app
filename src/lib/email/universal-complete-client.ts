@@ -1,5 +1,5 @@
 import Imap from 'imap';
-import { simpleParser } from 'mailparser';
+import { simpleParser, AddressObject } from 'mailparser';
 import nodemailer from 'nodemailer';
 
 export interface EmailMessage {
@@ -50,6 +50,23 @@ export class UniversalCompleteClient {
     this.password = password;
     this.accessToken = tokens?.accessToken;
     this.refreshToken = tokens?.refreshToken;
+  }
+
+  // Utilitaire: convertir AddressObject (ou tableau) en chaîne lisible
+  private addressToText(addr?: AddressObject | AddressObject[] | null): string {
+    if (!addr) return '';
+    if (Array.isArray(addr)) {
+      return addr.map(a => this.addressToText(a)).filter(Boolean).join(', ');
+    }
+    const anyAddr: any = addr as any;
+    if (typeof anyAddr.text === 'string') return anyAddr.text as string;
+    if (Array.isArray(anyAddr.value)) {
+      return anyAddr.value
+        .map((v: any) => v?.name ? `${v.name} <${v.address}>` : v?.address)
+        .filter(Boolean)
+        .join(', ');
+    }
+    return '';
   }
 
   // 🌍 BASE DE DONNÉES des providers (même que avant)
@@ -155,19 +172,20 @@ export class UniversalCompleteClient {
             return resolve([]);
           }
 
-          console.log(`📊 Dossier ${actualFolder} ouvert avec succès`);
+          const folderNameToOpen: string = actualFolder || 'INBOX';
+          console.log(`📊 Dossier ${folderNameToOpen} ouvert avec succès`);
 
-          imap.openBox(actualFolder, true, (err, box) => {
+          imap.openBox(folderNameToOpen, true, (err, box) => {
             if (err) {
-              console.error(`❌ Erreur ouverture boîte ${actualFolder}:`, err);
+              console.error(`❌ Erreur ouverture boîte ${folderNameToOpen}:`, err);
               imap.end();
               return resolve([]);
             }
 
-            console.log(`📊 Boîte ${actualFolder}: ${box.messages.total} messages`);
+            console.log(`📊 Boîte ${folderNameToOpen}: ${box.messages.total} messages`);
 
             if (box.messages.total === 0) {
-              console.log(`📭 Aucun message dans ${actualFolder}`);
+              console.log(`📭 Aucun message dans ${folderNameToOpen}`);
               imap.end();
               return resolve([]);
             }
@@ -197,9 +215,9 @@ export class UniversalCompleteClient {
                   emails.push({
                     id: seqno.toString(),
                     subject: parsed.subject || 'Sans sujet',
-                    from: parsed.from?.text || 'Expéditeur inconnu',
-                    fromName: this.extractDisplayName(parsed.from?.text || ''),
-                    to: parsed.to?.text || '',
+                    from: this.addressToText(parsed.from) || 'Expéditeur inconnu',
+                    fromName: this.extractDisplayName(this.addressToText(parsed.from) || ''),
+                    to: this.addressToText(parsed.to) || '',
                     date: parsed.date || new Date(),
                     snippet: (parsed.text || '').substring(0, 200),
                     unread: !attributes.flags.includes('\\Seen'),
@@ -214,14 +232,14 @@ export class UniversalCompleteClient {
               });
             });
 
-            f.once('error', (err) => {
-              console.error(`❌ Erreur fetch ${actualFolder}:`, err);
+            f.once('error', (err: unknown) => {
+              console.error(`❌ Erreur fetch ${folderNameToOpen}:`, err);
               imap.end();
               resolve(emails); // Retourner les emails déjà récupérés
             });
 
             f.once('end', () => {
-              console.log(`✅ ${emails.length} emails IMAP récupérés de ${actualFolder}`);
+              console.log(`✅ ${emails.length} emails IMAP récupérés de ${folderNameToOpen}`);
               imap.end();
               resolve(emails.reverse());
             });
@@ -229,7 +247,7 @@ export class UniversalCompleteClient {
         });
       });
 
-      imap.once('error', (err) => {
+      imap.once('error', (err: unknown) => {
         console.error(`❌ Erreur connexion IMAP:`, err);
         resolve([]); // Retourner un tableau vide au lieu d'une erreur
       });
@@ -357,10 +375,10 @@ export class UniversalCompleteClient {
                 const content: EmailContent = {
                   id: seqno.toString(),
                   subject: parsed.subject || 'Sans sujet',
-                  from: parsed.from?.text || 'Expéditeur inconnu',
-                  to: parsed.to?.text || 'Destinataire inconnu',
-                  cc: parsed.cc?.text || '',
-                  bcc: parsed.bcc?.text || '',
+                  from: this.addressToText(parsed.from) || 'Expéditeur inconnu',
+                  to: this.addressToText(parsed.to) || 'Destinataire inconnu',
+                  cc: this.addressToText(parsed.cc) || '',
+                  bcc: this.addressToText(parsed.bcc) || '',
                   date: parsed.date || new Date(),
                   textContent: parsed.text || '',
                   htmlContent: parsed.html || '',
@@ -452,7 +470,7 @@ export class UniversalCompleteClient {
         });
       });
 
-      imap.once('error', (err) => {
+      imap.once('error', (err: unknown) => {
         console.error('❌ Erreur connexion pour dossiers:', err);
         resolve(this.getDefaultFolders());
       });
@@ -500,7 +518,7 @@ export class UniversalCompleteClient {
 
     console.log(`✉️ Envoi email SMTP - To: ${to} - Subject: ${subject} - User: Trh10 - 2025-08-29 12:06:49`);
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: this.config.smtp.host,
       port: this.config.smtp.port,
       secure: this.config.smtp.secure || false,

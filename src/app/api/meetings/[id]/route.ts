@@ -1,63 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/session';
-import { hub } from '@/lib/realtime/hub';
-const db: any = prisma as any;
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession(_req);
-  if (!session.organizationId) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
-  const m = await db.meeting.findUnique({ where: { id: params.id } });
-  if (!m || m.organizationId !== session.organizationId) return NextResponse.json({ success: false, error: 'Introuvable' }, { status: 404 });
-  const isPrivileged = session.userRole === 'admin' || session.userRole === 'manager';
-  return NextResponse.json({ success: true, meeting: m, canManage: isPrivileged });
-}
+export const runtime = 'nodejs';
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession(request);
-  if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
-  const isPrivileged = session.userRole === 'admin' || session.userRole === 'manager';
-  if (!isPrivileged) return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
-  const m = await db.meeting.findUnique({ where: { id: params.id } });
-  if (!m || m.organizationId !== session.organizationId) return NextResponse.json({ success: false, error: 'Introuvable' }, { status: 404 });
-  const body = await request.json().catch(() => ({}));
-  const patch: any = {};
-  if (typeof body.title === 'string') patch.title = String(body.title).trim();
-  if (typeof body.notes === 'string') patch.notes = String(body.notes);
-  if (Array.isArray(body.participants)) patch.participants = body.participants.filter((p: any) => p && p.id && p.name).map((p: any) => ({ id: String(p.id), name: String(p.name) }));
-  const updated = await db.meeting.update({ where: { id: params.id }, data: patch });
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getSession(req);
+  if (!session.organizationId) {
+    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  }
 
-  try {
-    const summary = `Réunion mise à jour: ${updated.title}`;
-    const participants: any[] = Array.isArray(updated.participants) ? (updated.participants as any) : [];
-    for (const p of participants) {
-      if (!p?.id) continue;
-      if (String(p.id) === String(session.userId)) continue;
-      const dmRoomId = [String(session.userId), String(p.id)].sort().join(':');
-      const msgId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-      hub.broadcast(`dm:${dmRoomId}`, 'dm', {
-        user: { id: session.userId, name: session.userName || 'Utilisateur' },
-        payload: { id: msgId, text: summary },
-        ts: Date.now(),
-      });
-      hub.broadcast(`user:${p.id}`, 'dm', {
-        user: { id: session.userId, name: session.userName || 'Utilisateur' },
-        payload: { id: msgId, text: summary },
-        ts: Date.now(),
-      });
-    }
-  } catch {}
-
-  return NextResponse.json({ success: true, meeting: updated });
+  const meetingId = params.id; // Meeting.id est une String (cuid())
+  const db = prisma as any;
+  const meeting = await db.meeting.findUnique({ where: { id: meetingId } });
+  if (!meeting || meeting.organizationId !== session.organizationId) {
+    return NextResponse.json({ error: 'Introuvable' }, { status: 404 });
+  }
+  return NextResponse.json({ success: true, meeting });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession(req);
-  if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
-  const isPrivileged = session.userRole === 'admin' || session.userRole === 'manager';
-  if (!isPrivileged) return NextResponse.json({ success: false, error: 'Accès refusé' }, { status: 403 });
-  const m = await db.meeting.findUnique({ where: { id: params.id } });
-  if (!m || m.organizationId !== session.organizationId) return NextResponse.json({ success: false, error: 'Introuvable' }, { status: 404 });
-  await db.meeting.delete({ where: { id: params.id } });
-  return NextResponse.json({ success: true });
+  try {
+    const session = await getSession(req);
+    if (!session.organizationId) {
+      return NextResponse.json({ error: 'Session requise' }, { status: 401 });
+    }
+
+    const meetingId = params.id; // String id
+
+    // Récupérer la réunion
+  const db = prisma as any;
+  const meeting = await db.meeting.findUnique({ where: { id: meetingId } });
+    if (!meeting || meeting.organizationId !== session.organizationId) {
+      return NextResponse.json({ error: 'Réunion non trouvée' }, { status: 404 });
+    }
+
+    // Supprimer le fichier physique si présent (chemin public)
+    const metadata = meeting.metadata && typeof meeting.metadata === 'object' ? (meeting.metadata as any) : {};
+    if (metadata.filePath) {
+      const fullPath = join(process.cwd(), 'public', metadata.filePath.replace(/^\/+/, ''));
+      try {
+        await unlink(fullPath);
+      } catch (e) {
+        // Ignorer si déjà supprimé
+      }
+    }
+
+    // Supprimer l'entrée de la base de données
+  const db2 = prisma as any;
+  await db2.meeting.delete({ where: { id: meetingId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Delete meeting error:', error);
+    return NextResponse.json({ error: error.message || 'Erreur lors de la suppression' }, { status: 500 });
+  }
 }

@@ -104,7 +104,7 @@ export default function ApprovalWorkflow() {
     );
   }
 
-  if (!canAccessRequisitions(user.level)) {
+  if (!canAccessRequisitions(user.level || 0)) {
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">

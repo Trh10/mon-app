@@ -1,4 +1,4 @@
-// Providers IA unifiés pour ICONES BOX
+// Providers IA unifiés pour l'application (branding neutralisé)
 type AIProvider = "openai" | "groq" | "anthropic" | "fallback";
 
 interface AIConfig {
@@ -21,7 +21,8 @@ const AI_CONFIGS: AIConfig[] = [
   {
     provider: "groq",
     apiKey: process.env.GROQ_API_KEY,
-    model: "llama3-8b-8192", // Ultra rapide
+    // Modèle mis à jour (l'ancien "llama3-8b-8192" est décommissionné)
+    model: process.env.GROQ_MODEL || "llama-3.1-8b-instant", // Ultra rapide & supporté
     temperature: 0.1
   },
   {

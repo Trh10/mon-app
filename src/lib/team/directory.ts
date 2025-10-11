@@ -1,4 +1,4 @@
-import type { Role } from "../auth/roles";
+import type { Role } from "../auth/role";
 
 export type Member = {
   id: string;

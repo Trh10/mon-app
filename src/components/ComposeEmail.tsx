@@ -52,10 +52,11 @@ export function ComposeEmail({ onClose, onSent, replyTo }: ComposeEmailProps) {
         body: JSON.stringify({
           to: to.trim(),
           subject: subject.trim(),
-          text: content,
-          html: content.replace(/\n/g, '<br>'),
+          content: content, // backend accepte text/html mais on unifie
+          from: parsedCredentials.email,
           fromEmail: parsedCredentials.email,
           fromPassword: parsedCredentials.password,
+          password: parsedCredentials.password,
           fromName: parsedCredentials.userName || currentUser,
           replyTo: replyTo?.to,
           inReplyTo: replyTo?.messageId,
@@ -66,8 +67,8 @@ export function ComposeEmail({ onClose, onSent, replyTo }: ComposeEmailProps) {
 
       const data = await response.json();
 
-      if (response.ok) {
-        console.log(`✅ Email envoyé avec succès - MessageID: ${data.messageId} - User: ${currentUser} - ${currentTime}`);
+      if (response.ok && data.ok) {
+        console.log(`✅ Email envoyé avec succès - MessageID: ${data.messageId || data.id} - User: ${currentUser} - ${currentTime}`);
         alert('Email envoyé avec succès !');
         onSent && onSent();
         onClose();

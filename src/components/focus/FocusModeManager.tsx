@@ -167,8 +167,8 @@ export default function FocusModeManager({
     
     // Configurer le gestionnaire de notifications
     notificationManager.updateSettings({
-      soundEnabled: config.enableSounds,
-      desktopEnabled: config.enableDesktop,
+      sounds: config.enableSounds,
+      desktop: config.enableDesktop,
       // TODO: Implémenter le filtrage par priorité
     });
   }, [notificationManager]);

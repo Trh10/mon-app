@@ -1,126 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { COMPANY_DEFAULT, LEGACY_BRAND_NAMES } from "@/config/branding";
+import { prisma } from "@/lib/db";
+import { jsonSafe } from "@/lib/json";
+import { getSession } from "@/lib/session";
 
-// Mock database pour les membres d'équipe avec hiérarchie
-const BRAND = LEGACY_BRAND_NAMES[1] || LEGACY_BRAND_NAMES[0] || COMPANY_DEFAULT;
-const mockTeamMembers = [
-  {
-    id: "user1",
-    name: "Marie Dubois",
-  email: `marie.dubois@${BRAND.toLowerCase()}.com`,
-    role: "DG",
-    level: 10,
-  company: BRAND,
-    department: "Direction",
-    status: "online",
-    avatar: null,
-    joinedAt: "2023-01-15T10:00:00Z",
-    lastSeen: new Date().toISOString()
-  },
-  {
-    id: "user2", 
-    name: "Pierre Martin",
-  email: `pierre.martin@${BRAND.toLowerCase()}.com`,
-    role: "Admin",
-    level: 8,
-  company: BRAND,
-    department: "Administration",
-    status: "online",
-    avatar: null,
-    joinedAt: "2023-02-01T09:00:00Z",
-    lastSeen: new Date(Date.now() - 300000).toISOString() // 5 min ago
-  },
-  {
-    id: "user3",
-    name: "Sophie Bernard",
-  email: `sophie.bernard@${BRAND.toLowerCase()}.com`, 
-    role: "Finance",
-    level: 8,
-  company: BRAND,
-    department: "Finances",
-    status: "away",
-    avatar: null,
-    joinedAt: "2023-02-15T08:30:00Z",
-    lastSeen: new Date(Date.now() - 1800000).toISOString() // 30 min ago
-  },
-  {
-    id: "user4",
-    name: "Thomas Leroy",
-  email: `thomas.leroy@${BRAND.toLowerCase()}.com`,
-    role: "Assistant",
-    level: 5,
-  company: BRAND, 
-    department: "Support",
-    status: "offline",
-    avatar: null,
-    joinedAt: "2023-03-01T14:00:00Z",
-    lastSeen: new Date(Date.now() - 7200000).toISOString() // 2h ago
-  },
-  {
-    id: "user5",
-    name: "Julie Moreau",
-  email: `julie.moreau@${BRAND.toLowerCase()}.com`,
-    role: "Employe",
-    level: 3,
-  company: BRAND,
-    department: "Production",
-    status: "busy",
-    avatar: null,
-    joinedAt: "2023-03-15T13:30:00Z",
-    lastSeen: new Date(Date.now() - 600000).toISOString() // 10 min ago
-  }
-];
-
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-  const company = searchParams.get('company') || BRAND;
-    
-    // Filtrer par entreprise si spécifié
-    const filteredMembers = mockTeamMembers.filter(member => 
-      !company || member.company.toLowerCase() === company.toLowerCase()
-    );
-    
-    // Trier par niveau hiérarchique (DG en premier)
-    const sortedMembers = filteredMembers.sort((a, b) => b.level - a.level);
-    
+    const session = await getSession(req);
+    if (!session.organizationId) {
+      return NextResponse.json({ error: "Session requise" }, { status: 401 });
+    }
+
+    // Récupérer les vrais membres de l'organisation depuis Prisma
+    const members = await prisma.user.findMany({
+      where: { organizationId: session.organizationId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Transformer pour l'API (format attendu par le frontend)
+    const formatted = members.map(m => ({
+      id: String(m.id),
+      name: m.name || m.email,
+      email: m.email,
+      role: m.role === 'admin' ? 'chef' : 'employe',
+      level: m.role === 'admin' ? 10 : 3,
+      company: session.organizationId,
+      department: 'Général',
+      status: 'online', // TODO: implémenter la détection de présence temps réel
+      avatar: null,
+      joinedAt: m.createdAt.toISOString(),
+      lastSeen: new Date().toISOString()
+    }));
+
     return NextResponse.json({
       success: true,
-      members: sortedMembers,
-      totalCount: sortedMembers.length
+      members: formatted,
+      totalCount: formatted.length
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API team members:', error);
     return NextResponse.json(
-      { success: false, error: 'Erreur serveur' },
+      { success: false, error: error.message || "Erreur serveur" },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
+    const session = await getSession(req);
+    if (!session.organizationId) {
+      return NextResponse.json({ error: "Session requise" }, { status: 401 });
+    }
+
+    const body = await req.json();
     const { action, targetUserId, data } = body;
     
     switch (action) {
       case 'update-status':
-        // Mettre à jour le statut d'un utilisateur
-        const memberIndex = mockTeamMembers.findIndex(m => m.id === targetUserId);
-        
-        if (memberIndex !== -1) {
-          mockTeamMembers[memberIndex].status = data.status;
-          mockTeamMembers[memberIndex].lastSeen = new Date().toISOString();
-        }
-        
+        // TODO: Implémenter la mise à jour du statut utilisateur
+        // Pour l'instant, on ne fait rien car le statut est géré en temps réel
         return NextResponse.json({
           success: true,
           message: 'Statut mis à jour'
         });
         
       case 'assign-task':
-        // Assigner une tâche
+        // TODO: Créer une vraie tâche dans Prisma
         console.log(`Tâche assignée à ${targetUserId}:`, data);
         return NextResponse.json({
           success: true,
@@ -134,10 +86,10 @@ export async function POST(request: NextRequest) {
         );
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API team POST:', error);
     return NextResponse.json(
-      { success: false, error: 'Erreur serveur' },
+      { success: false, error: error.message || 'Erreur serveur' },
       { status: 500 }
     );
   }

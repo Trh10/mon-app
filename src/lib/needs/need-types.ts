@@ -42,9 +42,12 @@ export type RequisitionStatus =
   | 'complete'      // Terminé/livré
   | 'annule';       // Annulé
 
+// Compatible avec les deux systèmes (requisition et need)
 export interface WorkflowStep {
   id: string;
-  requisitionId: string;
+  // L'un des deux peut être utilisé selon le module
+  requisitionId?: string;
+  needId?: string;
   reviewerId: string;
   reviewerName: string;
   reviewerLevel: number;
@@ -154,3 +157,9 @@ export const STATUS_COLORS: Record<NeedStatus, string> = {
   complete: 'bg-purple-100 text-purple-800',
   annule: 'bg-gray-100 text-gray-800'
 };
+
+// Alias de types pour compatibilité avec l'API des "needs"
+export type Need = Requisition;
+export type NeedCategory = RequisitionCategory;
+export type NeedPriority = RequisitionPriority;
+export type NeedStatus = RequisitionStatus;

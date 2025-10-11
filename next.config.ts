@@ -8,7 +8,8 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: false, // Mettre à true temporairement si besoin
   },
   experimental: {
-    serverComponentsExternalPackages: ['firebase-admin'],
+    // Consolidated external packages (merged nodemailer + firebase-admin)
+    serverComponentsExternalPackages: ['firebase-admin', 'nodemailer'],
   },
   // Configuration pour le déploiement
   output: 'standalone',

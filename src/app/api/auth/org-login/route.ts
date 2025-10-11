@@ -65,6 +65,9 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       userRole: user.role,
       userName: user.name ?? undefined,
+      // Associer l'organisation à la session pour que toutes les API fonctionnent
+      organizationId: user.organizationId,
+      organizationSlug: undefined,
     });
 
     return res;

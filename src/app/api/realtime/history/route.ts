@@ -16,9 +16,13 @@ export async function GET(req: NextRequest) {
   
   const session = await getSession(req);
   
+  // Déterminer si c'est un DM ou un room
+  // room est déjà préfixé par le client ("room:..." ou "dm:...")
+  const channel = room;
+  
   // 1) Try Prisma-backed history first (filtré par org si session)
   try {
-    const where: any = { channel: `room:${room}` };
+    const where: any = { channel };
     if (session.organizationId) {
       where.organizationId = session.organizationId;
     }
@@ -29,7 +33,19 @@ export async function GET(req: NextRequest) {
       take: safeLimit,
     });
     if (items && items.length > 0) {
-      return NextResponse.json({ items: jsonSafe(items.reverse()) });
+      // Transformer les messages Prisma au format attendu par le client
+      const transformed = items.map(msg => {
+        const meta = typeof msg.metadata === 'object' ? msg.metadata : {};
+        return {
+          id: (meta as any).id || msg.id,
+          text: msg.content,
+          user: (meta as any).user || { id: msg.userId || '', name: 'Utilisateur', role: '' },
+          ts: msg.createdAt.getTime(),
+          replyTo: (meta as any).replyTo,
+          reactions: (meta as any).reactions || {}
+        };
+      }).reverse();
+      return NextResponse.json({ items: jsonSafe(transformed) });
     }
   } catch {}
   const db = getFirestoreIfAvailable();

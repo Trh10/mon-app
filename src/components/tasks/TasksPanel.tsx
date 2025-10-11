@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { canAssignTaskTo, getAssignableUsers, UserRole, getRoleDisplayName } from "@/lib/permissions";
 
-type Role = "chef" | "manager" | "assistant" | "employe";
+type Role = UserRole;
 type Member = { id: string; name: string; role: Role; title: string; email: string };
+// Adapted to backend Task shape
 type Task = {
   id: string;
-  userId: string;
   title: string;
-  project: string;
-  status: "todo" | "in_progress" | "done";
-  updatedAt: number;
-  createdAt: number;
-  createdBy: { id: string; name: string };
-  dueAt?: number | null;
+  description?: string;
+  assignedTo: string;
+  assignedBy: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'pending' | 'in-progress' | 'completed' | 'cancelled';
+  isPrivate: boolean;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export default function TasksPanel({
@@ -30,13 +34,20 @@ export default function TasksPanel({
 
   // Form
   const [title, setTitle] = useState("");
-  const [project, setProject] = useState("");
+  const [project, setProject] = useState(""); // short project/context
+  const [detail, setDetail] = useState(""); // long description
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [dueText, setDueText] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const canAssignAnyone = currentUser.role === "chef";
+  // Calculer les utilisateurs auxquels on peut assigner des tâches
+  const assignableUsers = useMemo(() => {
+    return getAssignableUsers(currentUser.role, directory);
+  }, [currentUser.role, directory]);
+
+  // Vérifier si l'utilisateur peut assigner des tâches
+  const canAssignTasks = ["chef", "administration", "finance"].includes(currentUser.role);
 
   useEffect(() => {
     (async () => {
@@ -44,9 +55,13 @@ export default function TasksPanel({
       const data = await res.json();
       const items: Member[] = data?.items || [];
       setDirectory(items);
-      // Par défaut: si employé -> lui-même; si chef -> lui-même (modifiable)
-      const defaultId = items.find((m) => m.id === currentUser.id)?.id || currentUser.id || items[0]?.id || "";
-      setAssigneeId(defaultId);
+      
+      // Par défaut: si peut assigner -> premier utilisateur assignable; sinon -> lui-même
+      if (canAssignTasks && assignableUsers.length > 0) {
+        setAssigneeId(assignableUsers[0].id);
+      } else {
+        setAssigneeId(currentUser.id);
+      }
     })();
   }, [currentUser.id]);
 
@@ -55,32 +70,36 @@ export default function TasksPanel({
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/team/tasks?userId=${encodeURIComponent(assigneeId)}`, { cache: "no-store" });
+        const res = await fetch(`/api/team/tasks?assignedTo=${encodeURIComponent(assigneeId)}`, { cache: 'no-store' });
         const data = await res.json();
-        setTasks((data?.items || []) as Task[]);
-      } finally {
-        setLoading(false);
-      }
+        if (res.ok && data.success) {
+          setTasks((data.tasks || []) as Task[]);
+        } else {
+          setTasks([]);
+        }
+      } finally { setLoading(false); }
     })();
   }, [assigneeId]);
 
   async function addTask() {
-    if (!title.trim() || !project.trim() || !assigneeId) return;
+    if (!title.trim() || !project.trim() || !detail.trim() || !assigneeId) return;
     setSaving(true);
     try {
       // Si l'utilisateur n'est pas chef, forcer l'assignation à lui-même côté client
-      const targetUserId = canAssignAnyone ? assigneeId : currentUser.id;
+      const targetUserId = canAssignTasks ? assigneeId : currentUser.id;
       const res = await fetch("/api/team/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actor: currentUser,
-          userId: targetUserId,
-          title: title.trim(),
-          project: project.trim(),
-          dueDate: dueDate || undefined,
-          dueTime: dueTime || undefined,
-          dueText: dueText || undefined,
+          action: 'create',
+          data: {
+            title: title.trim(),
+            description: [project.trim(), detail.trim()].filter(Boolean).join(' — '),
+            assignedTo: targetUserId,
+            priority: 'medium',
+            isPrivate: false,
+            dueDate: dueDate || undefined
+          }
         }),
       });
       const data = await res.json();
@@ -89,13 +108,15 @@ export default function TasksPanel({
         return;
       }
       const created = data.task as Task;
-      // Rafraîchir la liste si on est sur la même personne
-      if (created.userId === assigneeId) {
-        setTasks((prev) => [created, ...prev]);
+      if (created.assignedTo === assigneeId) {
+        setTasks(prev => [created, ...prev]);
       }
+      // Dispatch global event for TeamPanel sync
+      window.dispatchEvent(new CustomEvent('tasks:updated', { detail: { userId: created.assignedTo } }));
       // Reset form
       setTitle("");
-      setProject("");
+  setProject("");
+  setDetail("");
       setDueDate("");
       setDueTime("");
       setDueText("");
@@ -123,13 +144,13 @@ export default function TasksPanel({
               <select
                 value={assigneeId}
                 onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={!canAssignAnyone}
+                disabled={!canAssignTasks}
                 className="border rounded-md px-2 py-1 disabled:opacity-60"
-                title={canAssignAnyone ? "Choisir un membre" : "Seul un chef peut assigner à quelqu'un d'autre"}
+                title={canAssignTasks ? "Choisir un membre" : "Seuls DG, Administration et Finance peuvent assigner des tâches"}
               >
-                {(canAssignAnyone ? directory : directory.filter((m) => m.id === currentUser.id)).map((m) => (
+                {(canAssignTasks ? assignableUsers : directory.filter((m) => m.id === currentUser.id)).map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.name} · {m.role}
+                    {m.name} · {getRoleDisplayName(m.role)}
                   </option>
                 ))}
                 {!directory.find((m) => m.id === currentUser.id) && (
@@ -147,8 +168,14 @@ export default function TasksPanel({
             <input
               value={project}
               onChange={(e) => setProject(e.target.value)}
-              placeholder='Projet (ex: "Client X" ou "Interne")'
+              placeholder='Projet / Contexte (ex: "Client X", "Interne")'
               className="border rounded-md px-2 py-1"
+            />
+            <textarea
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              placeholder='Détails: objectifs, livrables, remarques, étapes...'
+              className="border rounded-md px-2 py-2 text-sm min-h-[80px] resize-y"
             />
 
             <div className="text-xs text-gray-500">Échéance (au choix: date/heure OU texte)</div>
@@ -216,22 +243,13 @@ export default function TasksPanel({
             <div className="text-sm text-gray-500">Aucune tâche.</div>
           ) : (
             <ul className="space-y-2">
-              {tasks.map((t) => (
+              {tasks.map(t => (
                 <li key={t.id} className="flex items-start gap-2">
-                  <span
-                    className={`mt-2 inline-block w-2 h-2 rounded-full ${
-                      t.status === "done" ? "bg-green-500" : t.status === "in_progress" ? "bg-blue-500" : "bg-gray-300"
-                    }`}
-                  />
+                  <span className={`mt-2 inline-block w-2 h-2 rounded-full ${t.status === 'completed' ? 'bg-green-500' : t.status === 'in-progress' ? 'bg-blue-500' : 'bg-gray-300'}`} />
                   <div className="flex-1">
                     <div className="font-medium">{t.title}</div>
-                    <div className="text-xs text-gray-500">
-                      {t.project} — {t.status}
-                      {t.dueAt ? ` · Échéance: ${new Date(t.dueAt).toLocaleString()}` : ""}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      Ajoutée par {t.createdBy?.name} · {new Date(t.createdAt).toLocaleString()}
-                    </div>
+                    <div className="text-xs text-gray-500">{t.description} — {t.status}</div>
+                    <div className="text-xs text-gray-400">Créée le {new Date(t.createdAt).toLocaleString()}</div>
                   </div>
                 </li>
               ))}

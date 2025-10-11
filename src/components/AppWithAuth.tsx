@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useCodeAuth } from './auth/CodeAuthContext';
+import { APP_NAME } from '@/config/branding';
 import { LoginForm } from './auth/LoginForm';
 
 interface AppWithAuthProps {
@@ -57,7 +58,7 @@ export function AppWithAuth({ children }: AppWithAuthProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-semibold text-gray-900">
-              ICONES BOX
+              {APP_NAME}
             </h1>
             <div className="text-sm text-gray-600">
               Connecté en tant que: <span className="font-medium">{user.name}</span>
