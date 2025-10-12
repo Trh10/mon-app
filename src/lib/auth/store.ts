@@ -1,6 +1,8 @@
 // In-memory shared auth store (temporary; replace with database later)
 // Provides companies and users arrays plus helper functions.
 
+import { hashPin, verifyPin } from '@/lib/hash';
+
 export interface CompanyRecord {
   id: string;
   name: string;
@@ -21,7 +23,7 @@ export interface UserRecord {
   normalizedName: string;
   role: string; // textual role (DG, Administration, etc.)
   level: number; // numeric level (10 DG, 8 Admin/Finance, 5 Assistant, 3 Employé, custom ~3)
-  pin: string; // hashed PIN ideally (plain for prototype)
+  pinHash: string; // hashed PIN with salt
   permissions: string[];
   createdAt: string;
   createdBy: string;
@@ -137,7 +139,7 @@ export function createUser(company: CompanyRecord, name: string, role: string, p
     normalizedName: normalizeUserName(name),
     role,
     level,
-    pin,
+    pinHash: hashPin(pin),
     permissions: permissionsForLevel(level),
     createdAt: new Date().toISOString(),
     createdBy: creator,
@@ -151,7 +153,7 @@ export function createUser(company: CompanyRecord, name: string, role: string, p
 export function validateLogin(company: CompanyRecord, name: string, pin: string) {
   const user = findUserByName(company.id, name);
   if (!user) throw new Error('Utilisateur introuvable');
-  if (user.pin !== pin) throw new Error('PIN incorrect');
+  if (!verifyPin(pin, user.pinHash)) throw new Error('PIN incorrect');
   user.lastLoginAt = new Date().toISOString();
   user.isOnline = true;
   persist();
