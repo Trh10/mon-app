@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from 'next/headers';
 import { getUsers } from '@/lib/auth/store';
+import { hashPin, verifyPin } from '@/lib/hash';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -30,9 +31,9 @@ export async function POST(req: NextRequest) {
 
     const user = getUsers().find(u => u.id === session.id && u.companyId === session.companyId);
     if (!user) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
-    if (user.pin !== currentPIN) return NextResponse.json({ error: 'PIN actuel incorrect' }, { status: 401 });
+    if (!verifyPin(currentPIN, user.pinHash)) return NextResponse.json({ error: 'PIN actuel incorrect' }, { status: 401 });
 
-    user.pin = newPIN; // (TODO: hash plus tard)
+    user.pinHash = hashPin(newPIN);
     (user as any).lastPinChangeAt = new Date().toISOString();
 
     return NextResponse.json({ success: true, message: 'PIN modifié' });
