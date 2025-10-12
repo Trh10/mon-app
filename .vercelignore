@@ -1,0 +1,13 @@
+# Ignorer les fichiers locaux
+.env.local
+.env
+.data
+data/*.json
+
+# Ignorer le dossier dupliqué
+mon-app
+
+# Ignorer les fichiers temporaires
+*.log
+.DS_Store
+.vscode
