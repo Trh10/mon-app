@@ -108,3 +108,49 @@ npm run build
 - **~15€/mois** : Version pro avec plus de fonctionnalités
 
 Votre application est **80% prête** pour la production ! 🎉
+
+---
+## 🚀 Déploiement Automatisé Vercel (Ajout)
+
+### 1. Script local
+Utilisation:
+```powershell
+pwsh ./scripts/deploy-vercel.ps1           # Pré-déploiement (aperçu)
+pwsh ./scripts/deploy-vercel.ps1 -Prod     # Déploiement production
+```
+Pré-requis: `vercel login` déjà effectué + variables configurées dans le dashboard.
+
+### 2. GitHub Action CI/CD
+Fichier: `.github/workflows/deploy.yml`
+
+Secrets requis dans GitHub (Settings > Secrets > Actions):
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+- `GROQ_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` (selon besoins)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
+- `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (si routes NextAuth actives)
+- `NEXT_PUBLIC_TINYMCE_KEY`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (si SMTP)
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` (si Firebase)
+
+Déclenchement: push sur `main` ou `prod` ou manuel (workflow_dispatch).
+
+### 3. Notes Techniques
+- Les messages *Dynamic server usage* pendant build sont normaux pour les routes utilisant `cookies` / `request.url`.
+- `output: 'standalone'` déjà configuré (optimisation Vercel/Node). 
+- Si tu ajoutes d'autres libs natives lourdes, penser à `serverComponentsExternalPackages`.
+
+### 4. Santé Post-Déploiement (Check rapide)
+```bash
+curl -I https://ton-app.vercel.app/
+curl https://ton-app.vercel.app/api/ai/status
+curl https://ton-app.vercel.app/api/email/active
+```
+
+### 5. Prochaines optimisations possibles
+- Ajout `/api/health` minimal (status: ok, version commit).
+- Logging structuré (pino) + trace ID.
+- Mise en cache edge (si certaines routes deviennent purement GET).
+
+---

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getRealtimeClient } from "../../lib/realtime/provider";
-import { notificationManager } from "../../lib/notifications/manager";
+import { getNotificationManager } from "../../lib/notifications/manager";
 import MemberPicker from "./MemberPicker";
 
 type Role = "chef" | "manager" | "assistant" | "employe";
@@ -54,6 +54,17 @@ function dmKey(a: string, b: string) {
 
 const EMOJI_REACTIONS = ['👍', '❤️', '😄', '😮', '😢', '😡', '🎉', '👏'];
 
+const ROLE_LABEL: Record<string,string> = {
+  chef: 'Directeur Général',
+  manager: 'Manager',
+  assistant: 'Assistant',
+  employe: 'Employé',
+  finance: 'Financier',
+  administration: 'Administration'
+};
+
+function roleLabel(r?: string) { return ROLE_LABEL[r || ''] || r || 'Employé'; }
+
 export default function ChatPanelEnhanced({
   roomId,
   userId,
@@ -61,6 +72,7 @@ export default function ChatPanelEnhanced({
   role = "employe" as Role,
   height = 420,
   onContextUpdate,
+  initialDmTarget,
 }: {
   roomId: string;
   userId: string;
@@ -68,11 +80,21 @@ export default function ChatPanelEnhanced({
   role?: Role;
   height?: number;
   onContextUpdate?: (ctx: { mode: "room" | "dm"; dmTargetId?: string }) => void;
+  initialDmTarget?: { id: string; name: string };
 }) {
   const rt = getRealtimeClient();
+  const notificationManager = getNotificationManager();
   const [mode, setMode] = useState<"room" | "dm">("room");
   const [dmTarget, setDmTarget] = useState<{ id: string; name: string } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Allow external component to open with a DM target directly
+  useEffect(() => {
+    if (initialDmTarget) {
+      setMode("dm");
+      setDmTarget(initialDmTarget);
+      setPickerOpen(false);
+    }
+  }, [initialDmTarget]);
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [files, setFiles] = useState<FileEvt[]>([]);
@@ -134,7 +156,7 @@ export default function ChatPanelEnhanced({
           setDmTarget({ id: String(data.targetId), name: String(data.targetName || "Utilisateur") });
           setPickerOpen(false);
           // Marquer les DM comme lus
-          notificationManager.clearUnreadCounter('dm', data.targetId);
+          notificationManager.markAllAsRead();
         }
       };
     } catch {}
@@ -170,9 +192,9 @@ export default function ChatPanelEnhanced({
         
         // Marquer comme lu si c'est la room active
         if (mode === "room") {
-          notificationManager.clearUnreadCounter('message', roomId);
+          notificationManager.markAllAsRead();
         } else if (dmTarget) {
-          notificationManager.clearUnreadCounter('dm', dmTarget.id);
+          notificationManager.markAllAsRead();
         }
       } catch (e: any) {
         setLastError(e?.message || "Impossible de charger l'historique");
@@ -212,7 +234,12 @@ export default function ChatPanelEnhanced({
       setConnReady(true);
       setIsReconnecting(false);
       if (data.reconnected) {
-        notificationManager.showSystemMessage("Reconnecté", "La connexion temps réel a été rétablie");
+        notificationManager.addNotification({
+          type: "system",
+          title: "Reconnecté",
+          message: "La connexion temps réel a été rétablie",
+          priority: "normal"
+        });
       }
     }));
     offs.push(rt.subscribe(readyRoom, "reconnecting", (data) => {
@@ -240,14 +267,14 @@ export default function ChatPanelEnhanced({
         seenIds.current.add(m.id);
         
         setMsgs((prev) => { 
-          const next = [...prev, m].slice(-200); 
+          const next = [...prev, m]; 
           requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" })); 
           return next; 
         });
 
         // Notification si pas l'utilisateur courant et pas focus sur la fenêtre
         if (m.user.id !== userId && document.hidden) {
-          notificationManager.showMessage(m.user.name, m.text, roomId);
+          notificationManager.addChatNotification(m.text, m.user.name, roomId);
         }
       }));
       
@@ -258,7 +285,7 @@ export default function ChatPanelEnhanced({
         
         // Notification de fichier
         if (env?.user?.id !== userId) {
-          notificationManager.showFileShared(env.user.name, p.name, roomId);
+          notificationManager.addFileNotification(p.name, env.user.name);
         }
       }));
       
@@ -289,11 +316,11 @@ export default function ChatPanelEnhanced({
         };
         if (!m?.id || seenIds.current.has(m.id)) return;
         seenIds.current.add(m.id);
-        setMsgs((prev) => [...prev, m].slice(-200));
+  setMsgs((prev) => [...prev, m]);
 
         // Notification DM si pas l'utilisateur courant
         if (m.user.id !== userId) {
-          notificationManager.showDM(m.user.name, m.text, m.user.id);
+          notificationManager.addChatNotification(m.text, m.user.name, m.user.id);
         }
       }));
       
@@ -309,13 +336,13 @@ export default function ChatPanelEnhanced({
         };
         if (!seenIds.current.has(sys.id)) { 
           seenIds.current.add(sys.id); 
-          setMsgs((prev) => [...prev, sys].slice(-200)); 
+          setMsgs((prev) => [...prev, sys]); 
         }
 
         // Notification de tâche
         if (env?.user?.id !== userId) {
           const dueDate = t.dueAt ? new Date(t.dueAt).toLocaleDateString() : undefined;
-          notificationManager.showTaskAssigned(env.user.name, t.title, dueDate);
+          notificationManager.addTaskNotification(t.title, env.user.name);
         }
       }));
       
@@ -340,7 +367,7 @@ export default function ChatPanelEnhanced({
         };
         if (!m?.id || seenIds.current.has(m.id)) return;
         seenIds.current.add(m.id);
-        setMsgs((prev) => [...prev, m].slice(-200));
+  setMsgs((prev) => [...prev, m]);
       }));
       
       offs.push(rt.subscribe(`user:${userId}`, "task", (env) => {
@@ -354,7 +381,7 @@ export default function ChatPanelEnhanced({
           };
           if (!seenIds.current.has(sys.id)) { 
             seenIds.current.add(sys.id); 
-            setMsgs((prev) => [...prev, sys].slice(-200)); 
+            setMsgs((prev) => [...prev, sys]); 
           }
         }
       }));
@@ -415,7 +442,7 @@ export default function ChatPanelEnhanced({
     };
     seenIds.current.add(id);
     setMsgs((prev) => { 
-      const next = [...prev, optimistic].slice(-200); 
+  const next = [...prev, optimistic]; 
       requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" })); 
       return next; 
     });
@@ -545,12 +572,12 @@ export default function ChatPanelEnhanced({
   }
 
   return (
-    <div style={{ border: "1px solid #e5e7eb", borderRadius: 10, background: "#fff" }}>
+    <div className="flex flex-col h-full" style={{ border: "1px solid #e5e7eb", borderRadius: 10, background: "#fff" }}>
       {/* Header avec statut de connexion amélioré */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid #e5e7eb", background: "#fafafa" }}>
         <div style={{ fontWeight: 700 }}>Chat</div>
         <button 
-          onClick={() => { setMode("room"); setDmTarget(null); notificationManager.clearUnreadCounter('message', roomId); }} 
+          onClick={() => { setMode("room"); setDmTarget(null); notificationManager.markAllAsRead(); }} 
           className={`text-xs px-2 py-1 rounded ${mode === "room" ? "bg-gray-900 text-white" : "border"}`} 
           title="Salon général"
         >
@@ -563,6 +590,17 @@ export default function ChatPanelEnhanced({
         >
           Privé{dmTarget ? `: ${dmTarget.name}` : ""}
         </button>
+        
+        {/* Bouton retour au général (en mode DM) */}
+        {mode === "dm" && (
+          <button
+            onClick={() => { setMode("room"); setDmTarget(null); }}
+            className="text-xs px-2 py-1 rounded border bg-blue-50 hover:bg-blue-100"
+            title="Retour au canal Général"
+          >
+            ← Général
+          </button>
+        )}
         
         {/* Bouton recherche */}
         <button 
@@ -707,7 +745,7 @@ export default function ChatPanelEnhanced({
       )}
 
       {/* Zone de messages */}
-      <div ref={scrollerRef} style={{ height, overflow: "auto", background: "#f9fafb", padding: 12, lineHeight: 1.5, fontSize: 14 }}>
+      <div ref={scrollerRef} className="flex-1 overflow-auto" style={{ background: "#f9fafb", padding: 12, lineHeight: 1.5, fontSize: 14 }}>
         {filteredMsgs.map((m) => (
           <div key={m.id} style={{ marginBottom: 10 }} className="group">
             {/* Message principal */}
@@ -723,9 +761,6 @@ export default function ChatPanelEnhanced({
                   {m.isEdited && <span className="text-xs text-gray-400 ml-1">(modifié)</span>}
                   <span style={{ color: "#6b7280", marginLeft: 6, fontSize: 12 }}>
                     {new Date(m.ts).toLocaleTimeString()}
-                  </span>
-                  <span style={{ color: "#9ca3af", marginLeft: 6, fontSize: 12 }}>
-                    ({m.user.role})
                   </span>
                 </div>
                 
@@ -829,7 +864,7 @@ export default function ChatPanelEnhanced({
       </div>
 
       {/* Zone de saisie améliorée */}
-      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "10px 12px", borderTop: "1px solid #e5e7eb" }}>
+      <div className="border-t" style={{ display: "flex", gap: 8, alignItems: "flex-end", padding: "10px 12px" }}>
         <div className="flex-1">
           <textarea 
             ref={textareaRef}

@@ -20,7 +20,7 @@ export default function UserDrawer({
   currentUser: { id: string; name: string; role: Role };
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [activity, setActivity] = useState<Aduit[]>([] as any);
+  const [activity, setActivity] = useState<Audit[]>([] as any);
   const [files, setFiles] = useState<SharedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [sending, setSending] = useState(false);

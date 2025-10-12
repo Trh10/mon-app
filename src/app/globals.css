@@ -2,6 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Animation pour les notifications */
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* Amélioration du scroll pour les listes */
+.smooth-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Style pour les éléments de collaboration */
+.collab-user-indicator {
+  @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.collab-user-online {
+  @apply bg-green-100 text-green-800;
+}
+
+.collab-user-offline {
+  @apply bg-gray-100 text-gray-600;
+}
+
 :root {
   /* Palette Icones adaptée - VIOLET → BLEU */
   --primary-blue: #1a365d;
@@ -30,6 +64,7 @@
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     color: var(--text-primary);
   }
+  html, body { height: 100%; }
 }
 
 @layer components {
@@ -54,6 +89,7 @@
     padding: 1rem;
   }
 
+  /* Legacy .icones-* classes kept for backward compatibility. New generic aliases below. */
   .icones-header {
     background: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #141ae0 100%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -70,6 +106,11 @@
     border-radius: 8px;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   }
+
+  /* Generic aliases (duplicate minimal declarations instead of @apply to satisfy linter) */
+  .app-header { background: linear-gradient(135deg, #06b6d4 0%, #2563eb 50%, #141ae0 100%); border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .app-sidebar { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-right: 1px solid #e2e8f0; }
+  .app-panel { background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); }
 }
 
 /* Styles existants adaptés */
@@ -116,3 +157,8 @@
 .tab.active {
   @apply bg-gradient-to-r from-cyan-400 via-blue-500 to-orange-500 text-white border-transparent;
 }
+
+/* Mobile shell helpers */
+.app-shell { -webkit-overflow-scrolling: touch; }
+.app-main { scroll-behavior: smooth; }
+[data-panel] { transition: opacity .25s ease, transform .25s ease; }

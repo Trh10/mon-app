@@ -1,0 +1,74 @@
+[
+  {
+    "id": "u_lheh2m4j",
+    "companyId": "c_05l192j8",
+    "companyCode": "ICON",
+    "name": "guylain tshibamba",
+    "normalizedName": "guylain tshibamba",
+    "role": "Directeur Général",
+    "level": 10,
+    "pin": "1234",
+    "permissions": [
+      "all",
+      "assign_tasks",
+      "manage_users",
+      "private_tasks"
+    ],
+    "createdAt": "2025-09-11T11:51:15.904Z",
+    "createdBy": "founder",
+    "isOnline": true,
+    "lastLoginAt": "2025-10-03T00:54:28.122Z"
+  },
+  {
+    "id": "u_fvm48nv1",
+    "companyId": "c_05l192j8",
+    "companyCode": "ICON",
+    "name": "simplice makola",
+    "normalizedName": "simplice makola",
+    "role": "Financier",
+    "level": 8,
+    "pin": "1111",
+    "permissions": [
+      "assign_tasks",
+      "view_all"
+    ],
+    "createdAt": "2025-09-11T11:59:57.725Z",
+    "createdBy": "self",
+    "isOnline": true,
+    "lastLoginAt": "2025-09-30T08:46:43.500Z"
+  },
+  {
+    "id": "u_uyi5dkro",
+    "companyId": "c_05l192j8",
+    "companyCode": "ICON",
+    "name": "simplece makola",
+    "normalizedName": "simplece makola",
+    "role": "Financier",
+    "level": 8,
+    "pin": "3333",
+    "permissions": [
+      "assign_tasks",
+      "view_all"
+    ],
+    "createdAt": "2025-09-11T12:00:41.385Z",
+    "createdBy": "self",
+    "isOnline": true
+  },
+  {
+    "id": "u_ypg5qafm",
+    "companyId": "c_05l192j8",
+    "companyCode": "ICON",
+    "name": "terach",
+    "normalizedName": "terach",
+    "role": "Employé",
+    "level": 3,
+    "pin": "0000",
+    "permissions": [
+      "basic"
+    ],
+    "createdAt": "2025-09-11T12:07:14.709Z",
+    "createdBy": "self",
+    "isOnline": true,
+    "lastLoginAt": "2025-10-03T00:56:38.637Z"
+  }
+]

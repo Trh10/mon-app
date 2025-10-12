@@ -1,147 +1,175 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listTasksByUser, addTask } from "../../../../lib/tasks/store";
-import { addAudit } from "../../../../lib/audit/store";
-import { hub } from "../../../../lib/realtime/hub";
-import { dmRoom } from "../../../../lib/realtime/chatStore";
+import { prisma } from "@/lib/db";
+import { jsonSafe } from "@/lib/json";
+import { getSession } from "@/lib/session";
 
-// Type local pour éviter les soucis d'import
-type Role = "chef" | "manager" | "assistant" | "employe";
+type Status = "pending" | "in-progress" | "completed" | "cancelled";
+type Priority = "low" | "medium" | "high" | "urgent";
+
+function getCompanyId(req: NextRequest): string {
+  const url = new URL(req.url);
+  return url.searchParams.get("companyId") || "default";
+}
+
+function mapStatusToDB(status: Status | undefined): string {
+  switch (status) {
+    case "in-progress": return "in_progress";
+    case "completed": return "done";
+    case "cancelled": return "cancelled";
+    case "pending":
+    default: return "pending";
+  }
+}
+
+function mapStatusFromDB(status: string | null | undefined): Status {
+  switch (status) {
+    case "in_progress": return "in-progress";
+    case "done": return "completed";
+    case "cancelled": return "cancelled";
+    case "pending":
+    default: return "pending";
+  }
+}
+
+function shapeTask(t: any, companyId: string) {
+  const meta = (t?.metadata as any) || {};
+  return {
+    id: String(t.id),
+    companyId: meta.companyId ?? companyId ?? "default",
+    title: t.title,
+    description: t.description ?? "",
+    assignedTo: meta.assignedTo,
+    assignedBy: meta.assignedBy,
+    priority: (meta.priority ?? "medium") as Priority,
+    status: mapStatusFromDB(t.status),
+    isPrivate: !!meta.isPrivate,
+    dueDate: t.dueAt ? new Date(t.dueAt).toISOString() : undefined,
+    createdAt: new Date(t.createdAt).toISOString(),
+    updatedAt: new Date(t.updatedAt).toISOString(),
+  };
+}
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId") || "";
-  if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 });
-  return NextResponse.json({ items: listTasksByUser(userId) });
+  const session = await getSession(req);
+  if (!session.organizationId) {
+    return NextResponse.json(
+      { success: false, error: "Organisation non sélectionnée" },
+      { status: 401 }
+    );
+  }
+  const companyId = getCompanyId(req);
+  const url = new URL(req.url);
+  const assignedTo = url.searchParams.get("assignedTo") || undefined;
+  const userId = url.searchParams.get("userId") || undefined;
+  // Fetch recent tasks; filter in-memory for metadata-based fields
+  const tasks = await prisma.task.findMany({
+    where: { organizationId: session.organizationId },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+  const shaped = tasks.map((t: any) => shapeTask(t, companyId));
+  const filtered = shaped.filter((t: any) => {
+    if (t.companyId !== companyId) return false;
+    if (assignedTo && t.assignedTo !== assignedTo) return false;
+    if (userId && t.assignedTo !== userId) return false;
+    return true;
+  });
+  return NextResponse.json(jsonSafe({ success: true, tasks: filtered }));
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    // actor = l'utilisateur qui effectue l'action (ex: chef ou employé)
-    const actor = body?.actor as { id: string; name: string; role: Role } | undefined;
-    const assigneeId = String(body?.userId || "");
-    const title = String(body?.title || "").trim();
-    const project = String(body?.project || "").trim();
-    const dueDate = body?.dueDate ? String(body.dueDate) : ""; // "YYYY-MM-DD"
-    const dueTime = body?.dueTime ? String(body.dueTime) : ""; // "HH:mm"
-    const dueText = body?.dueText ? String(body.dueText) : ""; // "lundi", "demain 14:00", "14h"
-
-    if (!actor?.id || !actor?.name || !actor?.role) {
-      return NextResponse.json({ error: "Missing actor" }, { status: 400 });
-    }
-    // Autorisation:
-    // - chef: peut assigner à n'importe qui
-    // - autre rôle: uniquement à lui-même
-    const isChef = actor.role === "chef";
-    const isSelf = actor.id === assigneeId;
-    if (!isChef && !isSelf) {
-      return NextResponse.json({ error: "Forbidden: only chef can assign to others" }, { status: 403 });
-    }
-    if (!assigneeId || !title || !project) {
-      return NextResponse.json({ error: "Missing userId/title/project" }, { status: 400 });
-    }
-
-    const dueAt = parseDue({ dueDate, dueTime, dueText });
-
-    const task = addTask({
-      userId: assigneeId,
-      title,
-      project,
-      createdBy: { id: actor.id, name: actor.name },
-      dueAt,
-    });
-
-    const now = Date.now();
-
-    // Audit
-    addAudit({
-      ts: now,
-      room: "team",
-      event: "task:create",
-      user: { id: actor.id, name: actor.name, role: actor.role },
-      payload: { taskId: task.id, assigneeId, title, project, dueAt },
-      summary: `${actor.name} a assigné "${title}" (${project}) à ${assigneeId}${dueAt ? ` (échéance ${new Date(dueAt).toLocaleString()})` : ""}`,
-    });
-
-    // Diffusion temps réel au canal privé chef<->assignee et au canal personnel du destinataire
-    const dmKey = dmRoom(actor.id, assigneeId);
-    const envelope = {
-      user: { id: actor.id, name: actor.name, role: actor.role },
-      payload: { task },
-      ts: now,
-    };
-    hub.broadcast(dmKey, "task", envelope);
-    hub.broadcast(`user:${assigneeId}`, "task", envelope);
-
-    return NextResponse.json({ ok: true, task });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "server error" }, { status: 500 });
+  const session = await getSession(req);
+  if (!session.organizationId) {
+    return NextResponse.json(
+      { success: false, error: "Organisation non sélectionnée" },
+      { status: 401 }
+    );
   }
-}
+  const companyId = getCompanyId(req);
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ success: false, error: "Bad JSON" }, { status: 400 });
 
-// Parsing simple d'échéances en français
-function parseDue({
-  dueDate,
-  dueTime,
-  dueText,
-}: {
-  dueDate?: string;
-  dueTime?: string;
-  dueText?: string;
-}): number | null {
-  const now = new Date();
-  const toTs = (d: Date) => d.getTime();
+  const action = body.action || "create";
 
-  // 1) Champs structurés
-  if (dueDate || dueTime) {
-    const d = new Date();
-    if (dueDate) {
-      const [y, m, dd] = dueDate.split("-").map((n) => parseInt(n, 10));
-      d.setFullYear(y, (m || 1) - 1, dd || 1);
+  switch (action) {
+    case "create": {
+      if (!body.title) return NextResponse.json({ success: false, error: "Title required" }, { status: 400 });
+      const created = await prisma.task.create({
+        data: {
+          organizationId: session.organizationId,
+          userId: session.userId ?? null,
+          title: body.title,
+          description: body.description || "",
+          status: mapStatusToDB("pending"),
+          dueAt: body.dueDate ? new Date(body.dueDate) : null,
+          metadata: {
+            companyId,
+            assignedTo: body.assignedTo || null,
+            assignedBy: body.assignedBy || null,
+            priority: (body.priority || "medium") as Priority,
+            isPrivate: !!body.isPrivate,
+          },
+        },
+      });
+      return NextResponse.json(jsonSafe({ success: true, task: shapeTask(created, companyId) }));
     }
-    if (dueTime) {
-      const mtch = dueTime.match(/^(\d{1,2})(?::(\d{2}))?$/);
-      if (mtch) {
-        const hh = Math.min(23, parseInt(mtch[1], 10));
-        const mm = Math.min(59, parseInt(mtch[2] || "0", 10));
-        d.setHours(hh, mm, 0, 0);
+    case "update": {
+      if (!body.id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
+      const id = BigInt(body.id);
+      const existing = await prisma.task.findUnique({ where: { id } });
+      if (!existing || existing.organizationId !== session.organizationId) {
+        return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
       }
-    } else {
-      d.setHours(17, 0, 0, 0);
+      const meta = { ...(existing.metadata as any) };
+      if (body.assignedTo !== undefined) meta.assignedTo = body.assignedTo;
+      if (body.assignedBy !== undefined) meta.assignedBy = body.assignedBy;
+      if (body.priority !== undefined) meta.priority = body.priority;
+      if (body.isPrivate !== undefined) meta.isPrivate = !!body.isPrivate;
+      const updated = await prisma.task.update({
+        where: { id },
+        data: {
+          title: body.title ?? existing.title,
+          description: body.description ?? existing.description,
+          dueAt: body.dueDate !== undefined ? (body.dueDate ? new Date(body.dueDate) : null) : existing.dueAt,
+          metadata: meta,
+        },
+      });
+      return NextResponse.json(jsonSafe({ success: true, task: shapeTask(updated, companyId) }));
     }
-    return toTs(d);
+    case "status": {
+      if (!body.id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
+      const id = BigInt(body.id);
+      const existing = await prisma.task.findUnique({ where: { id } });
+      if (!existing || existing.organizationId !== session.organizationId) {
+        return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+      }
+      const updated = await prisma.task.update({
+        where: { id },
+        data: { status: mapStatusToDB(body.status as Status) },
+      });
+      return NextResponse.json(jsonSafe({ success: true, task: shapeTask(updated, companyId) }));
+    }
+    case "cancel": {
+      if (!body.id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
+      const id = BigInt(body.id);
+      const existing = await prisma.task.findUnique({ where: { id } });
+      if (!existing || existing.organizationId !== session.organizationId) {
+        return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+      }
+      const updated = await prisma.task.update({ where: { id }, data: { status: "cancelled" } });
+      return NextResponse.json(jsonSafe({ success: true, task: shapeTask(updated, companyId) }));
+    }
+    case "delete": {
+      if (!body.id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
+      const id = BigInt(body.id);
+      const existing = await prisma.task.findUnique({ where: { id } });
+      if (!existing || existing.organizationId !== session.organizationId) {
+        return NextResponse.json({ success: false, error: "Task not found" }, { status: 404 });
+      }
+      const removed = await prisma.task.delete({ where: { id } });
+      return NextResponse.json(jsonSafe({ success: true, removed: shapeTask(removed, companyId) }));
+    }
+    default:
+      return NextResponse.json({ success: false, error: "Unsupported action" }, { status: 400 });
   }
-
-  // 2) Texte libre simple
-  const txt = (dueText || "").toLowerCase().trim();
-  if (!txt) return null;
-
-  const timeMatch = txt.match(/\b(\d{1,2})(?:[:h](\d{2}))?\b/);
-  const days = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
-  const dayIdx = days.findIndex((d) => txt.includes(d));
-
-  const d = new Date();
-  d.setSeconds(0, 0);
-
-  if (txt.includes("aujourd")) {
-    // aujourd'hui
-  } else if (txt.includes("apres") || txt.includes("après")) {
-    d.setDate(d.getDate() + 2);
-  } else if (txt.includes("demain")) {
-    d.setDate(d.getDate() + 1);
-  } else if (dayIdx >= 0) {
-    const today = now.getDay();
-    let delta = dayIdx - today;
-    if (delta <= 0) delta += 7;
-    d.setDate(d.getDate() + delta);
-  }
-
-  if (timeMatch) {
-    const hh = Math.min(23, parseInt(timeMatch[1], 10));
-    const mm = Math.min(59, parseInt(timeMatch[2] || "0", 10));
-    d.setHours(hh, mm, 0, 0);
-  } else {
-    d.setHours(17, 0, 0, 0);
-  }
-  return toTs(d);
 }

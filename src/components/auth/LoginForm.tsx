@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { User, Lock, LogIn, Building } from 'lucide-react';
+import { User, Lock, LogIn, Building, Users } from 'lucide-react';
 
 interface LoginFormProps {
-  onLogin: (code: string, name?: string, companyName?: string) => void;
+  onLogin: (code: string, name?: string, companyName?: string, role?: string) => void;
   loading?: boolean;
   error?: string;
 }
@@ -13,7 +13,17 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [role, setRole] = useState('');
   const [isFirstCompany, setIsFirstCompany] = useState(false);
+
+  const roleOptions = [
+    { value: 'Directeur Général', label: 'Directeur Général' },
+    { value: 'Administration', label: 'Administration' },
+    { value: 'Financier', label: 'Financier' },
+    { value: 'Assistant', label: 'Assistant' },
+    { value: 'Assistante', label: 'Assistante' },
+    { value: 'Employé', label: 'Employé' }
+  ];
 
   // Vérifier si c'est la première entreprise
   useEffect(() => {
@@ -34,14 +44,14 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
     e.preventDefault();
     
     if (isFirstCompany) {
-      // Pour la première entreprise, on envoie le code choisi (4 chiffres), le nom et l'entreprise
-      if (name.trim() && companyName.trim() && code.length === 4) {
-        onLogin(code, name.trim(), companyName.trim());
+      // Pour la première entreprise, on envoie le code choisi (4 chiffres), le nom, l'entreprise et le rôle
+      if (name.trim() && companyName.trim() && code.length === 4 && role) {
+        onLogin(code, name.trim(), companyName.trim(), role);
       }
     } else {
-      // Pour les utilisateurs suivants, juste le code complet (XXXX-YYYY)
-      if (code.length >= 4) {
-        onLogin(code);
+      // Pour les utilisateurs suivants, le code, nom et rôle
+      if (code.length >= 4 && name.trim() && role) {
+        onLogin(code, name.trim(), undefined, role);
       }
     }
   };
@@ -114,6 +124,31 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
           </div>
 
           <div>
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+              Votre rôle dans l'entreprise
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Users className="h-5 w-5 text-gray-400" />
+              </div>
+              <select
+                id="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                required
+              >
+                <option value="">Sélectionnez votre rôle</option>
+                {roleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
             <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-2">
               {isFirstCompany ? 'Choisissez votre code DG (4 chiffres)' : 'Code d\'accès (4 chiffres)'}
             </label>
@@ -148,7 +183,7 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
 
           <button
             type="submit"
-            disabled={loading || !name.trim() || code.length !== 4 || (isFirstCompany && !companyName.trim())}
+            disabled={loading || !name.trim() || !role || code.length !== 4 || (isFirstCompany && !companyName.trim())}
             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors"
           >
             {loading ? (

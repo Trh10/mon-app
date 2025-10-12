@@ -256,8 +256,9 @@ export class EnhancedUniversalEmailClient {
                   if (Array.isArray(parsed.attachments) && parsed.attachments.length) {
                     hasAttachments = true;
                     atts = parsed.attachments.map((a: MailparserAttachment) => ({
+                      id: a.checksum || `${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
                       filename: a.filename || 'attachment',
-                      contentType: a.contentType || 'application/octet-stream',
+                      mimeType: a.contentType || 'application/octet-stream',
                       size: a.size || 0,
                       contentId: a.cid
                     }));
@@ -279,8 +280,8 @@ export class EnhancedUniversalEmailClient {
                   hasAttachments,
                   body,
                   attachments: atts,
-                  priority: 'normal',
-                  read: !unread,
+                  // Priority not mapped by parser; keep undefined or map to a default like 'P3'
+                  priority: 'P3',
                 });
               } catch (e) {
                 // ignore ce message
@@ -293,7 +294,7 @@ export class EnhancedUniversalEmailClient {
         });
       });
 
-      imap.once('error', (err) => { reject(err); });
+  imap.once('error', (err: unknown) => { reject(err); });
 
       imap.connect();
     });

@@ -56,7 +56,9 @@ function extractFromPayload(payload: any): Extracted {
     for (const part of payload.parts) {
       if (part.filename) {
         out.attachments.push({
+          id: part.body?.attachmentId || `att-${Date.now()}-${Math.random()}`,
           filename: part.filename,
+          mimeType: part.mimeType || 'application/octet-stream',
           contentType: part.mimeType || 'application/octet-stream',
           size: part.body?.size || 0,
           contentId: contentIdHeader(part.headers)?.replace(/[<>]/g, ''),
@@ -146,8 +148,7 @@ export async function getGmailEmails(
         hasAttachments: atts.length > 0,
         body,
         attachments: atts,
-        priority: 'normal',
-        read: !unread,
+        priority: 'P3',
       });
     } catch {
       // ignore message individuel

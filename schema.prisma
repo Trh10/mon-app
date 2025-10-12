@@ -1,0 +1,217 @@
+// Prisma schema for PostgreSQL (Neon Database)
+// Production-ready configuration
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  users       User[]
+  messages    Message[]
+  tasks       Task[]
+  activityLogs ActivityLog[]
+  requisitions Requisition[]
+  meetings    Meeting[]
+  emailAccounts EmailAccount[]
+  emailSelections EmailActiveSelection[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+}
+
+model User {
+  id              Int           @id @default(autoincrement())
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  Int
+  externalId      String?       @unique
+  email           String?       @unique
+  displayName     String?
+  name            String?       // Nom d'affichage pour l'auth PIN
+  pinHash         String?       // Hash du PIN pour connexion
+  role            String        // 'admin' | 'user' | 'viewer'
+  messages        Message[]
+  tasks           Task[]
+  activityLogs    ActivityLog[]
+  requisitionsRequested Requisition[] @relation("UserRequestedRequisitions")
+  workflowStepsReviewed  WorkflowStep[] @relation("UserReviewedSteps")
+  meetingsCreated Meeting[]
+  emailAccounts   EmailAccount[]
+  emailSelections EmailActiveSelection[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([organizationId, role])
+  @@index([organizationId, name])
+}
+
+model Message {
+  id             BigInt        @id @default(autoincrement())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  kind           String        @default("system") // 'system' | 'user' | 'app'
+  channel        String?       @default("app")
+  content        String
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([kind])
+  @@index([channel])
+}
+
+model Task {
+  id             BigInt        @id @default(autoincrement())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  title          String
+  description    String?
+  status         String        @default("pending") // 'pending' | 'in_progress' | 'done' | 'cancelled'
+  dueAt          DateTime?
+  metadata       Json?
+  runs           TaskRun[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, status])
+  @@index([userId, status])
+  @@index([dueAt])
+}
+
+model TaskRun {
+  id        BigInt   @id @default(autoincrement())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    BigInt
+  runType   String   @default("manual") // 'manual' | 'auto' | 'retry'
+  result    String   @default("ok")     // 'ok' | 'error' | 'skipped'
+  message   String?
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt(sort: Desc)])
+}
+
+model ActivityLog {
+  id             BigInt        @id @default(autoincrement())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  subjectType    String
+  subjectId      BigInt?
+  action         String
+  detail         String?
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model Requisition {
+  id            String      @id @default(uuid())
+  title         String
+  description   String
+  category      String
+  priority      String
+  budget        Float
+  justification String
+  status        String      @default("soumis")
+  requester     User?       @relation(name: "UserRequestedRequisitions", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterId   Int?
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  workflow      WorkflowStep[]
+  approvedAt    DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([organizationId, status])
+  @@index([requesterId])
+}
+
+model WorkflowStep {
+  id             String      @id @default(uuid())
+  requisition    Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  requisitionId  String
+  reviewer       User?       @relation(name: "UserReviewedSteps", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerId     Int?
+  reviewerName   String
+  reviewerLevel  Int
+  action         String      @default("pending")
+  isRequired     Boolean     @default(true)
+  isCompleted    Boolean     @default(false)
+  comment        String?
+  createdAt      DateTime    @default(now())
+  completedAt    DateTime?
+}
+
+model Meeting {
+  id               String        @id @default(cuid())
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId   Int
+  creator          User?         @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId        Int?
+  title            String
+  notes            String        @default("")
+  participants     Json?
+  status           String        @default("draft")
+  extractedActions Json?
+  tasksCreated     Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([organizationId, updatedAt(sort: Desc)])
+  @@index([status])
+}
+
+// Email accounts per organization/user, with a per-user active selection
+model EmailAccount {
+  id               String        @id @default(cuid())
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId   Int
+  owner            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId           Int?
+  email            String
+  providerId       String        // e.g., 'gmail' | 'outlook' | 'imap'
+  providerName     String?
+  provider         Json?         // full provider object as used by UI
+  credentials      Json?         // oauth or imap creds (safely stored server-side)
+  isConnected      Boolean       @default(true)
+  unreadCount      Int           @default(0)
+  connectedAt      DateTime?
+  lastSync         DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  selections       EmailActiveSelection[]
+
+  @@index([organizationId, email])
+  @@index([organizationId, providerId])
+  @@index([userId])
+}
+
+model EmailActiveSelection {
+  id               Int           @id @default(autoincrement())
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId   Int
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           Int
+  account          EmailAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId        String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@unique([organizationId, userId])
+}

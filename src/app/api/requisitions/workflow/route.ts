@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { getSession } from '@/lib/session';
+import { prisma } from '@/lib/db';
 import { 
   WorkflowActionData, 
   WorkflowAction,
@@ -7,26 +8,7 @@ import {
   canApproveAtLevel,
   Requisition
 } from '@/lib/requisitions/requisition-types';
-import { getRequisitions, getRequisitionsByCompany, updateRequisition } from '@/lib/requisitions/requisition-store';
 import { createEmailNotification } from '@/lib/notifications/email-service';
-import { getUsers } from '@/lib/users/user-store';
-
-// Récupérer l'utilisateur actuel depuis la session
-async function getCurrentUser(req: NextRequest) {
-  try {
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('user-session');
-    
-    if (!sessionCookie) {
-      return null;
-    }
-
-    return JSON.parse(sessionCookie.value);
-  } catch (error) {
-    console.error('Erreur parsing session:', error);
-    return null;
-  }
-}
 
 // Envoyer une notification email selon l'action
 async function sendWorkflowNotification(
@@ -36,8 +18,11 @@ async function sendWorkflowNotification(
   comment?: string
 ) {
   try {
-    const users = getUsers();
-    const requester = users.find(u => u.code === requisition.requesterId);
+    const db: any = prisma;
+    const requester = await db.user.findUnique({
+      where: { id: requisition.requesterId },
+      select: { id: true, name: true, email: true }
+    });
     
     if (!requester || !requester.email) {
       console.log(`Impossible de trouver l'email du demandeur ${requisition.requesterId}`);
@@ -102,12 +87,26 @@ async function sendWorkflowNotification(
 // GET - Récupérer les réquisitions en attente d'approbation pour l'utilisateur
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
+    const session = await getSession(req);
     
-    if (!user) {
+    if (!session.userId || !session.organizationId) {
       return NextResponse.json(
         { success: false, error: 'Non authentifié' },
         { status: 401 }
+      );
+    }
+
+    // Get user level from database
+    const db: any = prisma;
+    const user = await db.user.findUnique({
+      where: { id: session.userId },
+      select: { level: true, name: true }
+    });
+
+    if (!user || !user.level) {
+      return NextResponse.json(
+        { success: false, error: 'Utilisateur non trouvé' },
+        { status: 404 }
       );
     }
 
@@ -123,7 +122,17 @@ export async function GET(req: NextRequest) {
     }
 
     // Récupérer toutes les réquisitions de l'entreprise
-    const companyRequisitions = getRequisitionsByCompany(user.companyId);
+    const companyRequisitions = await db.requisition.findMany({
+      where: { organizationId: session.organizationId },
+      include: {
+        workflow: {
+          orderBy: { createdAt: 'asc' }
+        },
+        requester: {
+          select: { id: true, name: true }
+        }
+      }
+    });
 
     // Trouver les révisions en attente pour le niveau de l'utilisateur
     const pendingReviews = [];
@@ -150,7 +159,7 @@ export async function GET(req: NextRequest) {
           priority: requisition.priority,
           budget: requisition.budget,
           justification: requisition.justification,
-          requesterName: requisition.requesterName,
+          requesterName: requisition.requester?.name || requisition.requesterName,
           requesterId: requisition.requesterId,
           createdAt: requisition.createdAt,
           workflowStepId: pendingStep.id,
@@ -221,12 +230,26 @@ export async function GET(req: NextRequest) {
 // POST - Effectuer une action d'approbation/rejet
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
+    const session = await getSession(req);
     
-    if (!user) {
+    if (!session.userId || !session.organizationId) {
       return NextResponse.json(
         { success: false, error: 'Non authentifié' },
         { status: 401 }
+      );
+    }
+
+    // Get user info from database
+    const db: any = prisma;
+    const user = await db.user.findUnique({
+      where: { id: session.userId },
+      select: { id: true, name: true, level: true }
+    });
+
+    if (!user || !user.level) {
+      return NextResponse.json(
+        { success: false, error: 'Utilisateur non trouvé' },
+        { status: 404 }
       );
     }
 
@@ -254,21 +277,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Récupérer les réquisitions
-    const allRequisitions = getRequisitions();
-    
-    const requisitionIndex = allRequisitions.findIndex((req: Requisition) => 
-      req.id === actionData.requisitionId && req.companyId === user.companyId
-    );
+    // Récupérer la réquisition avec son workflow
+    const requisition = await db.requisition.findFirst({
+      where: { 
+        id: actionData.requisitionId,
+        organizationId: session.organizationId
+      },
+      include: {
+        workflow: {
+          orderBy: { createdAt: 'asc' }
+        },
+        requester: {
+          select: { id: true, name: true }
+        }
+      }
+    });
 
-    if (requisitionIndex === -1) {
+    if (!requisition) {
       return NextResponse.json(
         { success: false, error: 'Réquisition non trouvée' },
         { status: 404 }
       );
     }
-
-    const requisition = allRequisitions[requisitionIndex];
 
     // Trouver l'étape de workflow correspondante
     // Cas spécial DG: il peut approuver la première étape en attente, même si le niveau ne correspond pas
@@ -297,70 +327,97 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Mettre à jour l'étape de workflow
-    requisition.workflow[workflowStepIndex] = {
-      ...requisition.workflow[workflowStepIndex],
-      action: actionData.action,
-      comment: actionData.comment || '',
-      reviewerId: user.code,
-      reviewerName: user.name,
-      isCompleted: true,
-      completedAt: new Date().toISOString()
-    };
+    const targetWorkflowStep = requisition.workflow[workflowStepIndex];
 
-    // Mettre à jour le statut de la réquisition selon l'action
+    // Update the workflow step in the database
+    await db.workflowStep.update({
+      where: { id: targetWorkflowStep.id },
+      data: {
+        action: actionData.action,
+        comment: actionData.comment || '',
+        reviewerId: user.id,
+        reviewerName: user.name,
+        isCompleted: true,
+        completedAt: new Date()
+      }
+    });
+
+    // Determine new requisition status
+    let newStatus = requisition.status;
+    let approvedAt = requisition.approvedAt;
+    
     if (actionData.action === 'rejected') {
-      requisition.status = 'rejete';
+      newStatus = 'rejete';
       
       // Envoyer notification de rejet
       await sendWorkflowNotification(requisition, 'rejected', user, actionData.comment);
       
     } else if (actionData.action === 'approved') {
-      // Vérifier s'il reste des étapes
-      const remainingSteps = requisition.workflow.filter((step: any) => !step.isCompleted);
+      // Count remaining incomplete steps (excluding the one we just completed)
+      const remainingSteps = requisition.workflow.filter((step: any) => 
+        !step.isCompleted && step.id !== targetWorkflowStep.id
+      );
       
       if (remainingSteps.length === 0) {
         // Toutes les étapes sont terminées - APPROUVÉ DÉFINITIVEMENT
-        requisition.status = 'approuve';
-        requisition.approvedAt = new Date().toISOString();
+        newStatus = 'approuve';
+        approvedAt = new Date();
         
         // Notification pour l'acquisiteur : DG a approuvé définitivement
         console.log(`🎉 NOTIFICATION ACQUISITEUR: La réquisition "${requisition.title}" a été APPROUVÉE DÉFINITIVEMENT par le Directeur Général.`);
-        console.log(`📧 Email automatique envoyé à ${requisition.requesterName} (${requisition.requesterId})`);
+        console.log(`📧 Email automatique envoyé à ${requisition.requester?.name || requisition.requesterName} (${requisition.requesterId})`);
         
         // Envoyer notification d'approbation finale
         await sendWorkflowNotification(requisition, 'approved', user, actionData.comment);
         
       } else {
         // Il reste des étapes
-        requisition.status = 'en_review';
+        newStatus = 'en_review';
         
         // Si c'est le DG qui vient d'approuver, informer l'acquisiteur de l'avancement
         if (user.level === 10) {
           console.log(`📋 NOTIFICATION ACQUISITEUR: Le Directeur Général a approuvé la réquisition "${requisition.title}". Elle passe maintenant aux étapes suivantes.`);
-          console.log(`📧 Email de progression envoyé à ${requisition.requesterName} (${requisition.requesterId})`);
+          console.log(`📧 Email de progression envoyé à ${requisition.requester?.name || requisition.requesterName} (${requisition.requesterId})`);
           
           // Pour l'instant, on envoie aussi une notification d'approbation
           await sendWorkflowNotification(requisition, 'approved', user, actionData.comment);
         }
       }
     } else if (actionData.action === 'requested_info') {
-  requisition.status = 'en_review';
-  requisition.approvedAt = undefined;
+      newStatus = 'en_review';
+      approvedAt = null;
       
       // Notification pour l'acquisiteur : information demandée
-      console.log(`❓ NOTIFICATION ACQUISITEUR: ${user.levelName} demande des informations supplémentaires sur "${requisition.title}"`);
-      console.log(`📧 Email d'information envoyé à ${requisition.requesterName} (${requisition.requesterId})`);
+      console.log(`❓ NOTIFICATION ACQUISITEUR: Niveau ${user.level} demande des informations supplémentaires sur "${requisition.title}"`);
+      console.log(`📧 Email d'information envoyé à ${requisition.requester?.name || requisition.requesterName} (${requisition.requesterId})`);
     }
 
-    requisition.updatedAt = new Date().toISOString();
+    // Update requisition status in database
+    await db.requisition.update({
+      where: { id: requisition.id },
+      data: {
+        status: newStatus,
+        approvedAt: approvedAt,
+        updatedAt: new Date()
+      }
+    });
 
-  // Sauvegarder les modifications de façon persistante
-  updateRequisition(requisition.id, requisition);
+    // Reload to get updated data
+    const updatedRequisition = await db.requisition.findUnique({
+      where: { id: requisition.id },
+      include: {
+        workflow: {
+          orderBy: { createdAt: 'asc' }
+        },
+        requester: {
+          select: { id: true, name: true }
+        }
+      }
+    });
 
     // Préparer la réponse avec les informations de workflow
-    const remainingApprovals = requisition.workflow.filter((step: any) => !step.isCompleted);
-    const completedApprovals = requisition.workflow.filter((step: any) => step.isCompleted);
+    const remainingApprovals = updatedRequisition.workflow.filter((step: any) => !step.isCompleted);
+    const completedApprovals = updatedRequisition.workflow.filter((step: any) => step.isCompleted);
 
     // Message spécial si DG approuve définitivement
     let message = `Réquisition ${actionData.action === 'approved' ? 'approuvée' : 
@@ -368,9 +425,9 @@ export async function POST(req: NextRequest) {
                                   'commentée'} avec succès`;
                                   
     if (actionData.action === 'approved' && remainingApprovals.length === 0) {
-      message = `🎉 Réquisition APPROUVÉE DÉFINITIVEMENT ! L'acquisiteur ${requisition.requesterName} sera notifié.`;
+      message = `🎉 Réquisition APPROUVÉE DÉFINITIVEMENT ! L'acquisiteur ${updatedRequisition.requester?.name || updatedRequisition.requesterName} sera notifié.`;
     } else if (actionData.action === 'approved' && user.level === 10) {
-      message = `✅ Approbation du Directeur Général enregistrée. L'acquisiteur ${requisition.requesterName} sera informé de l'avancement.`;
+      message = `✅ Approbation du Directeur Général enregistrée. L'acquisiteur ${updatedRequisition.requester?.name || updatedRequisition.requesterName} sera informé de l'avancement.`;
     }
 
     return NextResponse.json({
@@ -378,28 +435,28 @@ export async function POST(req: NextRequest) {
       message,
       requesterNotification: {
         shouldNotify: true,
-        requesterName: requisition.requesterName,
-        requesterId: requisition.requesterId,
+        requesterName: updatedRequisition.requester?.name || updatedRequisition.requesterName,
+        requesterId: updatedRequisition.requesterId,
         notificationType: actionData.action === 'approved' && remainingApprovals.length === 0 ? 'final_approval' : 
                          actionData.action === 'approved' ? 'approval_progress' : 
                          actionData.action === 'rejected' ? 'rejection' : 'info_request',
         message: actionData.action === 'approved' && remainingApprovals.length === 0 ? 
-                 `Votre réquisition "${requisition.title}" a été approuvée définitivement par le Directeur Général !` :
+                 `Votre réquisition "${updatedRequisition.title}" a été approuvée définitivement par le Directeur Général !` :
                  actionData.action === 'approved' ? 
-                 `Votre réquisition "${requisition.title}" a été approuvée par ${user.levelName}. Elle continue son processus d'approbation.` :
+                 `Votre réquisition "${updatedRequisition.title}" a été approuvée par Niveau ${user.level}. Elle continue son processus d'approbation.` :
                  actionData.action === 'rejected' ?
-                 `Votre réquisition "${requisition.title}" a été rejetée par ${user.levelName}.` :
-                 `${user.levelName} demande des informations supplémentaires sur votre réquisition "${requisition.title}".`
+                 `Votre réquisition "${updatedRequisition.title}" a été rejetée par Niveau ${user.level}.` :
+                 `Niveau ${user.level} demande des informations supplémentaires sur votre réquisition "${updatedRequisition.title}".`
       },
       requisition: {
-        id: requisition.id,
-        title: requisition.title,
-        status: requisition.status,
-        budget: requisition.budget
+        id: updatedRequisition.id,
+        title: updatedRequisition.title,
+        status: updatedRequisition.status,
+        budget: updatedRequisition.budget
       },
       workflow: {
         currentStep: workflowStepIndex + 1,
-        totalSteps: requisition.workflow.length,
+        totalSteps: updatedRequisition.workflow.length,
         isComplete: remainingApprovals.length === 0,
         remainingApprovals: remainingApprovals.length,
         completedApprovals: completedApprovals.length,

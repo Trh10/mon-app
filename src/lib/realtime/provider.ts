@@ -1,240 +1,153 @@
 "use client";
+/** Client temps réel compatible:
+ *  - API moderne : on(event, handler), emit(event, data), connect(room,id,name,role), off(event, handler)
+ *  - Legacy      : subscribe(room,event,handler), publish(room,event,data), trigger(room,event,data), setUser(user), setRoom(room)
+ *  - Utilitaires : getStableUserId()
+ *  - Exports     : default rtClient + getRealtimeClient + getStableUserId
+ */
 
-// Type local pour éviter les imports manquants
-type Role = "chef" | "manager" | "assistant" | "employe";
-type User = { id: string; name: string; role: Role };
 type Handler = (data: any) => void;
+type Identity = { id: string; name: string; role: string };
 
-type RoomConn = {
-  es: EventSource;
-  handlers: Map<string, Set<Handler>>;
-  refCount: number;
-};
+function randId(prefix: string) {
+  return prefix + Math.random().toString(36).slice(2, 9);
+}
 
-const UID_KEY = "__rt_uid";
-export function getStableUserId() {
-  if (typeof window === "undefined") return `u-${Math.random().toString(36).slice(2, 9)}`;
-  let id = localStorage.getItem(UID_KEY);
-  if (!id) {
-    id = `u-${Math.random().toString(36).slice(2, 9)}`;
-    localStorage.setItem(UID_KEY, id);
+export function getStableUserId(key = "app_uid") {
+  if (typeof window === "undefined") return randId("u-");
+  try {
+    const k = `realtime:${key}`;
+    const existing = window.localStorage.getItem(k);
+    if (existing) return existing;
+    const fresh = randId("u-");
+    window.localStorage.setItem(k, fresh);
+    return fresh;
+  } catch {
+    return randId("u-");
   }
-  return id;
 }
 
 class RealtimeClient {
-  private user: User = { id: getStableUserId(), name: "Anonyme", role: "employe" };
-  private rooms: Map<string, RoomConn> = new Map();
-  private reconnectAttempts: Map<string, number> = new Map();
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000; // Start with 1 second
-  private isOnline = true;
+  private es: EventSource | null = null;
+  private subs: Map<string, Set<Handler>> = new Map();
+  private _room = "default";
+  private ident: Identity = { id: getStableUserId(), name: "Anonyme", role: "employe" };
+  private cursorTimeout: any = null;
 
-  setUser(user: Partial<User>) {
-    const id = user.id || this.user.id || getStableUserId();
-    this.user = { ...this.user, ...user, id };
+  // ---------- API moderne ----------
+  connect(room: string, id: string, name: string, role: string) {
+    this.ident = { id, name, role };
+    this._connect(room);
   }
 
-  private ensure(room: string) {
-    let conn = this.rooms.get(room);
-    if (conn) return conn;
-    
-    return this.createConnection(room);
+  on(type: string, handler: Handler) {
+    let set = this.subs.get(type);
+    if (!set) { set = new Set(); this.subs.set(type, set); }
+    set.add(handler);
+    return () => set!.delete(handler);
   }
 
-  private createConnection(room: string, isReconnect = false) {
-    const url = new URL("/api/realtime/stream", location.origin);
-    url.searchParams.set("room", room);
-    url.searchParams.set("id", this.user.id);
-    url.searchParams.set("name", this.user.name);
-    url.searchParams.set("role", this.user.role);
-    const es = new EventSource(url.toString());
+  off(type: string, handler: Handler) {
+    this.subs.get(type)?.delete(handler);
+  }
 
-    const handlers = new Map<string, Set<Handler>>();
-    const on = (type: string, ev: MessageEvent) => {
-      try {
-        const data = JSON.parse(ev.data || "{}");
-        handlers.get(type)?.forEach((h) => h(data));
-      } catch (error) {
-        console.error(`Error parsing SSE data for ${type}:`, error);
-      }
-    };
+  async emit(event: string, data: any) {
+    await fetch("/api/realtime/emit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Server expects { event, payload, user, room }
+      body: JSON.stringify({ room: this._room, event, payload: data, user: this.ident }),
+    });
+  }
 
-    const connObj: RoomConn = { es, handlers, refCount: 0 };
-    
-    // Gestion des erreurs et reconnexion
-    es.onerror = (event) => {
-      console.warn(`SSE Error for room ${room}:`, event);
-      this.isOnline = false;
-      
-      const attempts = this.reconnectAttempts.get(room) || 0;
-      
-      if (attempts < this.maxReconnectAttempts) {
-        this.reconnectAttempts.set(room, attempts + 1);
-        const delay = this.reconnectDelay * Math.pow(2, attempts); // Exponential backoff
-        
-        // Notifier de la tentative de reconnexion
-        handlers.get("reconnecting")?.forEach((h) => h({ 
-          room, 
-          attempt: attempts + 1, 
-          maxAttempts: this.maxReconnectAttempts,
-          delay
-        }));
-        
-        setTimeout(() => {
-          console.log(`Attempting reconnection ${attempts + 1}/${this.maxReconnectAttempts} for room ${room}`);
-          this.rooms.delete(room);
-          es.close();
-          
-          // Recréer la connexion avec les mêmes handlers
-          const newConn = this.createConnection(room, true);
-          // Transférer les handlers existants
-          handlers.forEach((handlerSet, eventType) => {
-            newConn.handlers.set(eventType, new Set(handlerSet));
-          });
-          newConn.refCount = connObj.refCount;
-          this.rooms.set(room, newConn);
-        }, delay);
-      } else {
-        console.error(`Max reconnection attempts reached for room ${room}`);
-        // Notifier les handlers d'erreur
-        handlers.get("error")?.forEach((h) => h({ 
-          type: "max_reconnect_attempts", 
-          room, 
-          attempts 
-        }));
-      }
-    };
+  // Convenience to send a public chat message in current room
+  async sendChat(room: string, text: string) {
+    if (room && room !== this._room) this.setRoom(room);
+    return this.emit("chat", { text, userId: this.ident.id, name: this.ident.name });
+  }
 
-    es.onopen = () => {
-      console.log(`SSE Connected to room ${room}${isReconnect ? ' (reconnected)' : ''}`);
-      this.isOnline = true;
-      this.reconnectAttempts.set(room, 0); // Reset attempts on successful connection
-      handlers.get("connected")?.forEach((h) => h({ room, reconnected: isReconnect }));
-    };
+  // Debounced cursor sender used by LiveCursors
+  sendCursor(room: string, x: number, y: number) {
+    // switch room if needed
+    if (room && room !== this._room) this.setRoom(room);
+    if (this.cursorTimeout) clearTimeout(this.cursorTimeout);
+    this.cursorTimeout = setTimeout(() => {
+      this.emit("cursor", { x, y }).catch(() => {});
+      this.cursorTimeout = null;
+    }, 100);
+  }
 
-    // IMPORTANT: on déclare ici tous les types d'événements qu'on veut écouter
-    ["presence", "chat", "cursor", "file", "dm", "task", "ready", "ping", "error", "connected", "reconnecting"].forEach((evt) =>
-      connObj.es.addEventListener(evt, (e) => on(evt, e as MessageEvent))
-    );
+  // ---------- Compat legacy ----------
+  setUser(user: Partial<Identity>) {
+    this.ident = { ...this.ident, ...(user as Identity) };
+    this._connect(this._room);
+  }
 
-    this.rooms.set(room, connObj);
-    return connObj;
+  setRoom(room: string) {
+    if (!room || room === this._room) return;
+    this._connect(room);
   }
 
   subscribe(room: string, event: string, handler: Handler) {
-    const conn = this.ensure(room);
-    if (!conn.handlers.has(event)) conn.handlers.set(event, new Set());
-    conn.handlers.get(event)!.add(handler);
-    conn.refCount += 1;
-    return () => {
-      conn.handlers.get(event)?.delete(handler);
-      conn.refCount -= 1;
-      if (conn.refCount <= 0) {
-        conn.es.close();
-        this.rooms.delete(room);
-        this.reconnectAttempts.delete(room);
-      }
-    };
+    this._ensure(room);
+    return this.on(event, handler);
   }
 
-  async trigger(room: string, event: string, payload: any, retries = 3) {
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        const response = await fetch("/api/realtime/emit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ room, event, payload, user: this.user }),
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        return await response.json();
-      } catch (error) {
-        console.warn(`Trigger attempt ${attempt + 1}/${retries} failed:`, error);
-        
-        if (attempt === retries - 1) {
-          throw error; // Dernière tentative échouée
-        }
-        
-        // Attendre avant la prochaine tentative
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-      }
-    }
+  async publish(room: string, event: string, data: any) {
+    this._ensure(room);
+    return this.emit(event, data);
   }
 
-  async sendChat(room: string, text: string) {
-    const msg = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text };
-    await this.trigger(room, "chat", msg);
+  async trigger(room: string, event: string, data: any) {
+    return this.publish(room, event, data);
   }
 
-  async sendCursor(room: string, xNorm: number, yNorm: number) {
-    // Debouncing pour éviter trop d'événements curseur
-    if (!this._cursorDebounce) {
-      this._cursorDebounce = new Map();
-    }
-    
-    const key = room;
-    clearTimeout(this._cursorDebounce.get(key));
-    
-    this._cursorDebounce.set(key, setTimeout(async () => {
-      try {
-        await this.trigger(room, "cursor", { x: xNorm, y: yNorm });
-      } catch (error) {
-        console.warn("Failed to send cursor position:", error);
-      }
-    }, 50)); // Debounce de 50ms
+  // ---------- internes ----------
+  private _ensure(room: string) {
+    if (!this.es || this._room !== room) this._connect(room);
   }
 
-  private _cursorDebounce?: Map<string, NodeJS.Timeout>;
+  private _connect(room: string) {
+    this._room = room || "default";
+    if (this.es) { try { this.es.close(); } catch {} this.es = null; }
 
-  // Getters pour l'état de la connexion
-  get connectionStatus() {
-    return {
-      isOnline: this.isOnline,
-      activeRooms: Array.from(this.rooms.keys()),
-      reconnectAttempts: Object.fromEntries(this.reconnectAttempts)
-    };
-  }
+    const url =
+      `/api/realtime/stream` +
+      `?room=${encodeURIComponent(this._room)}` +
+      `&id=${encodeURIComponent(this.ident.id)}` +
+      `&name=${encodeURIComponent(this.ident.name)}` +
+      `&role=${encodeURIComponent(this.ident.role)}`;
 
-  // Méthode pour forcer la reconnexion
-  forceReconnect(room?: string) {
-    if (room) {
-      const conn = this.rooms.get(room);
-      if (conn) {
-        conn.es.close();
-        this.rooms.delete(room);
-        this.reconnectAttempts.delete(room);
-      }
-    } else {
-      // Reconnecter toutes les rooms
-      this.rooms.forEach((conn, roomKey) => {
-        conn.es.close();
-        this.rooms.delete(roomKey);
-        this.reconnectAttempts.delete(roomKey);
+    const es = new EventSource(url);
+    const builtin = [
+      "presence:state","presence:join","presence:leave",
+      "chat","status","cursor","heartbeat",
+      "focus_session_start","focus_session_end",
+    ];
+    for (const evt of builtin) {
+      es.addEventListener(evt, (e: MessageEvent) => {
+        try { this.dispatch(evt, JSON.parse(e.data || "{}")); } catch {}
       });
     }
+    es.onerror = () => { /* auto-retry */ };
+    this.es = es;
   }
+
+  dispatch(type: string, data: any) {
+    this.subs.get(type)?.forEach((h) => { try { h(data); } catch {} });
+  }
+
+  disconnect() {
+    if (this.es) { try { this.es.close(); } catch {} this.es = null; }
+  }
+
+  get room() { return this._room; }
+  get user() { return this.ident; }
 }
 
 const g = globalThis as any;
-if (!g.__RT_CLIENT) g.__RT_CLIENT = new RealtimeClient();
-export function getRealtimeClient() {
-  return g.__RT_CLIENT as RealtimeClient;
-}
+export const rtClient: RealtimeClient =
+  g.__APP_RT_CLIENT || (g.__APP_RT_CLIENT = new RealtimeClient());
 
-// Hook pour la détection de la connexion réseau
-if (typeof window !== "undefined") {
-  const client = getRealtimeClient();
-  
-  window.addEventListener("online", () => {
-    console.log("Network back online, forcing reconnection...");
-    client.forceReconnect();
-  });
-  
-  window.addEventListener("offline", () => {
-    console.log("Network offline detected");
-  });
-}
+export default rtClient;
+export function getRealtimeClient() { return rtClient; }

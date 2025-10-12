@@ -1,311 +1,224 @@
-import React, { useState, useEffect } from "react";
-import LiveCursors from "./LiveCursors";
-import FloatingChat from "./FloatingChat";
-import NotificationCenter from "../notifications/NotificationCenter";
-import ConnectedUsersList from "../presence/ConnectedUsersList";
-import UserStatusManager from "../presence/UserStatusManager";
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import ChatPanelEnhanced from "./ChatPanelEnhanced";
 import CallManager from "../calls/CallManager";
 import CollaborativeWhiteboard from "../whiteboard/CollaborativeWhiteboard";
 import RealtimeTaskManager from "../tasks/RealtimeTaskManager";
-import FocusModeManager from "../focus/FocusModeManager";
-import { getStableUserId, getRealtimeClient } from "../../lib/realtime/provider";
+import { getRealtimeClient } from "../../lib/realtime/provider";
 
 type Role = "chef" | "manager" | "assistant" | "employe";
+type TeamMember = { id: string; name: string; role: Role; status?: string };
 
 export default function CollabPanel({
-  roomId = "demo-room",
-  userName = "Moi",
-  role = "chef" as Role, // chef par défaut pour voir l'assignation privée
+  roomId,
+  userId,
+  userName,
+  role,
   onClose,
 }: {
-  roomId?: string;
-  userName?: string;
-  role?: Role;
+  roomId: string;
+  userId: string;
+  userName: string;
+  role: Role;
   onClose?: () => void;
 }) {
-  const userId = getStableUserId();
   const rt = getRealtimeClient();
-  
-  // États pour les fonctionnalités avancées
-  const [isCompact, setIsCompact] = useState(false);
-  const [connectedUsers, setConnectedUsers] = useState<any[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<"connected" | "connecting" | "disconnected" | "error">("disconnected");
-  const [showStats, setShowStats] = useState(false);
-  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
-  
-  // Nouveaux états pour les modules avancés
-  const [activeTab, setActiveTab] = useState<"overview" | "chat" | "whiteboard" | "tasks" | "calls">("overview");
+
+  // Synchroniser l'identité utilisateur
+  useEffect(() => {
+    rt.setUser({ id: userId, name: userName, role });
+  }, [rt, userId, userName, role]);
+
+  const [connectedUsers, setConnectedUsers] = useState<TeamMember[]>([]);
+  const [activeTab, setActiveTab] = useState<"chat" | "whiteboard" | "tasks" | "calls">("chat");
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [isInCall, setIsInCall] = useState(false);
 
-  // Suivi des utilisateurs connectés
+  // Suivre la présence
   useEffect(() => {
-    const unsubscribe = rt.subscribe(roomId, "presence", (data) => {
-      if (data.type === "user_list") {
-        setConnectedUsers(data.users || []);
+    const unsubscribe1 = rt.subscribe(roomId, "presence", (data) => {
+      console.log('👥 Presence event:', data);
+      if (Array.isArray(data?.members)) {
+        setConnectedUsers(data.members.filter((u: any) => u?.id && u?.name));
       }
     });
 
-    // Ping pour maintenir la connexion
-    const pingInterval = setInterval(() => {
-      rt.trigger(roomId, "ping", { timestamp: Date.now() }).catch(() => {});
-    }, 30000);
+    const unsubscribe2 = rt.subscribe(roomId, "presence:join", (data) => {
+      console.log('✅ User joined:', data);
+      if (Array.isArray(data?.members)) {
+        setConnectedUsers(data.members.filter((u: any) => u?.id && u?.name));
+      }
+    });
+
+    const unsubscribe3 = rt.subscribe(roomId, "presence:leave", (data) => {
+      console.log('❌ User left:', data);
+      if (Array.isArray(data?.members)) {
+        setConnectedUsers(data.members.filter((u: any) => u?.id && u?.name));
+      }
+    });
+
+    const unsubscribe4 = rt.subscribe(roomId, "presence:state", (data) => {
+      console.log('📊 Presence state:', data);
+      if (Array.isArray(data?.members)) {
+        setConnectedUsers(data.members.filter((u: any) => u?.id && u?.name));
+      }
+    });
 
     return () => {
-      unsubscribe();
-      clearInterval(pingInterval);
+      unsubscribe1();
+      unsubscribe2();
+      unsubscribe3();
+      unsubscribe4();
     };
   }, [rt, roomId]);
 
-  // Surveillance du statut de connexion
-  useEffect(() => {
-    const checkStatus = () => {
-      // Utiliser une méthode simple pour vérifier le statut
-      setConnectionStatus("connected"); // Simplifié pour éviter les erreurs
-    };
-
-    checkStatus();
-    const statusInterval = setInterval(checkStatus, 5000);
-    return () => clearInterval(statusInterval);
-  }, []);
-
-  const getStatusColor = () => {
-    switch (connectionStatus) {
-      case "connected": return "bg-green-500";
-      case "connecting": return "bg-yellow-500";
-      case "error": return "bg-red-500";
-      default: return "bg-gray-500";
-    }
-  };
-
-  const getStatusText = () => {
-    switch (connectionStatus) {
-      case "connected": return "Connecté";
-      case "connecting": return "Connexion...";
-      case "error": return "Erreur";
-      default: return "Déconnecté";
+  const roleColor = (r: string) => {
+    switch (r) {
+      case 'chef': return 'from-red-500 to-rose-600';
+      case 'manager': return 'from-blue-500 to-indigo-600';
+      case 'assistant': return 'from-green-500 to-emerald-600';
+      default: return 'from-slate-500 to-slate-600';
     }
   };
 
   return (
-    <div className={`fixed inset-y-0 right-0 bg-white border-l border-gray-300 shadow-2xl z-50 flex flex-col transition-all duration-300 ${
-      isCompact ? "w-80" : "w-[520px]"
-    }`}>
-      {/* En-tête avec statut et contrôles */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-blue-50 to-indigo-50">
-        <div className="flex items-center space-x-3">
-          <div className="font-semibold text-gray-800">Collaboration</div>
-          
-          {/* Statut utilisateur */}
-          <UserStatusManager
-            userId={userId}
-            userName={userName}
-            roomId={roomId}
-            onStatusChange={(status) => {
-              console.log("Statut changé:", status);
-            }}
-          />
-          
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${getStatusColor()}`}></div>
-            <span className="text-xs text-gray-600">{getStatusText()}</span>
+    <div
+      className="fixed inset-y-0 right-0 z-50 w-[480px] flex flex-col bg-white shadow-2xl"
+    >
+      {/* Header simplifié et moderne */}
+      <div className="px-5 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <span className="text-xl">�</span>
+          </div>
+          <div>
+            <div className="font-semibold text-lg">Collaboration</div>
+            <div className="text-xs text-white/80">{connectedUsers.length} en ligne</div>
           </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          {/* Compteur d'utilisateurs */}
-          <div className="flex items-center space-x-1 px-2 py-1 bg-blue-100 rounded-full">
-            <span className="text-xs font-medium text-blue-700">👥</span>
-            <span className="text-xs font-bold text-blue-700">{connectedUsers.length}</span>
-          </div>
-          
-          {/* Bouton notifications */}
+
+        {onClose && (
           <button
-            onClick={() => setShowNotificationCenter(true)}
-            className="p-1 rounded hover:bg-gray-100"
-            title="Centre de notifications"
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center"
           >
-            🔔
+            ✕
           </button>
-          
-          {/* Bouton statistiques */}
-          <button
-            onClick={() => setShowStats(!showStats)}
-            className="p-1 rounded hover:bg-gray-100"
-            title="Statistiques"
-          >
-            📊
-          </button>
-          
-          {/* Bouton mode compact */}
-          <button
-            onClick={() => setIsCompact(!isCompact)}
-            className="p-1 rounded hover:bg-gray-100"
-            title={isCompact ? "Mode étendu" : "Mode compact"}
-          >
-            {isCompact ? "📖" : "📄"}
-          </button>
-          
-          <button onClick={onClose} className="px-2 py-1 rounded-md hover:bg-gray-100" title="Fermer">✕</button>
-        </div>
+        )}
       </div>
 
-      {/* Zone de contenu principal */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Statistiques (si affichées) */}
-        {showStats && (
-          <div className="p-3 bg-gray-50 border-b text-xs space-y-2">
-            <div className="font-semibold text-gray-700">📈 Statistiques temps réel</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>👥 Utilisateurs: {connectedUsers.length}</div>
-              <div>🌐 Room: {roomId}</div>
-              <div>🆔 Votre ID: {userId.slice(-6)}</div>
-              <div>⚡ Statut: {getStatusText()}</div>
-            </div>
-            {connectedUsers.length > 0 && (
-              <div className="mt-2">
-                <div className="font-medium text-gray-600">Utilisateurs connectés:</div>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {connectedUsers.map((user, i) => (
-                    <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                      {user.name} ({user.role})
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Zone principale collaborative */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Onglets de navigation */}
-          <div className="flex border-b bg-gray-50 px-2">
-            {[
-              { id: "overview", label: "Vue d'ensemble", emoji: "📊" },
-              { id: "chat", label: "Chat", emoji: "💬" },
-              { id: "whiteboard", label: "Tableau", emoji: "🎨" },
-              { id: "tasks", label: "Tâches", emoji: "📋" },
-              { id: "calls", label: "Appels", emoji: "📞" }
-            ].map(tab => (
+      {/* Membres connectés - horizontal scroll simple */}
+      {connectedUsers.length > 0 && (
+        <div className="px-4 py-3 bg-gray-50 border-b">
+          <div className="flex gap-3 overflow-x-auto pb-1" style={{scrollbarWidth:'thin'}}>
+            {connectedUsers.map(u => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  activeTab === tab.id
-                    ? "border-b-2 border-blue-500 text-blue-600 bg-white"
-                    : "text-gray-600 hover:text-gray-800"
-                }`}
+                key={u.id}
+                onClick={() => {
+                  // Ne pas ouvrir un DM avec soi-même
+                  if (String(u.id) === String(userId)) return;
+                  setSelectedMember(u);
+                  setActiveTab('chat');
+                }}
+                className="flex flex-col items-center gap-1 min-w-[64px] group"
+                title={`${u.name} (${u.role})`}
               >
-                <span className="mr-1">{tab.emoji}</span>
-                {!isCompact && tab.label}
-                {tab.id === "calls" && isInCall && (
-                  <span className="ml-1 w-2 h-2 bg-green-500 rounded-full inline-block animate-pulse"></span>
-                )}
+                <div className={`relative w-12 h-12 rounded-full bg-gradient-to-br ${roleColor(u.role)} text-white flex items-center justify-center text-sm font-bold shadow-md group-hover:scale-110 transition-transform`}>
+                  {u.name.slice(0,2).toUpperCase()}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-white"></span>
+                </div>
+                <span className="text-[10px] text-gray-600 truncate max-w-[64px]">{u.name.split(' ')[0]}</span>
               </button>
             ))}
           </div>
+        </div>
+      )}
 
-          {/* Contenu des onglets */}
-          <div className="flex-1 overflow-auto">
-            {activeTab === "overview" && (
-              <div className="p-3 space-y-3">
-                {!isCompact && (
-                  <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded border-l-4 border-yellow-400">
-                    💡 <strong>Mode collaboration avancé :</strong><br/>
-                    • Bouge ta souris pour partager ton curseur<br/>
-                    • Chat flottant déplaçable et redimensionnable<br/>
-                    • Notifications en temps réel<br/>
-                    • Auto-reconnexion intelligente
-                  </div>
-                )}
-                
-                {/* Mode Focus */}
-                <div className="bg-white border border-gray-200 rounded-lg p-3">
-                  <h3 className="font-semibold text-sm mb-2">🎯 Mode Focus</h3>
-                  <FocusModeManager
-                    roomId={roomId}
-                    userId={userId}
-                    userName={userName}
-                    onFocusChange={(mode) => {
-                      console.log("Mode focus changé:", mode);
-                    }}
-                  />
-                </div>
-                
-                {/* Liste des utilisateurs connectés */}
-                <div className="bg-white border border-gray-200 rounded-lg p-3">
-                  <ConnectedUsersList
-                    roomId={roomId}
-                    currentUserId={userId}
-                    compact={isCompact}
-                    onUserClick={(user) => {
-                      // TODO: Ouvrir un DM avec cet utilisateur
-                      console.log("Ouvrir DM avec:", user);
-                    }}
-                  />
-                </div>
-                
-                <LiveCursors roomId={roomId} userId={userId} userName={userName} role={role} />
-              </div>
-            )}
-
-            {activeTab === "chat" && (
-              <div className="h-full">
-                <FloatingChat
-                  roomId={roomId}
-                  userId={userId}
-                  userName={userName}
-                  role={role}
-                  embedded={true}
-                />
-              </div>
-            )}
-
-            {activeTab === "whiteboard" && (
-              <div className="p-3">
-                <CollaborativeWhiteboard
-                  roomId={roomId}
-                  userId={userId}
-                  userName={userName}
-                  width={isCompact ? 300 : 450}
-                  height={isCompact ? 200 : 300}
-                />
-              </div>
-            )}
-
-            {activeTab === "tasks" && (
-              <div className="h-full">
-                <RealtimeTaskManager
-                  roomId={roomId}
-                  userId={userId}
-                  userName={userName}
-                  userRole={role}
-                  compact={isCompact}
-                />
-              </div>
-            )}
-
-            {activeTab === "calls" && (
-              <div className="p-3">
-                <CallManager
-                  roomId={roomId}
-                  userId={userId}
-                  userName={userName}
-                  onCallStateChange={setIsInCall}
-                />
-              </div>
-            )}
-          </div>
+      {/* Tabs simplifiés */}
+      <div className="px-4 py-3 bg-white border-b">
+        <div className="flex gap-2">
+          {[
+            { id: "chat", label: "Chat", emoji: "💬" },
+            { id: "whiteboard", label: "Tableau", emoji: "🎨" },
+            { id: "tasks", label: "Tâches", emoji: "✓" },
+            { id: "calls", label: "Appels", emoji: "📞" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                activeTab === tab.id
+                  ? "bg-indigo-600 text-white shadow-md"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              <span className="mr-1.5">{tab.emoji}</span>
+              {tab.label}
+              {tab.id === "calls" && isInCall && (
+                <span className="ml-2 w-2 h-2 bg-green-400 rounded-full inline-block animate-pulse"></span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
-      <FloatingChat roomId={roomId} userId={userId} userName={userName} role={role} />
-      
-      {/* Centre de notifications */}
-      <NotificationCenter
-        isOpen={showNotificationCenter}
-        onClose={() => setShowNotificationCenter(false)}
-      />
+      {/* Contenu */}
+      <div className="flex-1 overflow-hidden bg-gray-50">
+        {activeTab === "chat" && (
+          <div className="h-full">
+            <ChatPanelEnhanced
+              roomId={roomId}
+              userId={userId}
+              user={userName}
+              role={role}
+              height={600}
+              initialDmTarget={selectedMember ? { id: selectedMember.id, name: selectedMember.name } : undefined}
+              onContextUpdate={(ctx) => {
+                // Si on revient sur le Général, on efface le membre sélectionné
+                if (ctx.mode === "room") {
+                  setSelectedMember(null);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === "whiteboard" && (
+          <div className="p-4 h-full flex items-center justify-center">
+            <CollaborativeWhiteboard
+              roomId={roomId}
+              userId={userId}
+              userName={userName}
+              width={420}
+              height={500}
+            />
+          </div>
+        )}
+
+        {activeTab === "tasks" && (
+          <div className="h-full">
+            <RealtimeTaskManager
+              roomId={roomId}
+              userId={userId}
+              userName={userName}
+              userRole={role}
+              compact={false}
+            />
+          </div>
+        )}
+
+        {activeTab === "calls" && (
+          <div className="p-6">
+            <CallManager
+              roomId={roomId}
+              userId={userId}
+              userName={userName}
+              onCallStateChange={setIsInCall}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

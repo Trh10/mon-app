@@ -3,12 +3,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useUI } from "@store";
 import CollabPanel from "./Collab/CollabPanel";
+import { getStableUserId } from "../lib/realtime/provider";
 import TeamPanel from "./team/TeamPanel";
 import TasksPanel from "./tasks/TasksPanel";
-import { CodeManagement } from "./CodeManagement";
+import MeetingsPanel from "./meetings/MeetingsPanel";
 import { useCodeAuth } from "./auth/CodeAuthContext";
 import { GlobalNotificationBadge } from "./notifications/NotificationBadge";
-import { Inbox, Star, Send, FileText, CheckSquare, Users, Link2, LogOut, ClipboardList, Settings, Key, User } from "lucide-react";
+import { UserRole } from "../lib/permissions";
+import { Inbox, Star, Send, FileText, CheckSquare, Users, Link2, LogOut, ClipboardList, Settings, User } from "lucide-react";
 
 export function Sidebar({ 
   onFolderChange, 
@@ -29,7 +31,7 @@ export function Sidebar({
   const [showCollab, setShowCollab] = useState(false);
   const [showTeam, setShowTeam] = useState(false);
   const [showTasks, setShowTasks] = useState(false);
-  const [showCodeManagement, setShowCodeManagement] = useState(false);
+  const [showMeetings, setShowMeetings] = useState(false);
 
   // Détection gmail pour la section "Comptes" uniquement
   useEffect(() => {
@@ -45,6 +47,30 @@ export function Sidebar({
   }
 
   const folderNavEnabled = Boolean(isConnected); // IMAP ou Gmail
+
+  // Mapper rôle applicatif -> rôle collab temps réel
+  const mapRole = (lvl?: number, roleText?: string): "chef" | "manager" | "assistant" | "employe" => {
+    // Debug
+    console.log('🔍 mapRole - level:', lvl, 'roleText:', roleText);
+    
+    const r = (roleText || "").toLowerCase();
+    
+    // Priorité au texte du rôle si disponible
+    if (r.includes("directeur") || r.includes("dg") || r.includes("général")) return "chef";
+    if (r.includes("admin")) return "manager";
+    if (r.includes("financ")) return "manager"; // Financier = manager dans le système collab
+    if (r.includes("assistant")) return "assistant";
+    
+    // Fallback sur le level
+    if (typeof lvl === "number") {
+      if (lvl >= 10) return "chef"; // DG
+      if (lvl >= 7) return "manager"; // Admin, Financier
+      if (lvl >= 5) return "assistant";
+      return "employe";
+    }
+    
+    return "employe";
+  };
 
   return (
     <aside className="panel h-full p-2">
@@ -79,6 +105,10 @@ export function Sidebar({
           <CheckSquare className="w-4 h-4" /> Tâches
         </button>
 
+        <button className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-gray-100" onClick={() => setShowMeetings(true)} title="Compte rendu de réunion">
+          <ClipboardList className="w-4 h-4" /> Réunions
+        </button>
+
         <button className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-gray-100" onClick={() => setShowTeam(true)} title="Voir l'équipe">
           <Users className="w-4 h-4" /> Équipe
         </button>
@@ -96,22 +126,11 @@ export function Sidebar({
         </Link>
 
         {/* Interface d'approbation - Uniquement pour Finance, Administration, DG */}
-        {user && [6, 7, 10].includes(user.level) && (
+        {user && [6, 7, 10].includes(user.level || 0) && (
           <Link href="/requisitions/approvals" className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-gray-100 mt-1" title="Approbations">
             <CheckSquare size={16} />
             <span className="text-sm">Approbations</span>
           </Link>
-        )}
-
-        {/* Gestion des codes - Uniquement pour le DG */}
-        {hasPermission('all') && (
-          <button 
-            onClick={() => setShowCodeManagement(!showCodeManagement)}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-gray-100 mt-1"
-            title="Gestion des codes d'accès"
-          >
-            <Key className="w-4 h-4" /> Codes d'accès
-          </button>
         )}
 
         <div className="h-3" />
@@ -136,40 +155,36 @@ export function Sidebar({
         )}
       </nav>
 
-      {showCollab && (
+  {showCollab && (
         <CollabPanel 
-          roomId="demo-room" 
-          userName={userInfo?.userName || "Utilisateur"} 
-          role="manager" 
+          roomId={`company:${user?.companyId || user?.company || "default"}:main`} 
+      // Utiliser l'ID réel si disponible pour garantir la symétrie des DMs
+      userId={user?.id || getStableUserId()}
+      userName={user?.name || userInfo?.userName || "Moi"} 
+      role={mapRole(user?.level, user?.role)} 
           onClose={() => setShowCollab(false)} 
         />
       )}
       
-      {showCodeManagement && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Gestion des Codes d'Accès</h2>
-              <button
-                onClick={() => setShowCodeManagement(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="p-4">
-              <CodeManagement />
-            </div>
-          </div>
-        </div>
-      )}
-
       {showTeam && (
-        <TeamPanel orgId="company-1" currentUserName={userInfo?.userName || "Moi"} currentUserRole={(userInfo?.role || "chef") as any} onClose={() => setShowTeam(false)} />
+        <TeamPanel 
+          onClose={() => setShowTeam(false)} 
+        />
       )}
 
       {showTasks && (
-        <TasksPanel currentUser={{ id: "u-bob", name: "Bob", role: "employe" as const }} onClose={() => setShowTasks(false)} />
+        <TasksPanel 
+          currentUser={{ 
+            id: user?.id || userInfo?.userId || "user", 
+            name: user?.name || userInfo?.userName || "Utilisateur", 
+            role: (user?.role || userInfo?.role || "Employé") as UserRole 
+          }}
+          onClose={() => setShowTasks(false)} 
+        />
+      )}
+
+      {showMeetings && (
+        <MeetingsPanel onClose={() => setShowMeetings(false)} />
       )}
     </aside>
   );

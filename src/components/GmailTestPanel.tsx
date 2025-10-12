@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { gmailActions } from "@lib/gmail-actions";
-import { useGmailComposer } from "@hooks/useGmailComposer";
+import { APP_NAME } from "@/config/branding";
+import { useGmailComposer } from "@/lib/hooks/useGmailComposer";
 import { FullReader } from "@components/FullReader";
 
 export function GmailTestPanel() {
@@ -28,7 +29,7 @@ export function GmailTestPanel() {
       const me = await gmailActions.me();
       await gmailActions.send({
         to: me.emailAddress,
-        subject: "Test depuis ICONES BOX",
+  subject: `Test depuis ${APP_NAME}`,
         html: "<p>Ceci est un test d'envoi depuis l'application.</p>"
       });
       setStatus("Test envoyé avec succès");

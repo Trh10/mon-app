@@ -27,12 +27,14 @@ export default function FloatingChat({
   userName,
   role = "employe" as Role,
   embedded = false,
+  initialDmTarget,
 }: {
   roomId: string;
   userId: string;
   userName: string;
   role?: Role;
   embedded?: boolean;
+  initialDmTarget?: { id: string; name: string };
 }) {
   const rt = getRealtimeClient();
   const notificationManager = getNotificationManager();
@@ -267,6 +269,7 @@ export default function FloatingChat({
           user={userName}
           role={role}
           height={400}
+          initialDmTarget={initialDmTarget}
         />
       </div>
     );
@@ -335,6 +338,7 @@ export default function FloatingChat({
             role={role}
             height={scrollerHeight}
             onContextUpdate={handleContextUpdate}
+            initialDmTarget={initialDmTarget}
           />
           {/* Poignée de redimensionnement */}
           <div

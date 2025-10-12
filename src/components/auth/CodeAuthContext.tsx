@@ -5,18 +5,20 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 interface CodeAuthUser {
   id: string;
   name: string;
-  code: string;
-  level: number;
+  company: string;
+  role: string;
+  level?: number;
   levelName?: string;
-  permissions: string[];
-  companyId: string;
-  companyCode: string;
+  permissions?: string[];
+  companyId?: string;
+  companyCode?: string;
   isFirstUser?: boolean;
 }
 
 interface CodeAuthContextType {
   user: CodeAuthUser | null;
-  login: (code: string, name?: string, companyName?: string) => Promise<{ success: boolean; error?: string }>;
+  isAuthenticated: boolean;
+  login: (code: string, name?: string, companyName?: string, role?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   loading: boolean;
   hasPermission: (permission: string) => boolean;
@@ -34,23 +36,98 @@ export function CodeAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkSession = async () => {
+    setLoading(true);
     try {
-      const response = await fetch('/api/auth/login');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.authenticated) {
-          setUser(data.user);
+      // Vérifier si on est côté client
+      if (typeof window === 'undefined') {
+        setLoading(false);
+        return;
+      }
+
+      const newSessionData = localStorage.getItem('user-session');
+      if (newSessionData) {
+        try {
+          const userData = JSON.parse(newSessionData);
+          // Valider la structure des données
+          if (userData && userData.id && userData.name) {
+            setUser(userData);
+          } else {
+            // Données corrompues, nettoyer
+            localStorage.removeItem('user-session');
+            setUser(null);
+          }
+        } catch (parseError) {
+          console.error('Données de session corrompues:', parseError);
+          localStorage.removeItem('user-session');
+          setUser(null);
+        }
+      } else {
+        // Fallback vers l'ancien système de cookies
+        try {
+          const response = await fetch('/api/auth/login');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.authenticated) {
+              setUser({
+                id: data.user.id,
+                name: data.user.name,
+                company: data.user.companyCode || data.user.companyId,
+                role: data.user.levelName || 'Employé',
+                level: data.user.level,
+                permissions: data.user.permissions,
+                companyId: data.user.companyId,
+                companyCode: data.user.companyCode
+              });
+            }
+          }
+        } catch (fetchError) {
+          console.error('Erreur lors de la vérification de session:', fetchError);
         }
       }
     } catch (error) {
-      console.error('Erreur vérification session:', error);
+      console.error('Erreur générale de vérification session:', error);
+      setUser(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user-session');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const login = async (code: string, name?: string, companyName?: string) => {
+  const login = async (code: string, name?: string, companyName?: string, role?: string) => {
     try {
+      // Utiliser la nouvelle API employee-login
+      if (name && role) {
+        const response = await fetch('/api/auth/employee-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            companyName, 
+            employeeName: name, 
+            role,
+            code 
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          const userData = data.user;
+          setUser(userData);
+          
+          // Auto-enregistrement désactivé (route supprimée)
+          // Si besoin, réactiver plus tard avec une vraie implémentation côté serveur.
+          
+          return { success: true };
+        } else {
+          return { success: false, error: data.error || 'Erreur de connexion' };
+        }
+      }
+      
+      // Fallback vers l'ancienne API
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
@@ -75,6 +152,7 @@ export function CodeAuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await fetch('/api/auth/login', { method: 'DELETE' });
+      localStorage.removeItem('user-session');
       setUser(null);
     } catch (error) {
       console.error('Erreur déconnexion:', error);
@@ -84,16 +162,22 @@ export function CodeAuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = (permission: string): boolean => {
     if (!user) return false;
     
-    // Le niveau 10 (DG) a toutes les permissions
-    if (user.level === 10 || user.permissions.includes('all')) {
+    // Si l'utilisateur a un niveau 10 (DG) ou le rôle de Directeur Général
+    if (user.level === 10 || user.role === 'Directeur Général') {
       return true;
     }
     
-    return user.permissions.includes(permission);
+    // Vérifier les permissions si elles existent
+    if (user.permissions && user.permissions.includes('all')) {
+      return true;
+    }
+    
+    return user.permissions ? user.permissions.includes(permission) : false;
   };
 
   const value = {
     user,
+    isAuthenticated: !!user,
     login,
     logout,
     loading,

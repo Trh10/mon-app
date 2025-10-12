@@ -1,31 +1,9 @@
 import { NextResponse } from 'next/server';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 import { google } from 'googleapis';
 import { getAuthenticatedClient } from '@/lib/google-auth';
-
-const ACCOUNTS_FILE = join(process.cwd(), 'data', 'email-accounts.json');
-
-type AccountsData = {
-  accounts: any[];
-  activeAccount: string | null;
-};
-
-function loadAccounts(): AccountsData {
-  try {
-    if (!existsSync(ACCOUNTS_FILE)) return { accounts: [], activeAccount: null };
-    const raw = readFileSync(ACCOUNTS_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch {
-    return { accounts: [], activeAccount: null };
-  }
-}
-
-function saveAccounts(data: AccountsData) {
-  const dataDir = join(process.cwd(), 'data');
-  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
-  writeFileSync(ACCOUNTS_FILE, JSON.stringify(data, null, 2));
-}
+import { upsertAccount, setActiveAccount } from '@/lib/emailAccountsDb';
+import { getSession } from '@/lib/session';
+type AccountsData = { accounts: any[]; activeAccount: string | null };
 
 export async function POST() {
   try {
@@ -64,31 +42,22 @@ export async function POST() {
       return NextResponse.json({ success: false, error: 'Aucun compte Gmail actif détecté' }, { status: 404 });
     }
     
-    const store = loadAccounts();
-    const type = 'gmail';
-    const existing = store.accounts.find((a) => a.provider?.id === type);
-    const accountId = existing?.id || Math.random().toString(36).slice(2);
-    const account = {
-      id: accountId,
+    const session = await getSession(new Request('http://local') as any);
+    if (!session.organizationId || !session.userId) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+
+    const created = await upsertAccount(session, {
       email,
-      provider: { id: type, name, type, icon: '📧', color: 'bg-red-500' },
+      provider: { id: 'gmail', name, type: 'gmail', icon: '📧', color: 'bg-red-500' },
+      providerId: 'gmail',
+      providerName: name,
       isConnected: true,
       unreadCount,
       connectedAt: new Date().toISOString(),
       credentials: { email, oauth: 'google' }
-    };
+    });
+    await setActiveAccount(session, created.id);
 
-    if (existing) {
-      Object.assign(existing, account);
-      console.log('✅ Compte Gmail existant mis à jour');
-    } else {
-      store.accounts.push(account);
-      console.log('✅ Nouveau compte Gmail ajouté');
-    }
-    if (!store.activeAccount) store.activeAccount = accountId;
-    saveAccounts(store);
-
-    return NextResponse.json({ success: true, accountId, email });
+    return NextResponse.json({ success: true, accountId: created.id, email });
   } catch (e: any) {
     const msg = e?.message || 'Erreur lors de la récupération du compte Gmail';
     console.log('❌ Erreur import Gmail:', msg);

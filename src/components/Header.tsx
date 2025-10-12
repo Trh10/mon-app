@@ -2,9 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useUI } from "@store";
-import { ChevronDown, Folder, RefreshCw, LogOut, Layout } from "lucide-react";
+import { ChevronDown, Folder, RefreshCw, LogOut, Layout, Lock } from "lucide-react";
+import { APP_NAME } from "@/config/branding";
 import EmailAccountSelector from "./HeaderEmailSelector";
 import EmailLoginModal from "./EmailLoginModal";
+import ChangeCodeModal from "./auth/ChangeCodeModal";
+import { useCodeAuth } from "./auth/CodeAuthContext";
+import { NotificationToggle } from "./notifications/NotificationToggle";
+import OnlineUsersBadge from "./presence/OnlineUsersBadge";
 
 type Props = {
   source: string;
@@ -30,7 +35,10 @@ export function Header({
   onAccountChange
 }: Props) {
   const { density, setDensity } = useUI();
+  const { user, logout } = useCodeAuth();
+  const [showChangePIN, setShowChangePIN] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showChangeCodeModal, setShowChangeCodeModal] = useState(false);
 
   // Source dynamique selon provider
   const sourceLabel = useMemo(() => {
@@ -62,10 +70,12 @@ export function Header({
     setDensity?.(next);
   }
 
+  const companyName = (user?.company || '').trim();
+
   return (
     <div className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
       <div className="max-w-[1400px] mx-auto flex items-center gap-2">
-        <div className="text-lg font-semibold flex-1">ICONES BOX</div>
+  <div className="text-lg font-semibold flex-1">{companyName || APP_NAME}</div>
 
         {/* Source dynamique */}
         <div className="flex items-center gap-2">
@@ -78,7 +88,6 @@ export function Header({
             <div className="absolute right-0 mt-1 hidden group-hover:block bg-white text-gray-800 rounded-lg shadow-lg overflow-hidden min-w-[180px] z-20">
               {[
                 { key: "email", label: "Emails réels" },
-                { key: "mock", label: "Test (mock)" },
               ].map((opt) => (
                 <button
                   key={opt.key}
@@ -131,11 +140,35 @@ export function Header({
           </div>
         </div>
 
-        {/* Boutons d'action */}
+  {/* Présence en ligne + Boutons d'action */}
+        <OnlineUsersBadge className="ml-2" />
+        <NotificationToggle />
         <button onClick={onRefresh} className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
           <RefreshCw className="w-4 h-4" /> Rafraîchir
         </button>
+
+        {/* Bouton changer le code (si utilisateur connecté) */}
+        {user && (
+          <button 
+            onClick={() => setShowChangeCodeModal(true)}
+            className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2"
+            title="Changer votre code d'accès personnel"
+          >
+            <Lock className="w-4 h-4" /> Code
+          </button>
+        )}
         
+        {/* Déconnexion */}
+        {user && (
+          <button 
+            onClick={() => logout()}
+            className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2"
+            title="Se déconnecter"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Sélecteur de comptes email */}
         <div className="flex items-center gap-2">
           <EmailAccountSelector 
@@ -156,6 +189,19 @@ export function Header({
         onClose={() => setShowLoginModal(false)}
         onSuccess={handleAccountSuccess}
       />
+
+      {/* Modal de changement de code */}
+      {user && (
+        <ChangeCodeModal
+          isOpen={showChangeCodeModal}
+          onClose={() => setShowChangeCodeModal(false)}
+          currentUser={{
+            id: user.id,
+            name: user.name,
+            role: user.role
+          }}
+        />
+      )}
     </div>
   );
 }

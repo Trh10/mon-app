@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { addSharedFile, uploadsDir } from "../../../../lib/files/store";
 import { hub } from "../../../../lib/realtime/hub";
 import { addAudit } from "../../../../lib/audit/store";
+import type { Role } from "../../../../lib/auth/role";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     // Métadonnées d’acteur
     const actorId = String(form.get("actorId") || "");
     const actorName = String(form.get("actorName") || "");
-    const actorRole = String(form.get("actorRole") || "employe");
+  const actorRole = (String(form.get("actorRole") || "employe") as Role);
 
     if (!actorId || !actorName) {
       return NextResponse.json({ error: "Missing actor" }, { status: 400 });

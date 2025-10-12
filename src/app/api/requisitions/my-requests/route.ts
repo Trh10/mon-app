@@ -1,62 +1,52 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { getRequisitions } from '@/lib/requisitions/requisition-store';
-import { Requisition } from '@/lib/requisitions/requisition-types';
-
-// Récupérer l'utilisateur actuel depuis la session
-async function getCurrentUser(req: NextRequest) {
-  try {
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('user-session');
-    
-    if (!sessionCookie) {
-      return null;
-    }
-
-    return JSON.parse(sessionCookie.value);
-  } catch (error) {
-    console.error('Erreur parsing session:', error);
-    return null;
-  }
-}
+import { getSession } from '@/lib/session';
+import { prisma } from '@/lib/db';
 
 // GET - Récupérer les réquisitions de l'utilisateur connecté
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
+    const session = await getSession(req);
     
-    if (!user) {
+    if (!session.organizationId || !session.userId) {
       return NextResponse.json(
         { success: false, error: 'Non authentifié' },
         { status: 401 }
       );
     }
 
-    // Récupérer toutes les réquisitions
-    const allRequisitions = getRequisitions();
-    
-    // Filtrer les réquisitions de l'utilisateur connecté
-    const userRequisitions = allRequisitions.filter((req: Requisition) => 
-      req.requesterId === user.code && req.companyId === user.companyId
-    );
+    const db: any = prisma;
+    // Récupérer les réquisitions de l'utilisateur connecté
+    const userRequisitions = await db.requisition.findMany({
+      where: { 
+        organizationId: session.organizationId,
+        requesterId: session.userId
+      },
+      include: {
+        workflow: {
+          orderBy: { reviewerLevel: 'asc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     // Calculer des statistiques
     const stats = {
       total: userRequisitions.length,
-      en_attente: userRequisitions.filter(r => r.status === 'soumis').length,
-      en_review: userRequisitions.filter(r => r.status === 'en_review').length,
-      approuvees: userRequisitions.filter(r => r.status === 'approuve').length,
-      rejetees: userRequisitions.filter(r => r.status === 'rejete').length,
-      budget_total: userRequisitions.reduce((sum, r) => sum + r.budget, 0),
+      en_attente: userRequisitions.filter((r: any) => r.status === 'soumis').length,
+      en_review: userRequisitions.filter((r: any) => r.status === 'en_review').length,
+      approuvees: userRequisitions.filter((r: any) => r.status === 'approuve').length,
+      rejetees: userRequisitions.filter((r: any) => r.status === 'rejete').length,
+      budget_total: userRequisitions.reduce((sum: number, r: any) => sum + r.budget, 0),
       budget_approuve: userRequisitions
-        .filter(r => r.status === 'approuve')
-        .reduce((sum, r) => sum + r.budget, 0)
+        .filter((r: any) => r.status === 'approuve')
+        .reduce((sum: number, r: any) => sum + r.budget, 0)
     };
 
     // Enrichir les réquisitions avec des informations de workflow
-    const enrichedRequisitions = userRequisitions.map((requisition: Requisition) => {
-      const completedSteps = requisition.workflow.filter(step => step.isCompleted);
-      const pendingSteps = requisition.workflow.filter(step => !step.isCompleted);
+    const enrichedRequisitions = userRequisitions.map((requisition: any) => {
+      const completedSteps = requisition.workflow.filter((step: any) => step.isCompleted);
+      const pendingSteps = requisition.workflow.filter((step: any) => !step.isCompleted);
       const nextApprover = pendingSteps.length > 0 ? pendingSteps[0] : null;
       const lastApprover = completedSteps.length > 0 ? completedSteps[completedSteps.length - 1] : null;
 
@@ -89,7 +79,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Trier par date de création (plus récent en premier)
-    enrichedRequisitions.sort((a, b) => 
+    enrichedRequisitions.sort((a: any, b: any) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
@@ -99,10 +89,9 @@ export async function GET(req: NextRequest) {
         requisitions: enrichedRequisitions,
         stats,
         user: {
-          name: user.name,
-          code: user.code,
-          level: user.level,
-          levelName: user.levelName
+          name: session.userName || 'Utilisateur',
+          userId: session.userId,
+          role: session.userRole
         }
       }
     });

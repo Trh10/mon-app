@@ -98,7 +98,7 @@ export class SmartAIProvider {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: options.model || "llama3-8b-8192",
+        model: options.model || process.env.GROQ_MODEL || "llama-3.1-8b-instant",
         messages,
         max_tokens: options.maxTokens || 800,
         temperature: options.temperature || 0.7
@@ -176,26 +176,31 @@ export class SmartAIProvider {
 
   // Fallback local intelligent
   private generateFallbackResponse(messages: AIMessage[]): string {
-    const userMessage = messages.find(m => m.role === 'user')?.content || '';
-    
-    // Réponses basées sur des patterns
-    if (userMessage.toLowerCase().includes('résumer') || userMessage.toLowerCase().includes('résumé')) {
+    const userMessageRaw = messages.find(m => m.role === 'user')?.content || '';
+    const userMessage = userMessageRaw.toLowerCase();
+
+    // 1. Résumé
+    if (userMessage.includes('résumer') || userMessage.includes('résumé')) {
       return "Résumé : L'email traite d'un sujet important qui nécessite votre attention. Veuillez consulter le contenu complet pour plus de détails.";
     }
-    
-    if (userMessage.toLowerCase().includes('sentiment') || userMessage.toLowerCase().includes('ton')) {
+
+    // 2. Analyse de ton / sentiment (éviter faux positif sur 'ton professionnel')
+    if (/\b(sentiment|analyse du ton|tone analysis|analyse ton|analyse du sentiment)\b/.test(userMessage)) {
       return '{"tone": "neutre", "sentiment": "neutre", "suggestions": ["Analyser le contexte complet"], "confidence": 0.5}';
     }
-    
-    if (userMessage.toLowerCase().includes('traduire') || userMessage.toLowerCase().includes('translation')) {
+
+    // 3. Traduction
+    if (userMessage.includes('traduire') || userMessage.includes('translation')) {
       return "Traduction automatique temporairement indisponible. Veuillez utiliser un service de traduction en ligne.";
     }
-    
-    if (userMessage.toLowerCase().includes('email') && userMessage.toLowerCase().includes('compose')) {
-      return "Objet: [À définir]\n\nBonjour,\n\nJ'espère que vous allez bien. Je vous écris concernant...\n\nCordialement";
+
+    // 4. Composition d'email (mot clé 'email' ou 'compose' ou 'écris un email')
+    if (/email/.test(userMessage) || /compose/.test(userMessage) || /écris un email/.test(userMessage)) {
+      return "Objet: [À définir]\n\nBonjour,\n\nJe vous écris concernant votre demande.\n\nPoints principaux :\n- (Point 1)\n- (Point 2)\n\nN'hésitez pas à me revenir si besoin.\n\nCordialement";
     }
-    
-    return "Service IA temporairement indisponible. Fonctionnalité de base active. Veuillez réessayer plus tard.";
+
+    // 5. Défaut
+    return "(Mode fallback local) Impossible d'appeler le provider IA distant. Fournissez une clé API pour Groq / OpenAI / Anthropic afin d'obtenir une génération réelle.";
   }
 
   // Méthode spécialisée pour la composition d'emails

@@ -1,33 +1,27 @@
-import type { Role } from "../auth/roles";
-
+export type Role = "chef" | "manager" | "assistant" | "employe";
 export type RTUser = { id: string; name: string; role: Role };
 type SendFn = (event: string, data: any) => void;
 
-type Client = {
-  id: string;
-  room: string;
-  user: RTUser;
-  send: SendFn;
-};
+type Client = { id: string; room: string; user: RTUser; send: SendFn };
 
 class Hub {
   private rooms: Map<string, Map<string, Client>> = new Map();
 
-  addClient(room: string, user: RTUser, send: SendFn) {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const c: Client = { id, room, user, send };
-    if (!this.rooms.has(room)) this.rooms.set(room, new Map());
-    this.rooms.get(room)!.set(id, c);
-    this.broadcast(room, "presence", { type: "join", user, members: this.members(room) });
-    return id;
+  addClient(room: string, clientId: string, user: RTUser, send: SendFn) {
+    let group = this.rooms.get(room);
+    if (!group) { group = new Map(); this.rooms.set(room, group); }
+    const client: Client = { id: clientId, room, user, send };
+    group.set(clientId, client);
+    this.broadcast(room, "presence:join", { id: clientId, user, members: this.members(room) });
+    return () => this.removeClient(room, clientId);
   }
 
-  removeClient(room: string, id: string) {
+  removeClient(room: string, clientId: string) {
     const group = this.rooms.get(room);
     if (!group) return;
-    const user = group.get(id)?.user;
-    group.delete(id);
-    if (user) this.broadcast(room, "presence", { type: "leave", user, members: this.members(room) });
+    const existing = group.get(clientId);
+    group.delete(clientId);
+    if (existing) this.broadcast(room, "presence:leave", { id: clientId, user: existing.user, members: this.members(room) });
     if (group.size === 0) this.rooms.delete(room);
   }
 
@@ -35,13 +29,11 @@ class Hub {
     const group = this.rooms.get(room);
     if (!group) return;
     for (const c of group.values()) {
-      try {
-        c.send(event, { ...data });
-      } catch {}
+      try { c.send(event, data); } catch {}
     }
   }
 
-  members(room: string) {
+  members(room: string): RTUser[] {
     const group = this.rooms.get(room);
     if (!group) return [];
     return Array.from(group.values()).map((c) => c.user);
@@ -49,5 +41,4 @@ class Hub {
 }
 
 const g = globalThis as any;
-if (!g.__RT_HUB) g.__RT_HUB = new Hub();
-export const hub: Hub = g.__RT_HUB;
+export const hub: Hub = g.__APP_RT_HUB || (g.__APP_RT_HUB = new Hub());

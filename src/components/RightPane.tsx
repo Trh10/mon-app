@@ -114,7 +114,10 @@ export function RightPane({
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const [autoSummarize, setAutoSummarize] = useState<boolean>(() => {
-    try { return localStorage.getItem("__auto_sum") !== "0"; } catch { return true; }
+    try { return localStorage.getItem("__auto_sum") === "1"; } catch { return false; }
+  });
+  const [autoAdvanced, setAutoAdvanced] = useState<boolean>(() => {
+    try { return localStorage.getItem("__auto_adv_ai") === "1"; } catch { return false; }
   });
 
   const [aiBusy, setAiBusy] = useState(false);
@@ -159,6 +162,9 @@ export function RightPane({
   useEffect(() => {
     try { localStorage.setItem("__auto_sum", autoSummarize ? "1" : "0"); } catch {}
   }, [autoSummarize]);
+  useEffect(() => {
+    try { localStorage.setItem("__auto_adv_ai", autoAdvanced ? "1" : "0"); } catch {}
+  }, [autoAdvanced]);
 
   // NOUVEAU : Déterminer le mode automatiquement
   useEffect(() => {
@@ -435,7 +441,8 @@ Aperçu: ${email.snippet || "Pas d'aperçu"}
 
   // NOUVEAU : Auto-analyse quand un email est sélectionné
   useEffect(() => {
-    if (!email || !detail) return;
+  if (!email || !detail) return;
+  if (!autoAdvanced) return; // ne lance pas si auto off
 
     const { subject: s, bodyText: content } = extractFromGmailMessage(detail);
     const emailContent = {
@@ -611,7 +618,7 @@ Contenu: ${emailData.content.substring(0, 150)}...
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
+              <button
               onClick={handleSummarizeClick}
               disabled={aiBusy}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
@@ -653,6 +660,14 @@ Contenu: ${emailData.content.substring(0, 150)}...
             >
               <Wand2 className="w-4 h-4" />
               Auto
+            </button>
+            <button
+              onClick={() => setAutoAdvanced(v => !v)}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border ${autoAdvanced ? "border-indigo-500 text-indigo-700 bg-indigo-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+              title="Activer/Désactiver analyse IA avancée auto"
+            >
+              <Brain className="w-4 h-4" />
+              Adv
             </button>
             <button
               onClick={() => (window as any).__aiOpen?.({ subject: email.subject, summary: ai?.summary || email.snippet || "Aperçu", highlights: ai?.highlights || [], actions: ai?.actions || [] })}

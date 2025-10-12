@@ -15,7 +15,7 @@ export function initializeEmailTransporter(): boolean {
       return false;
     }
     
-    transporter = nodemailer.createTransporter({
+  transporter = nodemailer.createTransport({
       host: settings.smtpHost,
       port: settings.smtpPort,
       secure: settings.smtpSecure,

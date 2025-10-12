@@ -8,7 +8,7 @@ export type AnalyticsOverview = {
 export function getOverview(): AnalyticsOverview {
   return {
     productivity: { avgResponseTimeMin: 42, emailsPerDay: 128, processedToday: 57 },
-    workload: { overloaded: [{ user: "Alice", load: 0.86 }], underutilized: [{ user: "Bob", load: 0.22 }] },
+    workload: { overloaded: [], underutilized: [] },
     deadlines: {
       atRiskCount: 3,
       examples: [

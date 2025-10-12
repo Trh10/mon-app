@@ -22,6 +22,7 @@ export default function ChatPanel({
   role = "employe" as Role,
   height = 420,
   onContextUpdate,
+  initialDmTarget,
 }: {
   roomId: string;
   userId: string;
@@ -29,11 +30,21 @@ export default function ChatPanel({
   role?: Role;
   height?: number;
   onContextUpdate?: (ctx: { mode: "room" | "dm"; dmTargetId?: string }) => void;
+  initialDmTarget?: { id: string; name: string };
 }) {
   const rt = getRealtimeClient();
   const [mode, setMode] = useState<"room" | "dm">("room");
   const [dmTarget, setDmTarget] = useState<{ id: string; name: string } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Initialiser avec le DM target si fourni
+  useEffect(() => {
+    if (initialDmTarget) {
+      setMode("dm");
+      setDmTarget(initialDmTarget);
+      setPickerOpen(false);
+    }
+  }, [initialDmTarget]);
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [files, setFiles] = useState<FileEvt[]>([]);
@@ -143,7 +154,7 @@ export default function ChatPanel({
         const data = ev?.data || {};
         if (data?.type === "open-dm" && data?.targetId) {
           setMode("dm");
-          setDmTarget({ id: String(data.targetId), name: String(data.targetName || "Utilisateur") });
+          setDmTarget({ id: String(data.targetId), name: String(data.targetName || "Membre") });
           setPickerOpen(false);
         }
       };
@@ -214,8 +225,12 @@ export default function ChatPanel({
         setMsgs((prev) => [...prev, m].slice(-200));
       }));
       offs.push(rt.subscribe(dmRoomKey, "task", (env) => {
-        const p = env?.payload as TaskEvt; const t = p?.task; if (!t?.id) return;
-        const sys: Msg = { id: `task-${t.id}`, ts: env?.ts || Date.now(), user: env?.user, text: `Tâche assignée: "${t.title}" (${t.project})` + (t.dueAt ? ` · Échéance: ${new Date(t.dueAt).toLocaleString()}` : "") };
+        const p = env?.payload as any; const t = p?.task; if (!t?.id) return;
+        const suffix = [
+          t.isPrivate ? 'Privée' : null,
+          t.dueAt ? `Échéance: ${new Date(t.dueAt).toLocaleString()}` : null
+        ].filter(Boolean).join(' · ');
+        const sys: Msg = { id: `task-${t.id}`, ts: env?.ts || Date.now(), user: env?.user, text: `Tâche assignée: "${t.title}" (${t.project})${suffix ? ` · ${suffix}` : ''}` };
         if (!seenIds.current.has(sys.id)) { seenIds.current.add(sys.id); setMsgs((prev) => [...prev, sys].slice(-200)); }
       }));
       offs.push(rt.subscribe(`user:${userId}`, "file", (env) => {
@@ -232,9 +247,13 @@ export default function ChatPanel({
         setMsgs((prev) => [...prev, m].slice(-200));
       }));
       offs.push(rt.subscribe(`user:${userId}`, "task", (env) => {
-        const p = env?.payload as TaskEvt; const t = p?.task; if (!t?.id) return;
+        const p = env?.payload as any; const t = p?.task; if (!t?.id) return;
         if (dmTarget && (t.userId === dmTarget.id || t.createdBy?.id === dmTarget.id)) {
-          const sys: Msg = { id: `task-${t.id}`, ts: env?.ts || Date.now(), user: env?.user, text: `Tâche assignée: "${t.title}" (${t.project})` + (t.dueAt ? ` · Échéance: ${new Date(t.dueAt).toLocaleString()}` : "") };
+          const suffix = [
+            t.isPrivate ? 'Privée' : null,
+            t.dueAt ? `Échéance: ${new Date(t.dueAt).toLocaleString()}` : null
+          ].filter(Boolean).join(' · ');
+          const sys: Msg = { id: `task-${t.id}`, ts: env?.ts || Date.now(), user: env?.user, text: `Tâche assignée: "${t.title}" (${t.project})${suffix ? ` · ${suffix}` : ''}` };
           if (!seenIds.current.has(sys.id)) { seenIds.current.add(sys.id); setMsgs((prev) => [...prev, sys].slice(-200)); }
         }
       }));
@@ -313,21 +332,33 @@ export default function ChatPanel({
     if (!ptTitle.trim() || !ptProject.trim()) return;
     setPtSaving(true);
     try {
+      // Construire une chaîne d'échéance compacte
+      const dueStr = ptDueText?.trim() ? ptDueText.trim() : (ptDueDate ? `${ptDueDate}${ptDueTime ? ` ${ptDueTime}` : ""}` : undefined);
+
       const res = await fetch("/api/team/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actor: { id: userId, name: user, role },
-          userId: dmTarget.id,
-          title: ptTitle.trim(),
-          project: ptProject.trim(),
-          dueDate: ptDueDate || undefined,
-          dueTime: ptDueTime || undefined,
-          dueText: ptDueText || undefined,
+          action: "create",
+          data: {
+            title: ptTitle.trim(),
+            description: `Projet: ${ptProject.trim()}${dueStr ? `\nÉchéance: ${dueStr}` : ""}`,
+            assignedTo: dmTarget.id,
+            priority: "medium",
+            isPrivate: true,
+            dueDate: dueStr,
+          },
         }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data?.error || "Erreur lors de l’assignation"); return; }
+
+      // Envoyer un DM résumé pour feedback instantané
+      try {
+        const dmId = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        const summary = `Tâche privée assignée: "${ptTitle.trim()}" (${ptProject.trim()})${dueStr ? ` · Échéance: ${dueStr}` : ""}`;
+        await rt.trigger(dmRoomKey, "dm", { id: dmId, text: summary, toUserId: dmTarget.id });
+      } catch {}
       setPtTitle(""); setPtProject(""); setPtDueDate(""); setPtDueTime(""); setPtDueText("");
     } catch { alert("Erreur réseau"); } finally { setPtSaving(false); }
   }
@@ -365,39 +396,110 @@ export default function ChatPanel({
           </div>
         </div>
       )}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderBottom: "1px solid #e5e7eb" }}>
-        <div style={{ fontWeight: 700 }}>Chat</div>
-        <button onClick={() => { setMode("room"); setDmTarget(null); }} className={`text-xs px-2 py-1 rounded ${mode === "room" ? "bg-gray-900 text-white" : "border"}`} title="Salon général">Général</button>
-        <button onClick={() => setPickerOpen(true)} className={`text-xs px-2 py-1 rounded ${mode === "dm" ? "bg-gray-900 text-white" : "border"}`} title="Message privé">Privé{dmTarget ? `: ${dmTarget.name}` : ""}</button>
-        {mode === "dm" && dmTarget && <span className="text-xs text-gray-500">En privé avec {dmTarget.name}</span>}
+      {/* EN-TÊTE CHAT MODERNISÉ - Design ultra professionnel */}
+      <div className="bg-gradient-to-r from-slate-50 to-blue-50 border-b border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white text-sm font-bold">💬</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Chat Pro</h3>
+                <p className="text-xs text-gray-500">
+                  {mode === "room" ? "Conversation générale" : dmTarget ? `Privé avec ${dmTarget.name}` : "Message privé"}
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {/* Statut de connexion moderne */}
+            <div className="flex items-center space-x-1">
+              <div className={`w-2 h-2 rounded-full ${connReady ? "bg-green-500" : "bg-yellow-500"}`}></div>
+              <span className="text-xs text-gray-600">{connReady ? "En ligne" : "Connexion..."}</span>
+            </div>
+            
+            {/* Bouton recherche moderne */}
+            <button 
+              onClick={() => setShowSearch(!showSearch)} 
+              className={`p-2 rounded-lg transition-all ${showSearch ? "bg-blue-500 text-white shadow-lg" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`} 
+              title="Rechercher dans les messages"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
         
-        {/* Bouton de recherche */}
-        <button 
-          onClick={() => setShowSearch(!showSearch)} 
-          className={`text-xs px-2 py-1 rounded ${showSearch ? "bg-blue-500 text-white" : "border"}`} 
-          title="Rechercher dans les messages"
-        >
-          🔍
-        </button>
+        {/* Navigation moderne entre modes */}
+        <div className="flex space-x-1 mt-3 bg-white rounded-lg p-1 shadow-sm">
+          <button 
+            onClick={() => { setMode("room"); setDmTarget(null); }} 
+            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+              mode === "room" 
+                ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md" 
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <span className="mr-2">🌐</span>Général
+          </button>
+          <button 
+            onClick={() => setPickerOpen(true)} 
+            className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-all ${
+              mode === "dm" 
+                ? "bg-gradient-to-r from-purple-500 to-pink-600 text-white shadow-md" 
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            <span className="mr-2">🔒</span>Privé
+          </button>
+        </div>
         
-        <span title={connReady ? "Connecté" : "Connexion…"} style={{ width: 8, height: 8, borderRadius: 9999, background: connReady ? "#10b981" : "#d1d5db", display: "inline-block", marginLeft: "auto" }} />
-        {lastError && <span style={{ color: "#dc2626", fontSize: 12, marginLeft: 8 }}>Erreur: {lastError}</span>}
+        {lastError && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+            <span className="text-red-600 text-xs">⚠️ {lastError}</span>
+          </div>
+        )}
       </div>
 
-      {/* Zone de recherche */}
+      {/* ZONE DE RECHERCHE MODERNISÉE */}
       {showSearch && (
-        <div style={{ padding: "8px 14px", borderBottom: "1px solid #e5e7eb", background: "#f8f9fa" }}>
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Rechercher dans les messages..."
-            className="w-full px-3 py-2 border rounded-md text-sm"
-            autoFocus
-          />
+        <div className="bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-100 p-3">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Rechercher messages, utilisateurs..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
           {searchTerm && (
-            <div className="text-xs text-gray-600 mt-1">
-              {filteredMsgs.length} message(s) trouvé(s)
+            <div className="flex items-center justify-between mt-2">
+              <div className="text-xs text-gray-600 bg-white px-2 py-1 rounded-md border">
+                <span className="font-medium">{filteredMsgs.length}</span> message(s) trouvé(s)
+              </div>
+              {filteredMsgs.length === 0 && (
+                <div className="text-xs text-gray-500">Aucun résultat pour "{searchTerm}"</div>
+              )}
             </div>
           )}
         </div>
@@ -458,15 +560,43 @@ export default function ChatPanel({
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       m.user.role === "chef" ? "bg-red-100 text-red-700" :
                       m.user.role === "manager" ? "bg-blue-100 text-blue-700" :
-                      "bg-green-100 text-green-700"
+                      m.user.role === "assistant" ? "bg-green-100 text-green-700" :
+                      "bg-purple-100 text-purple-700"
                     }`}>
-                      {m.user.role}
+                      {m.user.role === "chef" ? "Chef" :
+                       m.user.role === "manager" ? "Manager" :
+                       m.user.role === "assistant" ? "Assistant" :
+                       m.user.role === "employe" ? "Employé" :
+                       m.user.role}
                     </span>
                   )}
                 </div>
                 <div className="text-gray-700 whitespace-pre-wrap break-words mb-2">
                   {m.text}
                 </div>
+                {m.text.startsWith('Tâche assignée: ') && (
+                  <div className="mt-2">
+                    <button
+                      className="text-xs px-2 py-1 rounded border hover:bg-gray-50"
+                      onClick={async () => {
+                        try {
+                          const match = m.id.startsWith('task-') ? m.id.slice(5) : null;
+                          if (!match) return;
+                          const res = await fetch('/api/team/tasks', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'update-status', taskId: match, data: { status: 'completed' } })
+                          });
+                          if (!res.ok) {
+                            const j = await res.json().catch(() => ({}));
+                            alert(j?.error || 'Échec de la mise à jour');
+                          }
+                        } catch {
+                          alert('Erreur réseau');
+                        }
+                      }}
+                    >Marquer comme terminée</button>
+                  </div>
+                )}
                 
                 {/* Reactions pour ce message */}
                 <MessageReactions 

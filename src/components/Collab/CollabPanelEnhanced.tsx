@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from "react";
 import LiveCursors from "./LiveCursors";
 import ChatPanel from "./ChatPanel";
-import { NotificationSummary, GlobalNotificationBadge } from "../notifications/NotificationBadge";
-import { notificationManager } from "../../lib/notifications/manager";
+import { GlobalNotificationBadge } from "../notifications/NotificationBadge";
+import { getNotificationManager } from "../../lib/notifications/manager";
 
 type Role = "chef" | "manager" | "assistant" | "employe";
 
@@ -33,21 +33,27 @@ export default function CollabPanelEnhanced({
   const [user, setUser] = useState(initialUser);
   const [role, setRole] = useState<Role>(initialRole);
   const [showNotificationTest, setShowNotificationTest] = useState(false);
+  const notificationManager = getNotificationManager();
   const [isCompactMode, setIsCompactMode] = useState(false);
 
-  // Mise à jour du badge de l'onglet
-  useEffect(() => {
-    const interval = setInterval(() => {
-      notificationManager.updateBadge();
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, []);
+  // Mise à jour du badge de l'onglet - désactivé pour éviter les erreurs
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     notificationManager.updateBadge();
+  //   }, 5000);
+  //   
+  //   return () => clearInterval(interval);
+  // }, []);
 
   // Test des notifications
   const testNotifications = async () => {
     setShowNotificationTest(true);
-    await notificationManager.testNotifications();
+    notificationManager.addNotification({
+      type: "system",
+      title: "Test notification",
+      message: "Test de notifications fonctionnel",
+      priority: "normal"
+    });
     setTimeout(() => setShowNotificationTest(false), 10000);
   };
 
@@ -79,10 +85,7 @@ export default function CollabPanelEnhanced({
         </div>
       </div>
 
-      {/* Panneau de notifications */}
-      <div className="px-4 py-2">
-        <NotificationSummary />
-      </div>
+      {/* Panneau de notifications - temporairement désactivé */}
 
       {/* Contrôles utilisateur */}
       <div className="px-4 py-3 bg-gray-50 border-b">

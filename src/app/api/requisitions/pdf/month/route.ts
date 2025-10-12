@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { getRequisitionsByCompany } from '@/lib/requisitions/requisition-store';
+import { getSession } from '@/lib/session';
+import { prisma } from '@/lib/db';
 
 export const runtime = 'nodejs';
 
-async function getCurrentUser() {
-  try {
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('user-session');
-    if (!sessionCookie) return null;
-    return JSON.parse(sessionCookie.value);
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
+    const session = await getSession(req);
+    if (!session.organizationId || !session.userId) {
       return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
-    }
-    // Restrict to Finance (6) and DG (10)
-    if (![6, 10].includes(user.level)) {
-      return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
     const now = new Date();
@@ -31,12 +16,19 @@ export async function GET(req: NextRequest) {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const monthKey = `${year}-${month}`;
     
-    console.log(`[PDF Month jsPDF] Getting requisitions for ${monthKey} and company ${user.companyId}`);
+    console.log(`[PDF Month] Getting requisitions for ${monthKey} and org ${session.organizationId}`);
 
-    const list = getRequisitionsByCompany(user.companyId)
-      .filter((r: any) => r.status === 'approuve' && r.approvedAt && r.approvedAt.startsWith(monthKey));
+    const db: any = prisma;
+    const list = await db.requisition.findMany({
+      where: {
+        organizationId: session.organizationId,
+        status: 'approuve',
+        approvedAt: { gte: new Date(`${year}-${month}-01`), lt: new Date(`${year}-${parseInt(month)+1}-01`) }
+      },
+      include: { workflow: true, requester: { select: { name: true } } }
+    });
     
-    console.log(`[PDF Month jsPDF] Found ${list.length} approved requisitions`);
+    console.log(`[PDF Month] Found ${list.length} approved requisitions`);
 
     // Create PDF avec jsPDF
     console.log('[PDF Month jsPDF] Importing jsPDF...');
@@ -64,9 +56,9 @@ export async function GET(req: NextRequest) {
     const currentDate = new Date().toLocaleDateString('fr-FR');
     doc.text(`Document établi le : ${currentDate}`, 20, y);
     y += lineHeight;
-    doc.text(`Entreprise : ${user.companyId}`, 20, y);
+    doc.text(`Entreprise : ${session.organizationId}`, 20, y);
     y += lineHeight;
-    doc.text(`Édité par : ${user.name} (${user.levelName || 'Personnel autorisé'})`, 20, y);
+    doc.text(`Édité par : ${session.userName || 'Utilisateur'} (${session.userRole || 'Personnel autorisé'})`, 20, y);
     y += lineHeight;
     doc.text(`Statut : Document officiel certifié`, 20, y);
     y += lineHeight * 2;

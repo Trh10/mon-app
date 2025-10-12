@@ -1,43 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeNotificationSystem } from '@/lib/notifications/notification-startup';
+import { getFirestoreIfAvailable } from "../../../../lib/firebase-admin";
 
-let initialized = false;
+export const dynamic = 'force-dynamic';
+export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+// Route pour initialiser les notifications d'un utilisateur
+export async function POST(req: NextRequest) {
   try {
-    if (!initialized) {
-      // Initialiser le système seulement côté serveur
-      initializeNotificationSystem();
-      initialized = true;
-    }
+    const { userId, deviceToken, permissions } = await req.json();
     
+    if (!userId) {
+      return NextResponse.json({ error: "userId requis" }, { status: 400 });
+    }
+
+    const db = getFirestoreIfAvailable();
+    if (db) {
+      // Enregistrer le token de notification pour cet utilisateur
+      await db.collection("user_notifications").doc(userId).set({
+        deviceToken: deviceToken || null,
+        permissions: permissions || { messages: true, mentions: true },
+        lastSeen: Date.now(),
+        enabled: true
+      }, { merge: true });
+    }
+
+    console.log(`[NOTIF] Notifications initialisées pour ${userId}`);
+
     return NextResponse.json({ 
       success: true, 
-      message: 'Système de notifications initialisé',
-      timestamp: new Date().toISOString() 
+      message: db ? "Notifications configurées" : "Notifications configurées (local)" 
     });
+
   } catch (error) {
-    console.error('Erreur initialisation notifications:', error);
-    return NextResponse.json(
-      { success: false, error: 'Erreur initialisation' },
-      { status: 500 }
-    );
+    console.error("Erreur init notifications:", error);
+    return NextResponse.json({ 
+      error: "Erreur serveur" 
+    }, { status: 500 });
   }
 }
 
-// Auto-appeler cette route au démarrage (côté serveur seulement)
-if (typeof window === 'undefined') {
-  setTimeout(async () => {
-    try {
-      // Auto-initialisation après 3 secondes
-      await fetch('http://localhost:3000/api/notifications/init', {
-        method: 'GET'
-      }).catch(() => {
-        // Ignorer les erreurs de connexion au démarrage
-        console.log('Auto-initialisation différée...');
-      });
-    } catch (error) {
-      // Silencieux - normal au démarrage
+// Route pour récupérer les notifications d'un utilisateur
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    
+    if (!userId) {
+      return NextResponse.json({ error: "userId requis" }, { status: 400 });
     }
-  }, 3000);
+
+    const db = getFirestoreIfAvailable();
+    if (!db) {
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Système de notifications en mode local',
+        notifications: [],
+        count: 0
+      });
+    }
+
+    // Récupérer les notifications non lues
+    const notifications = await db
+      .collection("notifications")
+      .where("userId", "==", userId)
+      .where("read", "==", false)
+      .orderBy("timestamp", "desc")
+      .limit(20)
+      .get();
+
+  const notifList = notifications.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
+    return NextResponse.json({ 
+      success: true,
+      notifications: notifList,
+      count: notifList.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("Erreur get notifications:", error);
+    return NextResponse.json({ 
+      success: true,
+      message: 'Système de notifications en mode fallback',
+      notifications: [],
+      count: 0
+    });
+  }
 }

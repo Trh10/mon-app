@@ -244,7 +244,7 @@ export class UniversalSmartClient {
         resolve(true);
       });
 
-      imap.once('error', (err) => {
+  imap.once('error', (err: Error) => {
         clearTimeout(timeout);
         // Log seulement les erreurs intéressantes
         if (!err.message.includes('ENOTFOUND') && !err.message.includes('ETIMEDOUT')) {
@@ -354,8 +354,8 @@ export class UniversalSmartClient {
                 emails.push({
                   id: seqno.toString(),
                   subject: parsed.subject || 'Sans sujet',
-                  from: parsed.from?.text || 'Expéditeur inconnu',
-                  fromName: this.extractDisplayName(parsed.from?.text || ''),
+                  from: (() => { const f:any=(parsed as any).from; if(!f) return 'Expéditeur inconnu'; if(typeof f.text==='string') return f.text; if(Array.isArray(f.value)) return f.value.map((v: any)=>v.address||v.name).filter(Boolean).join(', ')||'Expéditeur inconnu'; return 'Expéditeur inconnu'; })(),
+                  fromName: this.extractDisplayName(((parsed as any).from?.text) || ''),
                   date: parsed.date || new Date(),
                   snippet: (parsed.text || '').substring(0, 200),
                   unread: !attributes.flags.includes('\\Seen'),
@@ -371,7 +371,7 @@ export class UniversalSmartClient {
             });
           });
 
-          f.once('error', (err) => {
+          f.once('error', (err: unknown) => {
             console.error(`❌ Erreur fetch: ${err} - User: Trh10`);
             imap.end();
             reject(err);
@@ -385,7 +385,7 @@ export class UniversalSmartClient {
         });
       });
 
-      imap.once('error', (err) => {
+  imap.once('error', (err: unknown) => {
         console.error(`❌ Erreur IMAP: ${err} - User: Trh10`);
         reject(err);
       });
@@ -472,8 +472,8 @@ export class UniversalSmartClient {
                   emails.push({
                     id: seqno.toString(),
                     subject: parsed.subject || 'Sans sujet',
-                    from: parsed.from?.text || 'Expéditeur inconnu',
-                    fromName: this.extractDisplayName(parsed.from?.text || ''),
+                    from: (() => { const f:any=(parsed as any).from; if(!f) return 'Expéditeur inconnu'; if(typeof f.text==='string') return f.text; if(Array.isArray(f.value)) return f.value.map((v: any)=>v.address||v.name).filter(Boolean).join(', ')||'Expéditeur inconnu'; return 'Expéditeur inconnu'; })(),
+                    fromName: this.extractDisplayName(((parsed as any).from?.text) || ''),
                     date: parsed.date || new Date(),
                     snippet: (parsed.text || '').substring(0, 200),
                     unread: !attributes.flags.includes('\\Seen'),
@@ -489,7 +489,7 @@ export class UniversalSmartClient {
               });
             });
 
-            f.once('error', (err) => {
+            f.once('error', (err: unknown) => {
               console.error(`❌ Erreur fetch: ${err} - User: Trh10`);
               imap.end();
               resolve(emails);
@@ -504,7 +504,7 @@ export class UniversalSmartClient {
         });
       });
 
-      imap.once('error', (err) => {
+      imap.once('error', (err: unknown) => {
         console.error(`❌ Erreur IMAP: ${err} - User: Trh10`);
         resolve([]);
       });
@@ -619,13 +619,21 @@ export class UniversalSmartClient {
             msg.once('end', async () => {
               try {
                 console.log(`📧 Parsing message ${seqno} complet... - User: Trh10`);
-                const parsed = await simpleParser(emailContent);
+                  const parsed = await simpleParser(emailContent);
                 
                 const emailData = {
                   id: seqno.toString(),
                   subject: parsed.subject || 'Sans sujet',
-                  from: parsed.from?.text || 'Expéditeur inconnu',
-                  to: parsed.to?.text || 'Destinataire inconnu',
+                  from: (() => { const f:any=(parsed as any).from; if(!f) return 'Expéditeur inconnu'; if(typeof f.text==='string') return f.text; if(Array.isArray(f.value)) return f.value.map((v: any)=>v.address||v.name).filter(Boolean).join(', ')||'Expéditeur inconnu'; return 'Expéditeur inconnu'; })(),
+                  to: (() => {
+                    const toAny: any = (parsed as any).to;
+                    if (!toAny) return 'Destinataire inconnu';
+                    if (typeof toAny.text === 'string') return toAny.text;
+                    if (Array.isArray(toAny.value)) {
+                      return toAny.value.map((v: any) => v.address || v.name).filter(Boolean).join(', ') || 'Destinataire inconnu';
+                    }
+                    return 'Destinataire inconnu';
+                  })(),
                   date: parsed.date || new Date(),
                   textContent: parsed.text || '',
                   htmlContent: parsed.html || '',
@@ -648,7 +656,7 @@ export class UniversalSmartClient {
             });
           });
 
-          f.once('error', (err) => {
+          f.once('error', (err: unknown) => {
             console.error(`❌ Erreur fetch message complet: ${err} - User: Trh10`);
             imap.end();
             reject(err);
@@ -656,7 +664,7 @@ export class UniversalSmartClient {
         });
       });
 
-      imap.once('error', (err) => {
+      imap.once('error', (err: unknown) => {
         console.error(`❌ Erreur connexion IMAP pour lecture: ${err} - User: Trh10`);
         reject(err);
       });
@@ -671,7 +679,7 @@ export class UniversalSmartClient {
     
     console.log(`✉️ Envoi email SMTP - To: ${to} - Subject: ${subject} - User: Trh10 - 2025-08-29 13:02:38`);
     
-    const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.secure || false,

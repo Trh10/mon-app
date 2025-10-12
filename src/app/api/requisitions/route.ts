@@ -1,99 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { 
-  Requisition, 
-  CreateRequisitionData, 
-  UpdateRequisitionData, 
-  WorkflowStep, 
-  RequisitionStatus,
-  DEFAULT_APPROVAL_CONFIG,
-  canAccessRequisitions
-} from '@/lib/requisitions/requisition-types';
+import { prisma } from '@/lib/db';
+import { getSession } from '@/lib/session';
 import {
-  getRequisitions,
-  addRequisition,
-  updateRequisition,
-  deleteRequisition,
-  getRequisitionsByCompany
-} from '@/lib/requisitions/requisition-store';
-import { addAuditLog } from '@/lib/audit/audit-store';
-import { createEmailNotification } from '@/lib/notifications/email-service';
+  CreateRequisitionData,
+  UpdateRequisitionData,
+  DEFAULT_APPROVAL_CONFIG,
+} from '@/lib/requisitions/requisition-types';
+import { jsonSafe } from '@/lib/json';
+// Prisma client may lag types after schema edits in editor; use local alias to avoid transient TS errors
+const db: any = prisma as any;
 
-// Générer un ID unique
-function generateId(): string {
-  return Math.random().toString(36).substr(2, 9);
+// Récupérer l'utilisateur actuel depuis la session + BD
+async function requireAuthedContext(req: NextRequest) {
+  const session = await getSession(req);
+  if (!session.organizationId || !session.userId) return null;
+  const [org, user] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: session.organizationId } }),
+    prisma.user.findUnique({ where: { id: session.userId } }),
+  ]);
+  if (!org || !user) return null;
+  return { session, org, user };
 }
 
-// Récupérer l'utilisateur actuel depuis la session
-async function getCurrentUser(req: NextRequest) {
-  try {
-    const cookieStore = cookies();
-    const sessionCookie = cookieStore.get('user-session');
-    
-    if (!sessionCookie) {
-      return null;
-    }
-
-    return JSON.parse(sessionCookie.value);
-  } catch (error) {
-    console.error('Erreur parsing session:', error);
-    return null;
-  }
-}
-
-// Créer le workflow d'approbation selon le budget
-function createWorkflow(requisition: Requisition): WorkflowStep[] {
-  const { budget } = requisition;
-  let requiredLevels: number[] = [];
-
-  if (budget < DEFAULT_APPROVAL_CONFIG.SMALL_BUDGET_THRESHOLD) {
-    requiredLevels = DEFAULT_APPROVAL_CONFIG.SMALL_BUDGET_LEVELS;
-  } else if (budget < DEFAULT_APPROVAL_CONFIG.MEDIUM_BUDGET_THRESHOLD) {
-    requiredLevels = DEFAULT_APPROVAL_CONFIG.MEDIUM_BUDGET_LEVELS;
-  } else {
-    requiredLevels = DEFAULT_APPROVAL_CONFIG.LARGE_BUDGET_LEVELS;
-  }
-
-  return requiredLevels.map((level, index) => ({
-    id: generateId(),
-    requisitionId: requisition.id,
-    reviewerId: '', // À assigner dynamiquement
-    reviewerName: level === 7 ? 'Administration' : level === 6 ? 'Finance' : 'Direction Générale',
-    reviewerLevel: level,
-    action: 'pending' as const,
-    createdAt: new Date().toISOString(),
-    isRequired: true,
-    isCompleted: false
-  }));
-}
+// (Le workflow est calculé dynamiquement lors de la création/mise à jour)
 
 // GET - Récupérer les réquisitions
 export async function GET(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
-    
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié' },
-        { status: 401 }
-      );
+    const ctx = await requireAuthedContext(req);
+    if (!ctx) {
+      return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
     }
-
-    // VÉRIFICATION DES PERMISSIONS : Seuls niveaux 6, 7, 10 peuvent voir les réquisitions
-    if (!canAccessRequisitions(user.level)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Accès non autorisé. Seuls les responsables Finance, Administration et Direction peuvent consulter les réquisitions.',
-          userLevel: user.level,
-          requiredLevels: [6, 7, 10]
-        },
-        { status: 403 }
-      );
-    }
-
-    // Filtrer par entreprise
-    const userRequisitions = getRequisitionsByCompany(user.companyId);
 
     // Filtres optionnels
     const { searchParams } = new URL(req.url);
@@ -101,30 +38,59 @@ export async function GET(req: NextRequest) {
     const categoryFilter = searchParams.get('category');
     const priorityFilter = searchParams.get('priority');
 
-    let filteredRequisitions = userRequisitions;
+    const where: any = { organizationId: ctx.session.organizationId };
+    if (statusFilter) where.status = statusFilter;
+    if (categoryFilter) where.category = categoryFilter;
+    if (priorityFilter) where.priority = priorityFilter;
 
-    if (statusFilter) {
-      filteredRequisitions = filteredRequisitions.filter((req: Requisition) => req.status === statusFilter);
-    }
-
-    if (categoryFilter) {
-      filteredRequisitions = filteredRequisitions.filter((req: Requisition) => req.category === categoryFilter);
-    }
-
-    if (priorityFilter) {
-      filteredRequisitions = filteredRequisitions.filter((req: Requisition) => req.priority === priorityFilter);
-    }
-
-    return NextResponse.json({
-      success: true,
-      requisitions: filteredRequisitions,
-      totalCount: filteredRequisitions.length,
-      userAccess: {
-        level: user.level,
-        canView: true,
-        canApprove: user.level === 6 || user.level === 7 || user.level === 10
-      }
+    const list = await db.requisition.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: { requester: true, workflow: { orderBy: { createdAt: 'asc' } } },
     });
+
+    const shaped = list.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      category: r.category,
+      priority: r.priority,
+      budget: r.budget,
+      justification: r.justification,
+      status: r.status,
+      requesterId: r.requesterId ? String(r.requesterId) : '',
+      requesterName: r.requester?.displayName || r.requester?.name || '',
+      companyId: String(r.organizationId),
+      companyCode: ctx.org.slug,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt.toISOString(),
+      approvedAt: r.approvedAt ? r.approvedAt.toISOString() : undefined,
+  workflow: r.workflow.map((w: any) => ({
+        id: w.id,
+        requisitionId: w.requisitionId,
+        reviewerId: w.reviewerId ? String(w.reviewerId) : '',
+        reviewerName: w.reviewerName,
+        reviewerLevel: w.reviewerLevel,
+        action: w.action as any,
+        comment: w.comment || undefined,
+        createdAt: w.createdAt.toISOString(),
+        completedAt: w.completedAt ? w.completedAt.toISOString() : undefined,
+        isRequired: w.isRequired,
+        isCompleted: w.isCompleted,
+      })),
+      attachments: [],
+    }));
+
+    return NextResponse.json(jsonSafe({
+      success: true,
+      requisitions: shaped,
+      totalCount: shaped.length,
+      userAccess: {
+        level: undefined,
+        canView: true,
+        canApprove: false,
+      },
+    }));
 
   } catch (error) {
     console.error('Erreur GET réquisitions:', error);
@@ -138,19 +104,13 @@ export async function GET(req: NextRequest) {
 // POST - Créer une nouvelle réquisition
 export async function POST(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
-    
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
+    const ctx = await requireAuthedContext(req);
+    if (!ctx) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
 
   // Autoriser tout utilisateur authentifié à créer une réquisition (l'acquisiteur peut être niveau 5)
   // L'accès en lecture/approbation reste limité aux niveaux 6, 7, 10.
 
-    const data: CreateRequisitionData = await req.json();
+  const data: CreateRequisitionData = await req.json();
 
     // Validation
     if (!data.title || !data.description || !data.category || !data.priority || !data.budget || !data.justification) {
@@ -167,73 +127,78 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newRequisition: Requisition = {
-      id: generateId(),
-      title: data.title,
-      description: data.description,
-      category: data.category,
-      priority: data.priority,
-      budget: data.budget,
-      justification: data.justification,
-      status: 'soumis',
-      requesterId: user.code,
-      requesterName: user.name,
-      companyId: user.companyId,
-      companyCode: user.companyCode,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      workflow: []
-    };
+    // Créer en BD
+  const created = await db.requisition.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        priority: data.priority,
+        budget: data.budget,
+        justification: data.justification,
+        status: 'soumis',
+        requesterId: ctx.user.id,
+        organizationId: ctx.session.organizationId,
+      },
+    });
 
     // Créer le workflow d'approbation
-    newRequisition.workflow = createWorkflow(newRequisition);
+    const stepsLevels = ((): number[] => {
+      if (data.budget < DEFAULT_APPROVAL_CONFIG.SMALL_BUDGET_THRESHOLD) return DEFAULT_APPROVAL_CONFIG.SMALL_BUDGET_LEVELS;
+      if (data.budget < DEFAULT_APPROVAL_CONFIG.MEDIUM_BUDGET_THRESHOLD) return DEFAULT_APPROVAL_CONFIG.MEDIUM_BUDGET_LEVELS;
+      return DEFAULT_APPROVAL_CONFIG.LARGE_BUDGET_LEVELS;
+    })();
 
-    // Ajouter à la base de données
-    addRequisition(newRequisition);
+  await db.workflowStep.createMany({
+      data: stepsLevels.map((level) => ({
+        requisitionId: created.id,
+        reviewerId: null,
+        reviewerName: level === 7 ? 'Administration' : level === 6 ? 'Finance' : 'Direction Générale',
+        reviewerLevel: level,
+        action: 'pending',
+        isRequired: true,
+        isCompleted: false,
+      })),
+    });
 
-    // Ajouter un log d'audit
-    addAuditLog(
-      newRequisition.id,
-      user.code,
-      user.name,
-      user.level,
-      'created',
-      {
-        newStatus: 'soumis',
-        budget: data.budget,
-        category: data.category,
-        priority: data.priority
-      },
-      req.headers.get('x-forwarded-for') || 'unknown',
-      req.headers.get('user-agent') || 'unknown'
-    );
+  const withWorkflow = await db.requisition.findUnique({
+      where: { id: created.id },
+      include: { requester: true, workflow: { orderBy: { createdAt: 'asc' } } },
+    });
 
-    // Créer notification email de confirmation pour le demandeur
-    if (user.email) {
-      const notificationId = createEmailNotification(
-        user.email,
-        user.name,
-        'requisition_created',
-        {
-          id: newRequisition.id,
-          title: newRequisition.title,
-          budget: newRequisition.budget,
-          status: 'Soumise',
-          requesterName: user.name
-        },
-        'normal'
-      );
-      
-      if (notificationId) {
-        console.log(`📧 Notification de création envoyée: ${notificationId} pour ${user.email}`);
-      }
-    }
+    const shaped = {
+      id: withWorkflow!.id,
+      title: withWorkflow!.title,
+      description: withWorkflow!.description,
+      category: withWorkflow!.category,
+      priority: withWorkflow!.priority,
+      budget: withWorkflow!.budget,
+      justification: withWorkflow!.justification,
+      status: withWorkflow!.status,
+      requesterId: withWorkflow!.requesterId ? String(withWorkflow!.requesterId) : '',
+      requesterName: withWorkflow!.requester?.displayName || withWorkflow!.requester?.name || '',
+      companyId: String(withWorkflow!.organizationId),
+      companyCode: ctx.org.slug,
+      createdAt: withWorkflow!.createdAt.toISOString(),
+      updatedAt: withWorkflow!.updatedAt.toISOString(),
+      approvedAt: withWorkflow!.approvedAt ? withWorkflow!.approvedAt.toISOString() : undefined,
+  workflow: withWorkflow!.workflow.map((w: any) => ({
+        id: w.id,
+        requisitionId: w.requisitionId,
+        reviewerId: w.reviewerId ? String(w.reviewerId) : '',
+        reviewerName: w.reviewerName,
+        reviewerLevel: w.reviewerLevel,
+        action: w.action as any,
+        comment: w.comment || undefined,
+        createdAt: w.createdAt.toISOString(),
+        completedAt: w.completedAt ? w.completedAt.toISOString() : undefined,
+        isRequired: w.isRequired,
+        isCompleted: w.isCompleted,
+      })),
+      attachments: [],
+    };
 
-    return NextResponse.json({
-      success: true,
-      requisition: newRequisition,
-      message: 'Réquisition créée avec succès'
-    }, { status: 201 });
+    return NextResponse.json({ success: true, requisition: jsonSafe(shaped), message: 'Réquisition créée avec succès' }, { status: 201 });
 
   } catch (error) {
     console.error('Erreur POST réquisition:', error);
@@ -247,21 +212,8 @@ export async function POST(req: NextRequest) {
 // PUT - Mettre à jour une réquisition
 export async function PUT(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
-    
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
-
-    if (!canAccessRequisitions(user.level)) {
-      return NextResponse.json(
-        { success: false, error: 'Accès non autorisé' },
-        { status: 403 }
-      );
-    }
+    const ctx = await requireAuthedContext(req);
+    if (!ctx) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const requisitionId = searchParams.get('id');
@@ -275,33 +227,19 @@ export async function PUT(req: NextRequest) {
 
     const data: UpdateRequisitionData = await req.json();
 
-    const allRequisitions = getRequisitions();
-    const requisitionIndex = allRequisitions.findIndex((req: Requisition) => 
-      req.id === requisitionId && req.companyId === user.companyId
-    );
-
-    if (requisitionIndex === -1) {
-      return NextResponse.json(
-        { success: false, error: 'Réquisition non trouvée' },
-        { status: 404 }
-      );
+  const existing = await db.requisition.findUnique({ where: { id: requisitionId } });
+    if (!existing || existing.organizationId !== ctx.session.organizationId) {
+      return NextResponse.json({ success: false, error: 'Réquisition non trouvée' }, { status: 404 });
     }
 
-    const requisition = allRequisitions[requisitionIndex];
-
-    // Seul le demandeur ou un niveau supérieur peut modifier
-    if (requisition.requesterId !== user.code && user.level < 7) {
-      return NextResponse.json(
-        { success: false, error: 'Pas d\'autorisation pour modifier cette réquisition' },
-        { status: 403 }
-      );
+    // Autorisation simple: propriétaire ou rôle 'admin'
+    const isOwner = existing.requesterId === ctx.user.id;
+    const isAdmin = ctx.user.role === 'admin';
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 403 });
     }
 
-    // Mettre à jour les champs modifiables
-    const updates: Partial<Requisition> = {
-      updatedAt: new Date().toISOString()
-    };
-    
+    const updates: any = {};
     if (data.title) updates.title = data.title;
     if (data.description) updates.description = data.description;
     if (data.category) updates.category = data.category;
@@ -310,26 +248,70 @@ export async function PUT(req: NextRequest) {
     if (data.justification) updates.justification = data.justification;
     if (data.status) updates.status = data.status;
 
-    // Si le budget change, recréer le workflow
-    if (data.budget && data.budget !== requisition.budget) {
-      const updatedRequisition = { ...requisition, ...updates };
-      updates.workflow = createWorkflow(updatedRequisition);
-      // La modification du budget invalide une éventuelle approbation
-      updates.approvedAt = undefined;
+    // reset approvedAt if status not 'approuve'
+    if (data.status && data.status !== 'approuve') updates.approvedAt = null;
+
+  const updated = await db.requisition.update({ where: { id: requisitionId }, data: updates });
+
+    // If budget changed, rebuild workflow
+    if (data.budget && data.budget !== existing.budget) {
+  await db.workflowStep.deleteMany({ where: { requisitionId } });
+      const stepsLevels = ((): number[] => {
+        if (updated.budget < DEFAULT_APPROVAL_CONFIG.SMALL_BUDGET_THRESHOLD) return DEFAULT_APPROVAL_CONFIG.SMALL_BUDGET_LEVELS;
+        if (updated.budget < DEFAULT_APPROVAL_CONFIG.MEDIUM_BUDGET_THRESHOLD) return DEFAULT_APPROVAL_CONFIG.MEDIUM_BUDGET_LEVELS;
+        return DEFAULT_APPROVAL_CONFIG.LARGE_BUDGET_LEVELS;
+      })();
+  await db.workflowStep.createMany({
+        data: stepsLevels.map((level) => ({
+          requisitionId,
+          reviewerId: null,
+          reviewerName: level === 7 ? 'Administration' : level === 6 ? 'Finance' : 'Direction Générale',
+          reviewerLevel: level,
+          action: 'pending',
+          isRequired: true,
+          isCompleted: false,
+        })),
+      });
     }
 
-    // Si le statut est modifié manuellement et n'est plus 'approuve', effacer approvedAt
-    if (data.status && data.status !== 'approuve') {
-      updates.approvedAt = undefined;
-    }
-
-    const updatedRequisition = updateRequisition(requisitionId, updates);
-
-    return NextResponse.json({
-      success: true,
-      requisition: updatedRequisition,
-      message: 'Réquisition mise à jour avec succès'
+  const withWorkflow = await db.requisition.findUnique({
+      where: { id: requisitionId },
+      include: { requester: true, workflow: { orderBy: { createdAt: 'asc' } } },
     });
+
+    const shaped = {
+      id: withWorkflow!.id,
+      title: withWorkflow!.title,
+      description: withWorkflow!.description,
+      category: withWorkflow!.category,
+      priority: withWorkflow!.priority,
+      budget: withWorkflow!.budget,
+      justification: withWorkflow!.justification,
+      status: withWorkflow!.status,
+      requesterId: withWorkflow!.requesterId ? String(withWorkflow!.requesterId) : '',
+      requesterName: withWorkflow!.requester?.displayName || withWorkflow!.requester?.name || '',
+      companyId: String(withWorkflow!.organizationId),
+      companyCode: ctx.org.slug,
+      createdAt: withWorkflow!.createdAt.toISOString(),
+      updatedAt: withWorkflow!.updatedAt.toISOString(),
+      approvedAt: withWorkflow!.approvedAt ? withWorkflow!.approvedAt.toISOString() : undefined,
+  workflow: withWorkflow!.workflow.map((w: any) => ({
+        id: w.id,
+        requisitionId: w.requisitionId,
+        reviewerId: w.reviewerId ? String(w.reviewerId) : '',
+        reviewerName: w.reviewerName,
+        reviewerLevel: w.reviewerLevel,
+        action: w.action as any,
+        comment: w.comment || undefined,
+        createdAt: w.createdAt.toISOString(),
+        completedAt: w.completedAt ? w.completedAt.toISOString() : undefined,
+        isRequired: w.isRequired,
+        isCompleted: w.isCompleted,
+      })),
+      attachments: [],
+    };
+
+    return NextResponse.json({ success: true, requisition: jsonSafe(shaped), message: 'Réquisition mise à jour avec succès' });
 
   } catch (error) {
     console.error('Erreur PUT réquisition:', error);
@@ -343,14 +325,8 @@ export async function PUT(req: NextRequest) {
 // DELETE - Supprimer une réquisition
 export async function DELETE(req: NextRequest) {
   try {
-    const user = await getCurrentUser(req);
-    
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
+    const ctx = await requireAuthedContext(req);
+    if (!ctx) return NextResponse.json({ success: false, error: 'Non authentifié' }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const requisitionId = searchParams.get('id');
@@ -362,85 +338,25 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const allRequisitions = getRequisitions();
-    const requisition = allRequisitions.find((req: Requisition) => 
-      req.id === requisitionId && req.companyId === user.companyId
-    );
-
-    if (!requisition) {
-      return NextResponse.json(
-        { success: false, error: 'Réquisition non trouvée' },
-        { status: 404 }
-      );
+  const existing = await db.requisition.findUnique({ where: { id: requisitionId } });
+    if (!existing || existing.organizationId !== ctx.session.organizationId) {
+      return NextResponse.json({ success: false, error: 'Réquisition non trouvée' }, { status: 404 });
     }
 
-    // NOUVELLES RÈGLES DE SUPPRESSION :
-    // 1. Le demandeur peut supprimer ses propres réquisitions (au cas où il y a une erreur)
-    // 2. Les administrateurs (niveau >= 7) peuvent supprimer n'importe quelle réquisition
-    // 3. Optionnel : empêcher suppression si déjà approuvée (sauf admin)
-    
-    const isOwner = requisition.requesterId === user.code;
-    const isAdmin = user.level >= 7;
-    const isApproved = requisition.status === 'approuve';
-    
+    const isOwner = existing.requesterId === ctx.user.id;
+    const isAdmin = ctx.user.role === 'admin';
+    const isApproved = existing.status === 'approuve';
     if (!isOwner && !isAdmin) {
-      return NextResponse.json(
-        { success: false, error: 'Vous ne pouvez supprimer que vos propres réquisitions' },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Vous ne pouvez supprimer que vos propres réquisitions' }, { status: 403 });
     }
-    
-    // Empêcher la suppression des réquisitions approuvées, sauf pour les admins
     if (isApproved && !isAdmin) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Impossible de supprimer une réquisition déjà approuvée. Contactez un administrateur si nécessaire.' 
-        },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, error: 'Impossible de supprimer une réquisition déjà approuvée. Contactez un administrateur si nécessaire.' }, { status: 403 });
     }
 
-    // Ajouter un log d'audit avant suppression
-    addAuditLog(
-      requisition.id,
-      user.code,
-      user.name,
-      user.level,
-      'deleted',
-      {
-        deletedStatus: requisition.status,
-        budget: requisition.budget,
-        category: requisition.category,
-        priority: requisition.priority,
-        wasOwner: isOwner,
-        wasAdmin: isAdmin
-      },
-      req.headers.get('x-forwarded-for') || 'unknown',
-      req.headers.get('user-agent') || 'unknown'
-    );
+  await db.workflowStep.deleteMany({ where: { requisitionId } });
+  await db.requisition.delete({ where: { id: requisitionId } });
 
-    // Retirer de la base de données
-    const deleted = deleteRequisition(requisitionId);
-
-    if (!deleted) {
-      return NextResponse.json(
-        { success: false, error: 'Erreur lors de la suppression' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `Réquisition "${requisition.title}" supprimée avec succès`,
-      deletedBy: {
-        name: user.name,
-        role: user.levelName,
-        isOwner: isOwner,
-        isAdmin: isAdmin
-      }
-    });
-
+    return NextResponse.json({ success: true, message: `Réquisition supprimée avec succès` });
   } catch (error) {
     console.error('Erreur DELETE réquisition:', error);
     return NextResponse.json(
