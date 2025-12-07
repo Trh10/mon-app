@@ -5,13 +5,13 @@ import { useUI } from "@/store";
 import type { Email } from "@/lib/types";
 import { ExpandedEmailReader } from "@/components/ExpandedEmailReader";
 import { DocumentUploader } from "@/components/DocumentUploader";
-import { EmailComposer } from "@/components/EmailComposer"; // NOUVEAU
+import { EmailComposer } from "@/components/EmailComposer";
 import {
-  Mail, Maximize2, User, Clock, AlertTriangle,
+  Mail, Maximize2, Minimize2, User, Clock,
   Brain, Stars, Lightbulb, FileText, CheckCircle2,
   Loader2, ChevronDown, ChevronRight, Wand2, Sparkles, Upload, ShieldAlert,
   CheckSquare, Users, Package, Globe,
-  PenTool, Reply, Send // NOUVEAU - Icônes pour la rédaction
+  PenTool, Reply, Send, Zap, Eye, EyeOff, X
 } from "lucide-react";
 import { extractFromGmailMessage } from "@/lib/mail/extract";
 
@@ -113,12 +113,12 @@ export function RightPane({
   const [detail, setDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const [autoSummarize, setAutoSummarize] = useState<boolean>(() => {
-    try { return localStorage.getItem("__auto_sum") === "1"; } catch { return false; }
-  });
-  const [autoAdvanced, setAutoAdvanced] = useState<boolean>(() => {
-    try { return localStorage.getItem("__auto_adv_ai") === "1"; } catch { return false; }
-  });
+  // MODIFIÉ : Auto-résumé désactivé par défaut
+  const [autoSummarize, setAutoSummarize] = useState<boolean>(false);
+  const [autoAdvanced, setAutoAdvanced] = useState<boolean>(false);
+
+  // NOUVEAU : État pour le mode plein écran du panneau droit entier
+  const [rightPaneFullscreen, setRightPaneFullscreen] = useState(false);
 
   const [aiBusy, setAiBusy] = useState(false);
   const [ai, setAi] = useState<AIResult | null>(null);
@@ -149,6 +149,16 @@ export function RightPane({
   // NOUVEAU : States pour la rédaction IA
   const [showComposer, setShowComposer] = useState(false);
   const [composerMode, setComposerMode] = useState<"new" | "reply">("new");
+
+  // NOUVEAU : States pour sections flexibles/redimensionnables
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
+    preview: false,
+    aiAdvanced: false,
+    analysis: false,
+    document: false,
+  });
+
+  // SIMPLIFIÉ : Plus besoin de contrôles de taille - tout est dans une seule page scrollable
 
   const email = useMemo(() => items.find((e) => e.id === selectedEmailId), [items, selectedEmailId]);
   const validId = isValidGmailId(selectedEmailId);
@@ -503,694 +513,380 @@ Contenu: ${emailData.content.substring(0, 150)}...
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* NOUVEAU : Header adaptatif selon le mode */}
-      {summaryMode === "multiple" && checkedEmailsList.length > 0 ? (
-        // Header pour mode multiple
-        <div className="border-b border-gray-200 p-4 bg-gradient-to-r from-purple-50 to-blue-50">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 text-sm font-medium flex items-center gap-1">
-                  <CheckSquare className="w-4 h-4" />
-                  Mode multiple
-                </span>
-                <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs">
+    <div className="h-full flex flex-col bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden transition-colors duration-300">
+      {/* Background subtil - only dark mode */}
+      <div className="absolute inset-0 opacity-0 dark:opacity-30">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl"></div>
+      </div>
+      
+      {/* TOUT LE CONTENU DANS UNE SEULE PAGE SCROLLABLE */}
+      <div className="flex-1 overflow-auto relative z-10 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-white/20 scrollbar-track-transparent">
+        <div className="p-6 space-y-6">
+          
+          {/* Bouton plein écran flottant */}
+          <button
+            onClick={() => setRightPaneFullscreen(true)}
+            className="absolute top-4 right-4 p-2 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-lg border border-gray-200 dark:border-white/20 transition-all z-20"
+            title="Plein écran"
+          >
+            <Maximize2 className="w-4 h-4 text-gray-600 dark:text-white/70" />
+          </button>
+
+          {/* === SECTION HEADER / TITRE === */}
+          {summaryMode === "multiple" && checkedEmailsList.length > 0 ? (
+            <div className="pb-4 border-b border-gray-200 dark:border-white/10 transition-colors">
+              <div className="flex items-center gap-3 mb-3">
+                <CheckSquare className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {checkedEmailsList.length} emails sélectionnés
-                </span>
+                </h2>
               </div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Résumé groupé de {checkedEmailsList.length} emails
-              </h2>
-              <div className="mt-2 text-sm text-gray-600">
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center gap-1">
-                    <Users className="w-4 h-4" />
-                    {new Set(checkedEmailsList.map(e => e.from)).size} expéditeurs
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Package className="w-4 h-4" />
-                    {checkedEmailsList.filter(e => e.unread).length} non lus
-                  </span>
-                  {checkedEmailsList.some(e => e.priority === "P1") && (
-                    <span className="flex items-center gap-1 text-red-600">
-                      <AlertTriangle className="w-4 h-4" />
-                      Emails urgents détectés
-                    </span>
-                  )}
-                </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleSummarizeMultiple}
+                  disabled={aiBusy}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/30 border border-purple-200 dark:border-purple-400/30 transition-all text-sm"
+                >
+                  {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                  Résumer tout
+                </button>
+                <button
+                  onClick={() => { setComposerMode("new"); setShowComposer(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-500/30 border border-blue-200 dark:border-blue-400/30 transition-all text-sm"
+                >
+                  <PenTool className="w-4 h-4" />
+                  Rédiger
+                </button>
+                <button
+                  onClick={() => setSummaryMode("single")}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 transition-all text-sm"
+                >
+                  Retour
+                </button>
               </div>
             </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleSummarizeMultiple}
-              disabled={aiBusy}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60 font-medium"
-              title="Résumer tous les emails sélectionnés"
-            >
-              {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-              Résumer {checkedEmailsList.length} emails
-            </button>
-            
-            {/* NOUVEAU : Boutons de rédaction pour mode multiple */}
-            <button
-              onClick={() => {
-                setComposerMode("new");
-                setShowComposer(true);
-              }}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-              title="Rédiger un email basé sur ces emails"
-            >
-              <PenTool className="w-4 h-4" />
-              Rédiger IA
-            </button>
-            
-            <button
-              onClick={() => setSummaryMode("single")}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-              title="Revenir au mode email unique"
-            >
-              Retour mode simple
-            </button>
-          </div>
-        </div>
-      ) : email ? (
-        // Header pour mode simple (existant) avec NOUVEAUX boutons de rédaction
-        <div className="border-b border-gray-200 p-4 bg-gradient-to-r from-gray-50 to-white">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                {importanceChip}
-                {email.unread && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs">Non lu</span>}
+          ) : email ? (
+            <div className="pb-4 border-b border-gray-200 dark:border-white/10 transition-colors">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {(() => {
+                      const level = ai?.urgency || "low";
+                      if (level === "high") return <span className="px-2 py-1 rounded bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 text-xs">Urgent</span>;
+                      if (level === "medium") return <span className="px-2 py-1 rounded bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 text-xs">Important</span>;
+                      return <span className="px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs">Normal</span>;
+                    })()}
+                    {email.unread && <span className="px-2 py-1 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs">Non lu</span>}
+                  </div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white truncate transition-colors">{email.subject || "Sans sujet"}</h2>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-gray-500 dark:text-white/60 transition-colors">
+                    <span>{email.fromName || email.from}</span>
+                    <span>•</span>
+                    <span>{new Date(email.date).toLocaleDateString("fr-FR")}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-4">
+                <button
+                  onClick={handleSummarizeClick}
+                  disabled={aiBusy}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/30 border border-purple-200 dark:border-purple-400/30 transition-all text-sm"
+                >
+                  {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                  Résumer
+                </button>
+                <button
+                  onClick={() => { setComposerMode("reply"); setShowComposer(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-500/30 border border-blue-200 dark:border-blue-400/30 transition-all text-sm"
+                >
+                  <Reply className="w-4 h-4" />
+                  Répondre IA
+                </button>
+                <button
+                  onClick={() => { setComposerMode("new"); setShowComposer(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 border border-emerald-200 dark:border-emerald-400/30 transition-all text-sm"
+                >
+                  <PenTool className="w-4 h-4" />
+                  Nouveau IA
+                </button>
+                <button
+                  onClick={() => setAutoSummarize((v) => !v)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-sm ${autoSummarize ? "bg-purple-100 dark:bg-purple-500/20 border-purple-200 dark:border-purple-400/30 text-purple-700 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/50"}`}
+                >
+                  <Wand2 className="w-4 h-4" />
+                  Auto
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="pb-4 border-b border-gray-200 dark:border-white/10">
+              <div className="flex items-center gap-3 mb-2">
+                <Mail className="w-6 h-6 text-purple-500 dark:text-purple-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Assistant IA</h2>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-white/50">
+                Sélectionnez un email ou uploadez un document à analyser
+              </p>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => { setComposerMode("new"); setShowComposer(true); }}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 border border-emerald-200 dark:border-emerald-400/30 transition-all text-sm"
+                >
+                  <PenTool className="w-4 h-4" />
+                  Composer avec IA
+                </button>
                 {checkedEmailsList.length > 0 && (
                   <button
                     onClick={() => setSummaryMode("multiple")}
-                    className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs hover:bg-purple-200 cursor-pointer"
-                    title="Voir le mode multiple"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-500/30 border border-purple-200 dark:border-purple-400/30 transition-all text-sm"
                   >
-                    {checkedEmailsList.length} cochés - Cliquer pour mode groupé
+                    <CheckSquare className="w-4 h-4" />
+                    Résumer {checkedEmailsList.length} emails
                   </button>
                 )}
               </div>
-              <h2 className="text-lg font-semibold text-gray-900 truncate">{email.subject}</h2>
-              <div className="flex items-center gap-3 mt-1 text-sm text-gray-600">
-                <span className="inline-flex items-center gap-1">
-                  <User className="w-4 h-4" />
-                  <span className="truncate">{email.fromName || email.from}</span>
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{new Date(email.date).toLocaleString()}</span>
-                </span>
-              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setExpandedView(true)}
-                className="p-2 hover:bg-gray-100 rounded-full"
-                title="Ouvrir en plein écran"
-              >
-                <Maximize2 className="w-5 h-5 text-gray-700" />
-              </button>
-            </div>
-          </div>
+          )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-              onClick={handleSummarizeClick}
-              disabled={aiBusy}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-60"
-              title="Résumer cet email"
-            >
-              {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-              Résumer
-            </button>
-            
-            {/* NOUVEAU : Boutons de rédaction pour mode simple */}
-            <button
-              onClick={() => {
-                setComposerMode("reply");
-                setShowComposer(true);
-              }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-              title="Répondre avec IA"
-            >
-              <Reply className="w-4 h-4" />
-              Répondre IA
-            </button>
-            
-            <button
-              onClick={() => {
-                setComposerMode("new");
-                setShowComposer(true);
-              }}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700"
-              title="Nouveau email avec IA"
-            >
-              <PenTool className="w-4 h-4" />
-              Nouveau IA
-            </button>
-            
-            <button
-              onClick={() => setAutoSummarize((v) => !v)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border ${autoSummarize ? "border-purple-500 text-purple-700 bg-purple-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
-              title="Activer/Désactiver le résumé auto"
-            >
-              <Wand2 className="w-4 h-4" />
-              Auto
-            </button>
-            <button
-              onClick={() => setAutoAdvanced(v => !v)}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border ${autoAdvanced ? "border-indigo-500 text-indigo-700 bg-indigo-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
-              title="Activer/Désactiver analyse IA avancée auto"
-            >
-              <Brain className="w-4 h-4" />
-              Adv
-            </button>
-            <button
-              onClick={() => (window as any).__aiOpen?.({ subject: email.subject, summary: ai?.summary || email.snippet || "Aperçu", highlights: ai?.highlights || [], actions: ai?.actions || [] })}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
-              title="Ouvrir le panneau IA"
-            >
-              <Sparkles className="w-4 h-4" />
-              Ouvrir le panneau
-            </button>
-          </div>
-        </div>
-      ) : (
-        // Header par défaut avec NOUVEAU bouton de rédaction
-        <div className="border-b border-gray-200 p-6 bg-gradient-to-r from-purple-50 to-blue-50">
-          <div className="text-center">
-            <Mail className="w-10 h-10 mx-auto text-purple-400 mb-3" />
-            <h2 className="text-xl font-semibold text-gray-800 mb-1">Assistant IA</h2>
-            <p className="text-sm text-gray-600">
-              Sélectionnez un email à gauche{checkedEmailsList.length > 0 ? `, ou résumez les ${checkedEmailsList.length} emails cochés` : ""}, ou uploadez un document à analyser.
-            </p>
-            
-            {/* NOUVEAU : Boutons d'actions générales */}
-            <div className="mt-4 flex justify-center gap-2">
-              <button
-                onClick={() => {
-                  setComposerMode("new");
-                  setShowComposer(true);
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700"
-              >
-                <PenTool className="w-4 h-4" />
-                Composer avec IA
-              </button>
-              
-              {checkedEmailsList.length > 0 && (
-                <button
-                  onClick={() => setSummaryMode("multiple")}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-purple-600 text-white hover:bg-purple-700"
-                >
-                  <CheckSquare className="w-4 h-4" />
-                  Résumer {checkedEmailsList.length} emails cochés
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex-1 overflow-auto">
-        <div className="p-4 space-y-4">
-          {/* NOUVEAU : Preview pour mode multiple */}
-          {summaryMode === "multiple" && checkedEmailsList.length > 0 && (
-            <div className="bg-white border rounded-lg p-4 shadow-sm">
-              <h3 className="font-semibold text-gray-800 flex items-center gap-2 mb-3">
-                <Package className="w-4 h-4 text-purple-500" />
-                Emails sélectionnés ({checkedEmailsList.length})
+          {/* === APERÇU EMAIL === */}
+          {email && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-white/70 flex items-center gap-2 mb-3">
+                <FileText className="w-4 h-4" />
+                Aperçu
+                {loadingDetail && <Loader2 className="w-3 h-3 animate-spin text-gray-400 dark:text-white/50" />}
               </h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {checkedEmailsList.slice(0, 5).map((email, index) => (
-                  <div key={email.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
-                    <span className="font-medium text-purple-600">#{index + 1}</span>
-                    <div className="flex-1 truncate">
-                      <div className="font-medium truncate">{email.subject || "Sans sujet"}</div>
-                      <div className="text-gray-500 text-xs truncate">{email.fromName || email.from}</div>
+              <p className="text-sm text-gray-700 dark:text-white/80 leading-relaxed">{email.snippet}</p>
+            </div>
+          )}
+
+          {/* === EMAILS SÉLECTIONNÉS (MODE MULTIPLE) === */}
+          {summaryMode === "multiple" && checkedEmailsList.length > 0 && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-600 dark:text-white/70 flex items-center gap-2 mb-3">
+                <Package className="w-4 h-4" />
+                Emails sélectionnés
+              </h3>
+              <div className="space-y-2">
+                {checkedEmailsList.slice(0, 5).map((em, index) => (
+                  <div key={em.id} className="flex items-center gap-3 p-2 bg-gray-100 dark:bg-white/5 rounded-lg text-sm">
+                    <span className="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-500/30 text-purple-700 dark:text-purple-200 text-xs">#{index + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-900 dark:text-white truncate">{em.subject || "Sans sujet"}</div>
+                      <div className="text-gray-500 dark:text-white/50 text-xs">{em.fromName || em.from}</div>
                     </div>
-                    {email.priority === "P1" && <AlertTriangle className="w-3 h-3 text-red-500" />}
                   </div>
                 ))}
                 {checkedEmailsList.length > 5 && (
-                  <div className="text-center text-gray-500 text-sm">
-                    ... et {checkedEmailsList.length - 5} autres emails
+                  <div className="text-center text-gray-400 dark:text-white/40 text-sm">
+                    + {checkedEmailsList.length - 5} autres
                   </div>
                 )}
               </div>
-              
-              {/* NOUVEAU : Actions IA pour mode multiple */}
-              <div className="mt-3 p-3 bg-green-50 rounded border border-green-200">
-                <h4 className="text-sm font-medium text-green-800 mb-2 flex items-center gap-1">
-                  <Send className="w-4 h-4" />
-                  Actions IA disponibles:
-                </h4>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setComposerMode("new");
-                      setShowComposer(true);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                  >
-                    <PenTool className="w-3 h-3" />
-                    Rédiger basé sur ces emails
-                  </button>
-                  
-                  {checkedEmailsList.length === 1 && (
-                    <button
-                      onClick={() => {
-                        setComposerMode("reply");
-                        setShowComposer(true);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                    >
-                      <Reply className="w-3 h-3" />
-                      Répondre IA
-                    </button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
-          {/* Preview simple pour mode single */}
-          {summaryMode === "single" && email && (
-            <div className="bg-white border rounded-lg p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  Aperçu
-                </h3>
-                {loadingDetail && <span className="text-xs text-blue-600">Chargement du contenu…</span>}
-              </div>
-              <p className="text-sm text-gray-700 mt-2">{email.snippet}</p>
-              
-              {/* NOUVEAU : Actions IA pour email unique */}
-              <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
-                <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-1">
-                  <Sparkles className="w-4 h-4" />
-                  Rédaction IA:
-                </h4>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setComposerMode("reply");
-                      setShowComposer(true);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                  >
-                    <Reply className="w-3 h-3" />
-                    Répondre IA
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setComposerMode("new");
-                      setShowComposer(true);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                  >
-                    <PenTool className="w-3 h-3" />
-                    Nouveau IA
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* NOUVEAU : Cards d'analyse IA avancée */}
-          <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 shadow-sm">
-            <h3 className="font-semibold text-purple-800 flex items-center gap-2 mb-4">
-              <Brain className="w-5 h-5" />
-              🤖 Intelligence Artificielle Avancée
-              {loadingAdvanced && (
-                <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-              )}
-              {aiAdvanced?.provider && (
-                <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
-                  {aiAdvanced.provider === "groq" && "⚡ Groq"}
-                  {aiAdvanced.provider === "openai" && "🤖 OpenAI"} 
-                  {aiAdvanced.provider === "anthropic" && "🧠 Claude"}
-                  {aiAdvanced.provider === "fallback" && "🔄 Fallback"}
-                  {aiAdvanced.responseTime && ` (${aiAdvanced.responseTime}ms)`}
-                </span>
-              )}
+          {/* === INTELLIGENCE ARTIFICIELLE === */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 dark:text-white/70 flex items-center gap-2 mb-4">
+              <Brain className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+              Intelligence Artificielle
+              {loadingAdvanced && <Loader2 className="w-3 h-3 animate-spin" />}
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Classification automatique */}
-              <div className="bg-white border rounded-lg p-3 shadow-sm">
-                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-2">
-                  <CheckSquare className="w-4 h-4 text-blue-500" />
-                  Classification
-                </h4>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-gray-500 dark:text-white/50 mb-1">Classification</div>
                 {aiAdvanced?.classification ? (
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                      {aiAdvanced.classification}
-                    </span>
-                  </div>
+                  <div className="text-sm text-blue-600 dark:text-blue-300">{aiAdvanced.classification}</div>
                 ) : (
-                  <div className="text-xs text-gray-500">Analyse en cours...</div>
+                  <div className="text-xs text-gray-400 dark:text-white/30">—</div>
                 )}
               </div>
-
-              {/* Analyse de sentiment */}
-              <div className="bg-white border rounded-lg p-3 shadow-sm">
-                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-2">
-                  <Stars className="w-4 h-4 text-green-500" />
-                  Sentiment
-                </h4>
+              <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-gray-500 dark:text-white/50 mb-1">Sentiment</div>
                 {aiAdvanced?.sentiment ? (
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      aiAdvanced.sentiment === "positive" ? "bg-green-100 text-green-700" :
-                      aiAdvanced.sentiment === "negative" ? "bg-red-100 text-red-700" :
-                      "bg-gray-100 text-gray-700"
-                    }`}>
-                      {aiAdvanced.sentiment === "positive" ? "😊 Positif" :
-                       aiAdvanced.sentiment === "negative" ? "😞 Négatif" : "😐 Neutre"}
-                    </span>
+                  <div className={`text-sm ${aiAdvanced.sentiment === "positive" ? "text-emerald-600 dark:text-emerald-300" : aiAdvanced.sentiment === "negative" ? "text-red-600 dark:text-red-300" : "text-gray-600 dark:text-white/70"}`}>
+                    {aiAdvanced.sentiment === "positive" ? "😊 Positif" : aiAdvanced.sentiment === "negative" ? "😞 Négatif" : "😐 Neutre"}
                   </div>
                 ) : (
-                  <div className="text-xs text-gray-500">Analyse en cours...</div>
+                  <div className="text-xs text-gray-400 dark:text-white/30">—</div>
                 )}
               </div>
-
-              {/* Priorité prédite */}
-              <div className="bg-white border rounded-lg p-3 shadow-sm">
-                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  Priorité IA
-                </h4>
+              <div className="bg-gray-100 dark:bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-gray-500 dark:text-white/50 mb-1">Priorité</div>
                 {aiAdvanced?.priority ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`w-2 h-2 rounded-full ${
-                            i < (aiAdvanced.priority || 0) ? "bg-red-500" : "bg-gray-200"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-gray-600">{aiAdvanced.priority}/5</span>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className={`w-2 h-2 rounded-full ${i < aiAdvanced.priority! ? "bg-red-400" : "bg-gray-300 dark:bg-white/20"}`} />
+                    ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-gray-500">Calcul en cours...</div>
+                  <div className="text-xs text-gray-400 dark:text-white/30">—</div>
                 )}
               </div>
             </div>
 
-            {/* Réponses suggérées */}
-            {aiAdvanced?.suggestedReplies && aiAdvanced.suggestedReplies.length > 0 && (
-              <div className="mt-4 bg-white border rounded-lg p-3 shadow-sm">
-                <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-3">
-                  <Reply className="w-4 h-4 text-blue-500" />
-                  💬 Réponses suggérées par IA
-                </h4>
-                <div className="space-y-2">
-                  {aiAdvanced.suggestedReplies.slice(0, 3).map((reply, index) => (
-                    <div key={index} className="bg-blue-50 border border-blue-200 rounded p-2">
-                      <p className="text-sm text-gray-700 mb-2">{reply}</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            setComposerMode("reply");
-                            setShowComposer(true);
-                            // Pré-remplir avec la réponse suggérée
-                          }}
-                          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Utiliser cette réponse
-                        </button>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(reply)}
-                          className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        >
-                          Copier
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* Traduction - compact */}
+            <div className="flex gap-2 items-center mb-4">
+              <select
+                value={targetLanguage}
+                onChange={(e) => setTargetLanguage(e.target.value)}
+                className="text-xs bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded px-2 py-1.5 text-gray-900 dark:text-white"
+              >
+                <option value="en" className="bg-white dark:bg-slate-900">Anglais</option>
+                <option value="es" className="bg-white dark:bg-slate-900">Espagnol</option>
+                <option value="de" className="bg-white dark:bg-slate-900">Allemand</option>
+              </select>
+              <button
+                onClick={() => {
+                  const content = detail ? extractFromGmailMessage(detail).bodyText : email?.snippet;
+                  if (content) translateEmail(content, targetLanguage);
+                }}
+                disabled={!email || loadingAdvanced}
+                className="text-xs px-3 py-1.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded hover:bg-indigo-200 dark:hover:bg-indigo-500/30 disabled:opacity-50"
+              >
+                Traduire
+              </button>
+            </div>
+            {aiAdvanced?.translation && showTranslation && (
+              <div className="mb-4 bg-gray-100 dark:bg-white/5 rounded-lg p-3 text-sm text-gray-700 dark:text-white/80">
+                {aiAdvanced.translation[targetLanguage]}
               </div>
             )}
+          </div>
 
-            {/* Traduction */}
-            <div className="mt-4 bg-white border rounded-lg p-3 shadow-sm">
-              <h4 className="font-medium text-gray-800 flex items-center gap-2 text-sm mb-3">
-                <Globe className="w-4 h-4 text-indigo-500" />
-                🌍 Traduction automatique
-              </h4>
-              <div className="flex gap-2 items-center mb-3">
-                <select
-                  value={targetLanguage}
-                  onChange={(e) => setTargetLanguage(e.target.value)}
-                  className="text-xs border rounded px-2 py-1"
-                >
-                  <option value="en">🇺🇸 Anglais</option>
-                  <option value="es">🇪🇸 Espagnol</option>
-                  <option value="de">🇩🇪 Allemand</option>
-                  <option value="it">🇮🇹 Italien</option>
-                  <option value="pt">🇵🇹 Portugais</option>
-                  <option value="zh">🇨🇳 Chinois</option>
-                  <option value="ja">🇯🇵 Japonais</option>
-                  <option value="ar">🇸🇦 Arabe</option>
-                </select>
-                <button
-                  onClick={() => {
-                    const content = detail ? extractFromGmailMessage(detail).bodyText : email?.snippet;
-                    if (content) {
-                      translateEmail(content, targetLanguage);
-                    }
-                  }}
-                  disabled={!email || loadingAdvanced}
-                  className="text-xs px-3 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-60"
-                >
-                  Traduire
+          {/* === ANALYSE DÉTAILLÉE === */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 dark:text-white/70 flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+              Analyse détaillée
+            </h3>
+
+            <div className="space-y-3">
+              {/* Résumé */}
+              <div className="bg-gray-100 dark:bg-white/5 rounded-lg overflow-hidden">
+                <button onClick={() => setOpenCards(s => ({ ...s, summary: !s.summary }))} className="w-full flex items-center justify-between p-3 hover:bg-gray-200 dark:hover:bg-white/5">
+                  <span className="text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                    Résumé IA
+                  </span>
+                  {openCards.summary ? <ChevronDown className="w-4 h-4 text-gray-500 dark:text-white/50" /> : <ChevronRight className="w-4 h-4 text-gray-500 dark:text-white/50" />}
                 </button>
-              </div>
-              
-              {aiAdvanced?.translation && showTranslation && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-indigo-800">Traduction en {targetLanguage}:</span>
-                    <button
-                      onClick={() => setShowTranslation(false)}
-                      className="text-xs text-indigo-600 hover:text-indigo-800"
-                    >
-                      ✕
-                    </button>
+                {openCards.summary && (
+                  <div className="px-3 pb-3 text-sm text-gray-600 dark:text-white/70">
+                    {aiBusy ? (
+                      <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Analyse...</div>
+                    ) : ai?.summary ? (
+                      <p className="whitespace-pre-wrap">{ai.summary}</p>
+                    ) : (
+                      <p className="text-gray-400 dark:text-white/40">Cliquez "Résumer" pour générer</p>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-700">{aiAdvanced.translation[targetLanguage]}</p>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(aiAdvanced.translation?.[targetLanguage] || "")}
-                    className="text-xs px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 mt-2"
-                  >
-                    Copier traduction
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Points clés */}
+              <div className="bg-gray-100 dark:bg-white/5 rounded-lg overflow-hidden">
+                <button onClick={() => setOpenCards(s => ({ ...s, points: !s.points }))} className="w-full flex items-center justify-between p-3 hover:bg-gray-200 dark:hover:bg-white/5">
+                  <span className="text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                    <Stars className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                    Points clés
+                  </span>
+                  {openCards.points ? <ChevronDown className="w-4 h-4 text-gray-500 dark:text-white/50" /> : <ChevronRight className="w-4 h-4 text-gray-500 dark:text-white/50" />}
+                </button>
+                {openCards.points && (
+                  <div className="px-3 pb-3 text-sm">
+                    {ai?.highlights?.length ? (
+                      <ul className="space-y-1">
+                        {ai.highlights.map((h, i) => (
+                          <li key={i} className="flex items-start gap-2 text-gray-600 dark:text-white/70">
+                            <span className="w-1 h-1 bg-indigo-500 dark:bg-indigo-400 rounded-full mt-2"></span>
+                            {h}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-400 dark:text-white/40">Aucun point clé</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Actions suggérées */}
+              <div className="bg-gray-100 dark:bg-white/5 rounded-lg overflow-hidden">
+                <button onClick={() => setOpenCards(s => ({ ...s, actions: !s.actions }))} className="w-full flex items-center justify-between p-3 hover:bg-gray-200 dark:hover:bg-white/5">
+                  <span className="text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                    Actions suggérées
+                  </span>
+                  {openCards.actions ? <ChevronDown className="w-4 h-4 text-gray-500 dark:text-white/50" /> : <ChevronRight className="w-4 h-4 text-gray-500 dark:text-white/50" />}
+                </button>
+                {openCards.actions && (
+                  <div className="px-3 pb-3 text-sm">
+                    {ai?.actions?.length ? (
+                      <ul className="space-y-1">
+                        {ai.actions.map((a, i) => (
+                          <li key={i} className="flex items-start gap-2 text-gray-600 dark:text-white/70">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400 mt-0.5" />
+                            {a}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-400 dark:text-white/40">Aucune action</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Cards d'analyse - mises à jour pour le mode multiple */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white border rounded-lg shadow-sm">
-              <button onClick={() => setOpenCards((s)=>({ ...s, summary: !s.summary }))} className="w-full flex items-center justify-between p-3 border-b">
-                <span className="font-semibold text-purple-800 flex items-center gap-2">
-                  <Brain className="w-5 h-5" />
-                  {summaryMode === "multiple" ? "Résumé groupé" : "Résumé IA"}
-                </span>
-                {openCards.summary ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-              {openCards.summary && (
-                <div className="p-3">
-                  {aiBusy ? (
-                    <div className="flex items-center gap-2 text-purple-700">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Analyse en cours…</span>
-                    </div>
-                  ) : ai?.error ? (
-                    <div className="bg-red-100 text-red-700 border border-red-300 p-3 rounded">{ai.error}</div>
-                  ) : ai ? (
-                    <div className="space-y-3">
-                      {ai.emailCount && ai.emailCount > 1 && (
-                        <div className="bg-purple-50 p-3 rounded border">
-                          <div className="text-sm font-medium text-purple-700 mb-1">
-                            📊 Résumé de {ai.emailCount} emails
-                          </div>
-                          {ai.urgentEmails && ai.urgentEmails > 0 && (
-                            <div className="text-xs text-red-600">
-                              ⚠️ {ai.urgentEmails} email(s) marqué(s) comme urgent(s)
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
-                        {ai.summary}
-                      </p>
-                    </div>
-                  ) : summaryMode === "multiple" ? (
-                    <div className="text-sm text-gray-500">Cliquez "Résumer {checkedEmailsList.length} emails" pour générer le résumé groupé.</div>
-                  ) : email ? (
-                    <div className="text-sm text-gray-500">Clique "Résumer" pour générer le résumé.</div>
-                  ) : (
-                    <div className="text-sm text-gray-500">Aucun contenu.</div>
-                  )}
-                </div>
-              )}
-            </div>
+          {/* === ANALYSE DE TEXTE LIBRE === */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-600 dark:text-white/70 flex items-center gap-2 mb-4">
+              <Upload className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+              Analyse de texte / document
+            </h3>
 
-            <div className="bg-white border rounded-lg shadow-sm">
-              <button onClick={() => setOpenCards((s)=>({ ...s, points: !s.points }))} className="w-full flex items-center justify-between p-3 border-b">
-                <span className="font-semibold text-indigo-800 flex items-center gap-2">
-                  <Stars className="w-5 h-5" />
-                  Points clés
-                </span>
-                {openCards.points ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-              {openCards.points && (
-                <div className="p-3">
-                  {ai?.highlights?.length ? (
-                    <ul className="list-disc pl-5 text-sm space-y-1">
-                      {ai.highlights.map((h, i) => <li key={i}>{h}</li>)}
-                    </ul>
-                  ) : (
-                    <div className="text-sm text-gray-500">Aucun point clé disponible.</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white border rounded-lg shadow-sm">
-              <button onClick={() => setOpenCards((s)=>({ ...s, actions: !s.actions }))} className="w-full flex items-center justify-between p-3 border-b">
-                <span className="font-semibold text-emerald-800 flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5" />
-                  Actions suggérées
-                </span>
-                {openCards.actions ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-              {openCards.actions && (
-                <div className="p-3">
-                  {ai?.actions?.length ? (
-                    <ul className="text-sm space-y-2">
-                      {ai.actions.map((a, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5" />
-                          <span>{a}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-sm text-gray-500">Aucune action proposée.</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white border rounded-lg shadow-sm">
-              <button onClick={() => setOpenCards((s)=>({ ...s, meta: !s.meta }))} className="w-full flex items-center justify-between p-3 border-b">
-                <span className="font-semibold text-rose-800 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  Importance & Détails
-                </span>
-                {openCards.meta ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </button>
-              {openCards.meta && (
-                <div className="p-3 text-sm text-gray-700 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-600">Niveau:</span>
-                    {(() => {
-                      const level = ai?.urgency || "low";
-                      if (level === "high") return <span className="px-2 py-0.5 rounded bg-red-100 text-red-700">ÉLEVÉ</span>;
-                      if (level === "medium") return <span className="px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">MOYEN</span>;
-                      return <span className="px-2 py-0.5 rounded bg-green-100 text-green-700">FAIBLE</span>;
-                    })()}
-                  </div>
-                  {ai?.emailCount && ai.emailCount > 1 && (
-                    <div className="text-xs text-purple-600 bg-purple-50 p-2 rounded">
-                      📧 Analyse de {ai.emailCount} emails groupés
-                      {ai.senders && (
-                        <div className="mt-1">
-                          👥 {new Set(ai.senders).size} expéditeurs différents
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="text-xs text-gray-500">
-                    {ai?.language ? `Langue détectée: ${ai.language}` : "Langue: n/d"}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Section d'analyse de texte libre - inchangée */}
-          <div className="bg-white border rounded-lg shadow-sm">
-            <div className="p-3 border-b flex items-center justify-between">
-              <div className="font-semibold text-blue-800 flex items-center gap-2">
-                <Upload className="w-5 h-5" />
-                Analyse d'un document ou texte
-              </div>
-            </div>
-            <div className="p-3 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-gray-600">Collez du texte à analyser</label>
                 <textarea
                   value={freeText}
                   onChange={(e) => setFreeText(e.target.value)}
-                  className="mt-1 w-full border rounded p-2 text-sm min-h-[120px] focus:outline-none focus:ring-2 focus:ring-blue-300"
-                  placeholder="Collez ici le contenu d'un document ou d'un mail…"
+                  className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-3 text-sm text-gray-900 dark:text-white min-h-[120px] focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-white/30 placeholder-gray-400 dark:placeholder-white/30 resize-y"
+                  placeholder="Collez du texte à analyser..."
                 />
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={handleAnalyzeFreeText}
-                    disabled={aiBusy || !freeText.trim()}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
-                  >
-                    {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-                    Analyser ce texte
-                  </button>
-                </div>
+                <button
+                  onClick={handleAnalyzeFreeText}
+                  disabled={aiBusy || !freeText.trim()}
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-200 dark:hover:bg-cyan-500/30 disabled:opacity-50 border border-cyan-200 dark:border-cyan-400/30 transition-all text-sm"
+                >
+                  {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                  Analyser
+                </button>
               </div>
               <div>
-                <label className="text-xs text-gray-600">Uploader un fichier (PDF, DOCX, etc.)</label>
-                <div className="mt-1 border rounded p-2">
-                  <DocumentUploader />
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Après upload, copiez/collez le texte du document ci‑contre pour une analyse immédiate.
-                </p>
+                <DocumentUploader />
               </div>
             </div>
           </div>
 
-          {/* Footer avec statistiques mises à jour */}
-          <div className="bg-gray-50 border rounded-lg p-3 text-xs text-gray-600">
-            <div className="flex flex-wrap items-center gap-3">
-              <span>Emails chargés: <b>{items.length}</b></span>
-              <span>Email sélectionné: <b>{email ? "Oui" : "Non"}</b></span>
-              <span>Emails cochés: <b>{checkedEmailsList.length}</b></span>
-              <span>Mode: <b>{summaryMode === "multiple" ? "Groupé" : "Simple"}</b></span>
-              <span>Résumé auto: <b>{autoSummarize ? "Activé" : "Désactivé"}</b></span>
-              {!validId && selectedEmailId ? <span className="text-red-600">ID invalide (ignoré pour l'analyse)</span> : null}
-            </div>
+          {/* === FOOTER STATS === */}
+          <div className="pt-4 border-t border-gray-200 dark:border-white/10 text-xs text-gray-500 dark:text-white/40 flex flex-wrap gap-3">
+            <span>Emails: {items.length}</span>
+            <span>Cochés: {checkedEmailsList.length}</span>
+            <span>Mode: {summaryMode === "multiple" ? "Groupé" : "Simple"}</span>
+            <span>Auto: {autoSummarize ? "✓" : "✗"}</span>
           </div>
 
         </div>
       </div>
 
-      {/* NOUVEAU : Modal EmailComposer */}
+      {/* Modal EmailComposer */}
       {showComposer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <EmailComposer
             replyToEmail={composerMode === "reply" ? email : null}
             initialTo={composerMode === "reply" ? email?.from : ""}
@@ -1198,6 +894,81 @@ Contenu: ${emailData.content.substring(0, 150)}...
             onClose={() => setShowComposer(false)}
             onSend={handleEmailSend}
           />
+        </div>
+      )}
+
+      {/* Modal plein écran */}
+      {rightPaneFullscreen && (
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 z-[9999] flex flex-col overflow-hidden">
+          <div className="absolute inset-0 opacity-30">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl"></div>
+          </div>
+          
+          {/* Header modal */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10 z-10">
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              <Brain className="w-5 h-5 text-purple-400" />
+              Assistant IA - Plein écran
+            </h2>
+            <button
+              onClick={() => setRightPaneFullscreen(false)}
+              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+          
+          {/* Contenu modal */}
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Analyse de texte */}
+              <div>
+                <h3 className="text-sm font-medium text-white/70 mb-3">Analyse de texte</h3>
+                <textarea
+                  value={freeText}
+                  onChange={(e) => setFreeText(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-4 text-white min-h-[200px] focus:outline-none focus:ring-1 focus:ring-white/30 placeholder-white/30 resize-y"
+                  placeholder="Collez du texte à analyser..."
+                />
+                <button
+                  onClick={handleAnalyzeFreeText}
+                  disabled={aiBusy || !freeText.trim()}
+                  className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 border border-purple-400/30 transition-all"
+                >
+                  {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                  Analyser avec l'IA
+                </button>
+              </div>
+              
+              {/* Résultats */}
+              {ai && (
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-white/70 mb-3">Résultats</h3>
+                  {ai.summary && <p className="text-white/80 mb-4">{ai.summary}</p>}
+                  {ai.highlights && ai.highlights.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-xs text-white/50 mb-2">Points clés</h4>
+                      <ul className="space-y-1">
+                        {ai.highlights.map((h: string, i: number) => (
+                          <li key={i} className="text-sm text-white/70 flex items-start gap-2">
+                            <span className="w-1 h-1 bg-purple-400 rounded-full mt-2"></span>
+                            {h}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Upload */}
+              <div>
+                <h3 className="text-sm font-medium text-white/70 mb-3">Upload de document</h3>
+                <DocumentUploader />
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

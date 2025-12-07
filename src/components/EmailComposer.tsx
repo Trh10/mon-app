@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { 
   Send, Sparkles, Loader2, Copy, X, Wand2, ArrowRight, 
-  CheckCircle, Mail, Brain, Languages, Calendar, Repeat
+  CheckCircle, Mail, Brain, Languages, Calendar, Repeat,
+  PenSquare, Zap, MessageSquare
 } from "lucide-react";
 
 interface EmailComposerProps {
@@ -296,13 +297,15 @@ ${aiPrompt}
   // NOUVEAU : Affichage du succès d'envoi
   if (sendSuccess) {
     return (
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-auto p-8 text-center">
-        <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-green-800 mb-2">Email envoyé !</h2>
-        <p className="text-gray-600 mb-4">Votre email a été envoyé avec succès.</p>
+      <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-2xl w-full max-w-md mx-auto p-8 text-center border border-gray-200 dark:border-white/10 transition-colors">
+        <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/30">
+          <CheckCircle className="w-10 h-10 text-white" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2 transition-colors">Email envoyé !</h2>
+        <p className="text-gray-500 dark:text-white/60 mb-6 transition-colors">Votre message a été envoyé avec succès.</p>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+          className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg shadow-green-500/30"
         >
           Fermer
         </button>
@@ -311,20 +314,22 @@ ${aiPrompt}
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-full max-h-[95vh] flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-600" />
-          {replyToEmail ? "✉️ Répondre avec IA" : "📝 Nouveau message avec IA"}
+    <div className="bg-white dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl shadow-2xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-200 dark:border-white/10 transition-colors">
+      {/* Header Premium */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 backdrop-blur-sm transition-colors">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-3 transition-colors">
+          <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl shadow-lg shadow-purple-500/30">
+            <PenSquare className="w-5 h-5 text-white" />
+          </div>
+          {replyToEmail ? "Répondre avec IA" : "Nouveau message"}
         </h2>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setShowAiPanel(!showAiPanel)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
               showAiPanel 
-                ? "bg-purple-600 text-white" 
-                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30" 
+                : "bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:bg-gray-300 dark:hover:bg-white/20"
             }`}
           >
             <Sparkles className="w-4 h-4" />
@@ -332,14 +337,14 @@ ${aiPrompt}
           </button>
           <button
             onClick={copyToClipboard}
-            className="flex items-center gap-2 px-3 py-1.5 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
-            title="Copier l'email"
+            className="p-2.5 bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 rounded-xl hover:bg-gray-300 dark:hover:bg-white/20 transition-all"
+            title="Copier"
           >
-            <Copy className="w-4 h-4" />
+            <Copy className="w-5 h-5" />
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            className="p-2.5 bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/70 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-400 transition-all"
           >
             <X className="w-5 h-5" />
           </button>
@@ -347,34 +352,34 @@ ${aiPrompt}
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Panneau IA amélioré */}
+        {/* Panneau IA Premium */}
         {showAiPanel && (
-          <div className="w-96 border-r bg-gradient-to-b from-purple-50 to-blue-50 overflow-auto">
-            <div className="p-4">
-              <h3 className="font-semibold mb-3 text-purple-800 flex items-center gap-2">
-                <Brain className="w-5 h-5" />
-                🤖 Assistant IA Avancé
-              </h3>
+          <div className="w-80 border-r border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 backdrop-blur-sm overflow-auto transition-colors">
+            <div className="p-4 space-y-4">
+              <div className="flex items-center gap-2 text-gray-900 dark:text-white transition-colors">
+                <Brain className="w-5 h-5 text-purple-500 dark:text-purple-400" />
+                <span className="font-semibold">Assistant IA</span>
+              </div>
               
-              {/* NOUVEAU : Sélecteur de mode IA */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2">Mode IA:</label>
+              {/* Mode IA */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2 transition-colors">Mode:</label>
                 <select
                   value={aiMode}
                   onChange={(e) => setAiMode(e.target.value as any)}
-                  className="w-full p-2 border rounded text-sm"
+                  className="w-full p-3 bg-white dark:bg-white/10 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none cursor-pointer transition-colors"
                 >
-                  <option value="compose">📝 Composition</option>
-                  <option value="smart_reply">💬 Réponses multiples</option>
-                  <option value="tone_analyzer">🎭 Analyse du ton</option>
-                  <option value="meeting_scheduler">📅 Planifier réunion</option>
+                  <option value="compose" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">📝 Composition</option>
+                  <option value="smart_reply" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">💬 Réponses multiples</option>
+                  <option value="tone_analyzer" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">🎭 Analyse du ton</option>
+                  <option value="meeting_scheduler" className="bg-white dark:bg-slate-800 text-gray-900 dark:text-white">📅 Planifier réunion</option>
                 </select>
               </div>
               
               <div className="space-y-4">
                 {/* Instructions */}
                 <div>
-                  <label className="block text-sm font-medium mb-2 text-gray-700">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2 transition-colors">
                     Instructions:
                   </label>
                   <textarea
@@ -384,10 +389,10 @@ ${aiPrompt}
                       aiMode === "meeting_scheduler" 
                         ? "Ex: Réunion de suivi projet, présentation des résultats"
                         : aiMode === "tone_analyzer"
-                        ? "Analyse automatique du ton - pas d'instructions nécessaires"
+                        ? "Analyse automatique du ton"
                         : "Ex: Écris un email de relance pour un devis en attente"
                     }
-                    className="w-full h-20 p-3 border rounded text-sm resize-none focus:ring-2 focus:ring-purple-300"
+                    className="w-full h-20 p-3 bg-white dark:bg-white/10 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-gray-400 dark:placeholder-white/30 transition-colors"
                     disabled={isGenerating}
                   />
                 </div>
@@ -398,7 +403,7 @@ ${aiPrompt}
                     <button
                       onClick={() => handleAiGenerate("compose")}
                       disabled={isGenerating || !aiPrompt.trim()}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors font-medium"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-green-500/20"
                     >
                       {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       Composer l'email
@@ -409,9 +414,9 @@ ${aiPrompt}
                     <button
                       onClick={handleSmartReplies}
                       disabled={isGenerating}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-colors font-medium"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20"
                     >
-                      {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                      {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
                       Générer 3 options
                     </button>
                   )}
@@ -420,7 +425,7 @@ ${aiPrompt}
                     <button
                       onClick={handleToneAnalysis}
                       disabled={isGenerating || !content.trim()}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50 transition-colors font-medium"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 transition-all shadow-lg shadow-orange-500/20"
                     >
                       {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
                       Analyser le ton
@@ -431,90 +436,78 @@ ${aiPrompt}
                     <button
                       onClick={handleMeetingGenerator}
                       disabled={isGenerating || !aiPrompt.trim()}
-                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 transition-colors font-medium"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 transition-all shadow-lg shadow-purple-500/20"
                     >
                       {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calendar className="w-4 h-4" />}
                       Créer invitation
                     </button>
                   )}
 
-                  {/* Bouton améliorer (toujours disponible) */}
+                  {/* Bouton améliorer */}
                   <button
                     onClick={() => handleAiGenerate("improve")}
                     disabled={isGenerating || !content.trim()}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/20 disabled:opacity-50 transition-all border border-white/10"
                   >
                     {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                     Améliorer le texte
                   </button>
                 </div>
 
-                {/* NOUVEAU : Affichage des réponses multiples */}
+                {/* Réponses multiples */}
                 {smartReplies && (
-                  <div className="bg-white border rounded p-3">
-                    <h4 className="font-medium text-sm mb-2 text-blue-600">💬 Options de réponse:</h4>
-                    <div className="space-y-2">
-                      {smartReplies.formal && (
-                        <button
-                          onClick={() => setContent(smartReplies.formal)}
-                          className="w-full text-left p-2 text-xs bg-blue-50 border rounded hover:bg-blue-100"
-                        >
-                          <strong>Formelle:</strong> {smartReplies.formal.substring(0, 60)}...
-                        </button>
-                      )}
-                      {smartReplies.friendly && (
-                        <button
-                          onClick={() => setContent(smartReplies.friendly)}
-                          className="w-full text-left p-2 text-xs bg-green-50 border rounded hover:bg-green-100"
-                        >
-                          <strong>Amicale:</strong> {smartReplies.friendly.substring(0, 60)}...
-                        </button>
-                      )}
-                      {smartReplies.concise && (
-                        <button
-                          onClick={() => setContent(smartReplies.concise)}
-                          className="w-full text-left p-2 text-xs bg-gray-50 border rounded hover:bg-gray-100"
-                        >
-                          <strong>Concise:</strong> {smartReplies.concise.substring(0, 60)}...
-                        </button>
-                      )}
-                    </div>
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
+                    <h4 className="text-xs font-medium text-blue-400">💬 Options de réponse:</h4>
+                    {smartReplies.formal && (
+                      <button
+                        onClick={() => setContent(smartReplies.formal)}
+                        className="w-full text-left p-2 text-xs bg-blue-500/10 text-blue-300 border border-blue-500/20 rounded-lg hover:bg-blue-500/20"
+                      >
+                        <strong>Formelle:</strong> {smartReplies.formal.substring(0, 50)}...
+                      </button>
+                    )}
+                    {smartReplies.friendly && (
+                      <button
+                        onClick={() => setContent(smartReplies.friendly)}
+                        className="w-full text-left p-2 text-xs bg-green-500/10 text-green-300 border border-green-500/20 rounded-lg hover:bg-green-500/20"
+                      >
+                        <strong>Amicale:</strong> {smartReplies.friendly.substring(0, 50)}...
+                      </button>
+                    )}
+                    {smartReplies.concise && (
+                      <button
+                        onClick={() => setContent(smartReplies.concise)}
+                        className="w-full text-left p-2 text-xs bg-white/5 text-white/70 border border-white/10 rounded-lg hover:bg-white/10"
+                      >
+                        <strong>Concise:</strong> {smartReplies.concise.substring(0, 50)}...
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {/* NOUVEAU : Analyse du ton */}
+                {/* Analyse du ton */}
                 {toneAnalysis && (
-                  <div className="bg-white border rounded p-3">
-                    <h4 className="font-medium text-sm mb-2 text-orange-600">🎭 Analyse du ton:</h4>
-                    <div className="text-xs space-y-1">
-                      <div><strong>Ton:</strong> {toneAnalysis.tone}</div>
-                      <div><strong>Sentiment:</strong> {toneAnalysis.sentiment}</div>
-                      {toneAnalysis.suggestions && (
-                        <div>
-                          <strong>Suggestions:</strong>
-                          <ul className="ml-2 mt-1">
-                            {toneAnalysis.suggestions.map((suggestion: string, index: number) => (
-                              <li key={index}>• {suggestion}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+                    <h4 className="text-xs font-medium text-orange-400 mb-2">🎭 Analyse:</h4>
+                    <div className="text-xs text-white/70 space-y-1">
+                      <div><span className="text-white/50">Ton:</span> {toneAnalysis.tone}</div>
+                      <div><span className="text-white/50">Sentiment:</span> {toneAnalysis.sentiment}</div>
                     </div>
                   </div>
                 )}
 
-                {/* Prompts rapides (mode composition seulement) */}
+                {/* Prompts rapides */}
                 {aiMode === "compose" && (
                   <div>
-                    <label className="block text-sm font-medium mb-2 text-gray-700">
-                      Prompts rapides:
+                    <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2 transition-colors">
+                      Suggestions:
                     </label>
-                    <div className="grid grid-cols-1 gap-1">
+                    <div className="space-y-1">
                       {quickPrompts.map((prompt, index) => (
                         <button
                           key={index}
                           onClick={() => setAiPrompt(prompt)}
-                          className="text-left p-2 text-xs bg-white border rounded hover:bg-purple-50 hover:border-purple-300 transition-colors"
+                          className="w-full text-left p-2.5 text-xs bg-white dark:bg-white/5 text-gray-700 dark:text-white/70 border border-gray-200 dark:border-white/10 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-500/10 hover:border-purple-300 dark:hover:border-purple-500/30 hover:text-purple-700 dark:hover:text-purple-300 transition-all"
                           disabled={isGenerating}
                         >
                           {prompt}
@@ -526,36 +519,23 @@ ${aiPrompt}
 
                 {/* Erreur */}
                 {aiError && (
-                  <div className="bg-red-100 border border-red-300 text-red-700 p-3 rounded text-sm">
+                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 p-3 rounded-xl text-xs transition-colors">
                     ❌ {aiError}
                   </div>
                 )}
 
-                {/* Email original si réponse */}
-                {replyToEmail && (
-                  <div className="bg-white border rounded p-3">
-                    <h4 className="font-medium text-sm mb-2 text-blue-600">📧 Email original:</h4>
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <div><strong>De:</strong> {replyToEmail.fromName || replyToEmail.from}</div>
-                      <div><strong>Sujet:</strong> {replyToEmail.subject}</div>
-                      <div className="mt-2 p-2 bg-gray-50 rounded max-h-24 overflow-y-auto">
-                        {replyToEmail.snippet}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Statut */}
-                <div className="text-xs text-gray-500 bg-white p-2 rounded border">
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 p-2.5 rounded-xl border border-gray-200 dark:border-white/10 transition-colors">
                   {isGenerating ? (
-                    <div className="flex items-center gap-2 text-purple-600">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Génération en cours...
-                    </div>
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin text-purple-500 dark:text-purple-400" />
+                      <span className="text-purple-600 dark:text-purple-400">Génération...</span>
+                    </>
                   ) : (
-                    <div>
-                      ✅ Groq IA prêt - Llama 3.1 + Fonctions avancées
-                    </div>
+                    <>
+                      <Zap className="w-3 h-3 text-green-500 dark:text-green-400" />
+                      <span>IA prête</span>
+                    </>
                   )}
                 </div>
               </div>
@@ -563,72 +543,71 @@ ${aiPrompt}
           </div>
         )}
 
-        {/* Formulaire email */}
-        <div className="flex-1 p-4 flex flex-col overflow-hidden">
+        {/* Formulaire email Premium */}
+        <div className="flex-1 p-6 flex flex-col overflow-hidden">
           <div className="space-y-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-1">À:</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2 transition-colors">À:</label>
               <input
                 type="email"
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
                 placeholder="destinataire@email.com"
-                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Sujet:</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2 transition-colors">Sujet:</label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Objet du message"
-                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                className="w-full p-4 bg-gray-50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
               />
             </div>
           </div>
 
           <div className="flex-1 flex flex-col overflow-hidden">
-            <label className="block text-sm font-medium mb-1">Message:</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-2 transition-colors">Message:</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Tapez votre message ici ou utilisez l'IA pour le générer..."
-              className="flex-1 p-3 border rounded resize-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+              className="flex-1 p-4 bg-gray-50 dark:bg-white/5 border border-gray-300 dark:border-white/10 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
             />
           </div>
 
-          <div className="flex justify-between items-center gap-3 mt-4 pt-4 border-t">
-            <div className="text-sm text-gray-600">
+          <div className="flex justify-between items-center gap-4 mt-6 pt-4 border-t border-gray-200 dark:border-white/10 transition-colors">
+            <div className="text-sm text-gray-500 dark:text-white/40 transition-colors">
               {content.length > 0 && (
                 <span>{content.length} caractères</span>
               )}
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                className="px-6 py-3 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white rounded-xl hover:bg-gray-300 dark:hover:bg-white/20 transition-all border border-gray-300 dark:border-white/10"
               >
                 Annuler
               </button>
               
-              {/* NOUVEAU : Bouton envoi réel */}
               <button
                 onClick={handleRealSend}
                 disabled={!to.trim() || !subject.trim() || !content.trim() || isSending}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/30"
               >
                 {isSending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Envoi en cours...
+                    Envoi...
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Envoyer maintenant
+                    Envoyer
                   </>
                 )}
               </button>

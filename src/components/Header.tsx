@@ -1,15 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useUI } from "@store";
-import { ChevronDown, Folder, RefreshCw, LogOut, Layout, Lock } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { 
+  Menu, 
+  X, 
+  RefreshCw, 
+  LogOut, 
+  Layout, 
+  Lock, 
+  Mail,
+  Settings,
+  ChevronRight,
+  Inbox,
+  Star,
+  Send,
+  FileText,
+  Monitor,
+  Smartphone,
+  Maximize,
+  Focus,
+  Keyboard,
+  Sun,
+  Moon,
+  Eye,
+  EyeOff,
+  PanelRight,
+  PanelBottom,
+  Type,
+  Sparkles,
+  Briefcase,
+  MailX
+} from "lucide-react";
 import { APP_NAME } from "@/config/branding";
-import EmailAccountSelector from "./HeaderEmailSelector";
 import EmailLoginModal from "./EmailLoginModal";
 import ChangeCodeModal from "./auth/ChangeCodeModal";
 import { useCodeAuth } from "./auth/CodeAuthContext";
 import { NotificationToggle } from "./notifications/NotificationToggle";
 import OnlineUsersBadge from "./presence/OnlineUsersBadge";
+import SettingsPanel from "@/components/settings/SettingsPanel";
+import { FocusModeToggle, ImmersiveModeToggle, KeyboardShortcutsPanel } from "@/components/ui/FocusMode";
 
 type Props = {
   source: string;
@@ -34,30 +65,32 @@ export function Header({
   userInfo,
   onAccountChange
 }: Props) {
-  const { density, setDensity } = useUI();
+  const { density, setDensity, focusMode, toggleFocusMode, immersiveMode, toggleImmersiveMode, managementMode, toggleManagementMode } = useUI();
+  const { theme, setTheme } = useTheme();
   const { user, logout } = useCodeAuth();
-  const [showChangePIN, setShowChangePIN] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showChangeCodeModal, setShowChangeCodeModal] = useState(false);
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const [textSize, setTextSize] = useState<"small" | "normal" | "large">("normal");
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Source dynamique selon provider
-  const sourceLabel = useMemo(() => {
-    const p = String(userInfo?.provider || emailCredentials?.provider || "").toLowerCase();
-    if (!p) return "Déconnecté";
-    if (p.includes("gmail")) return "Connecté à Gmail";
-    if (p.includes("imap")) return "Connecté IMAP";
-    if (p.includes("outlook")) return "Connecté à Outlook";
-    if (p.includes("yahoo")) return "Connecté à Yahoo";
-    if (p.includes("exchange")) return "Connecté à Exchange";
-    if (p.includes("auto")) return "Auto-détection";
-    return "Connecté";
-  }, [userInfo?.provider, emailCredentials?.provider]);
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+        setActiveSubmenu(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleAccountSuccess = (newAccount: any) => {
-    // Appeler le callback parent pour mettre à jour l'état
-    if (onAccountChange) {
-      onAccountChange(newAccount);
-    }
+    if (onAccountChange) onAccountChange(newAccount);
   };
 
   const densityLabel = useMemo(() => {
@@ -66,131 +99,334 @@ export function Header({
     return "Compact";
   }, [density]);
 
+  const folderLabel = useMemo(() => {
+    const labels: Record<string, string> = {
+      INBOX: "Boite de reception",
+      STARRED: "Favoris",
+      SENT: "Envoyes",
+      DRAFTS: "Brouillons"
+    };
+    return labels[currentFolder] || currentFolder;
+  }, [currentFolder]);
+
   function handleDensityChange(next: "compact" | "dense" | "ultra") {
     setDensity?.(next);
+    setActiveSubmenu(null);
   }
 
-  const companyName = (user?.company || '').trim();
+  function handleFolderChange(folder: string) {
+    onFolderChange(folder);
+    setActiveSubmenu(null);
+    setMenuOpen(false);
+  }
+
+  const companyName = (user?.company || "").trim();
 
   return (
-    <div className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-      <div className="max-w-[1400px] mx-auto flex items-center gap-2">
-  <div className="text-lg font-semibold flex-1">{companyName || APP_NAME}</div>
-
-        {/* Source dynamique */}
-        <div className="flex items-center gap-2">
-          <span className="text-blue-100">Source:</span>
-          <div className="relative group">
-            <button className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
-              <span>{sourceLabel}</span>
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            <div className="absolute right-0 mt-1 hidden group-hover:block bg-white text-gray-800 rounded-lg shadow-lg overflow-hidden min-w-[180px] z-20">
-              {[
-                { key: "email", label: "Emails réels" },
-              ].map((opt) => (
-                <button
-                  key={opt.key}
-                  onClick={() => onSourceChange(opt.key)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50"
-                >
-                  {opt.label}
-                </button>
-              ))}
+    <header className="w-full bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 text-gray-900 dark:text-white shadow-lg dark:shadow-xl transition-colors duration-300">
+      <div className="px-6 py-4">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+          
+          <div className="flex items-center gap-4">
+            {/* Logo ICONES BOX */}
+            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg ring-2 ring-cyan-400/30">
+              <img 
+                src="/icone-logo.jpg" 
+                alt="ICONES BOX Logo" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white transition-colors">{companyName || 'ICONES BOX'}</h1>
+              {user && <p className="text-xs text-purple-600 dark:text-purple-300 transition-colors">{user.name} - {user.role}</p>}
             </div>
           </div>
-        </div>
 
-        {/* Densité */}
-        <div className="flex items-center gap-2">
-          <span className="text-blue-100">Densité:</span>
-          <div className="relative group">
-            <button className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
-              <Layout className="w-4 h-4" />
-              <span>{densityLabel}</span>
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            <div className="absolute right-0 mt-1 hidden group-hover:block bg-white text-gray-800 rounded-lg shadow-lg overflow-hidden min-w-[160px] z-20">
-              <button onClick={() => handleDensityChange("compact")} className="w-full text-left px-3 py-2 hover:bg-gray-50">Compact</button>
-              <button onClick={() => handleDensityChange("dense")} className="w-full text-left px-3 py-2 hover:bg-gray-50">Dense</button>
-              <button onClick={() => handleDensityChange("ultra")} className="w-full text-left px-3 py-2 hover:bg-gray-50">Ultra</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Dossier */}
-        <div className="flex items-center gap-2">
-          <Folder className="w-4 h-4 text-blue-100" />
-          <div className="relative group">
-            <button className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
-              <span>Boîte de réception</span>
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            <div className="absolute right-0 mt-1 hidden group-hover:block bg-white text-gray-800 rounded-lg shadow-lg overflow-hidden min-w-[180px] z-20">
-              {["INBOX", "STARRED", "SENT", "DRAFTS"].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => onFolderChange(f)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50"
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-  {/* Présence en ligne + Boutons d'action */}
-        <OnlineUsersBadge className="ml-2" />
-        <NotificationToggle />
-        <button onClick={onRefresh} className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2">
-          <RefreshCw className="w-4 h-4" /> Rafraîchir
-        </button>
-
-        {/* Bouton changer le code (si utilisateur connecté) */}
-        {user && (
           <button 
-            onClick={() => setShowChangeCodeModal(true)}
-            className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2"
-            title="Changer votre code d'accès personnel"
+            onClick={() => { setMenuOpen(true); setActiveSubmenu("folders"); }}
+            className="hidden md:flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-full transition-all text-gray-700 dark:text-white"
           >
-            <Lock className="w-4 h-4" /> Code
+            <Inbox className="w-4 h-4" />
+            <span className="font-medium">{folderLabel}</span>
           </button>
-        )}
-        
-        {/* Déconnexion */}
-        {user && (
-          <button 
-            onClick={() => logout()}
-            className="px-3 py-1.5 bg-white/10 rounded-lg hover:bg-white/20 flex items-center gap-2"
-            title="Se déconnecter"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        )}
 
-        {/* Sélecteur de comptes email */}
-        <div className="flex items-center gap-2">
-          <EmailAccountSelector 
-            onAccountChange={(account) => {
-              console.log('Changement de compte:', account);
-              if (onAccountChange) {
-                onAccountChange(account);
-              }
-            }}
-            onConnectNew={() => setShowLoginModal(true)}
-          />
+          <div className="flex items-center gap-3">
+            <OnlineUsersBadge className="hidden sm:flex" />
+            <NotificationToggle />
+            
+            {/* Mode Focus */}
+            <FocusModeToggle className="hidden lg:flex" />
+            
+            {/* Mode Immersif */}
+            <ImmersiveModeToggle className="hidden md:block" />
+            
+            <button 
+              onClick={onRefresh} 
+              className="p-2.5 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl transition-all hover:rotate-180 duration-500 text-gray-700 dark:text-white"
+              title="Rafraichir"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+
+            <div className="relative" ref={menuRef}>
+              <button 
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="p-2.5 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl transition-all text-gray-700 dark:text-white"
+              >
+                {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-700 transition-colors">
+                  
+                  <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                    <p className="font-semibold">{user?.name || "Utilisateur"}</p>
+                    <p className="text-xs text-purple-200">{user?.role || "Invite"}</p>
+                  </div>
+
+                  <div className="py-2">
+                    
+                    <div className="relative">
+                      <button 
+                        onClick={() => setActiveSubmenu(activeSubmenu === "folders" ? null : "folders")}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Inbox className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          <span>Dossiers</span>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 transition-transform ${activeSubmenu === "folders" ? "rotate-90" : ""}`} />
+                      </button>
+                      {activeSubmenu === "folders" && (
+                        <div className="bg-gray-50 dark:bg-slate-700/50 py-1 transition-colors">
+                          {[
+                            { key: "INBOX", label: "Boite de reception", icon: Inbox },
+                            { key: "STARRED", label: "Favoris", icon: Star },
+                            { key: "SENT", label: "Envoyes", icon: Send },
+                            { key: "DRAFTS", label: "Brouillons", icon: FileText },
+                          ].map((f) => (
+                            <button
+                              key={f.key}
+                              onClick={() => handleFolderChange(f.key)}
+                              className={`w-full px-8 py-2 flex items-center gap-3 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors ${currentFolder === f.key ? "text-purple-600 dark:text-purple-400 font-medium" : ""}`}
+                            >
+                              <f.icon className="w-4 h-4" />
+                              <span>{f.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative">
+                      <button 
+                        onClick={() => setActiveSubmenu(activeSubmenu === "display" ? null : "display")}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Layout className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          <span>Affichage</span>
+                          <span className="text-xs text-gray-400">{densityLabel}</span>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 transition-transform ${activeSubmenu === "display" ? "rotate-90" : ""}`} />
+                      </button>
+                      {activeSubmenu === "display" && (
+                        <div className="bg-gray-50 dark:bg-slate-700/50 py-2 transition-colors">
+                          
+                          {/* Section Densité */}
+                          <div className="px-4 py-1">
+                            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Densité</p>
+                            <div className="flex gap-1 bg-gray-200 dark:bg-slate-600 rounded-lg p-1">
+                              {[
+                                { key: "compact", label: "Compact", icon: Smartphone },
+                                { key: "dense", label: "Dense", icon: Monitor },
+                                { key: "ultra", label: "Ultra", icon: Maximize },
+                              ].map((d) => (
+                                <button
+                                  key={d.key}
+                                  onClick={() => handleDensityChange(d.key as any)}
+                                  className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                                    density === d.key 
+                                      ? "bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 shadow-sm" 
+                                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                  }`}
+                                >
+                                  {d.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="border-t border-gray-200 dark:border-slate-600 my-2" />
+
+                          {/* Section Thème */}
+                          <div className="px-4 py-1">
+                            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Thème</p>
+                            <div className="flex gap-1 bg-gray-200 dark:bg-slate-600 rounded-lg p-1">
+                              <button
+                                onClick={() => setTheme("light")}
+                                className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                                  theme === "light" 
+                                    ? "bg-white dark:bg-slate-800 text-yellow-600 shadow-sm" 
+                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                }`}
+                              >
+                                <Sun className="w-3.5 h-3.5" />
+                                Clair
+                              </button>
+                              <button
+                                onClick={() => setTheme("dark")}
+                                className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-1 ${
+                                  theme === "dark" 
+                                    ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm" 
+                                    : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                                }`}
+                              >
+                                <Moon className="w-3.5 h-3.5" />
+                                Sombre
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-gray-200 dark:border-slate-600 my-2" />
+
+                          {/* Section Modes */}
+                          <div className="px-4 py-1">
+                            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Modes</p>
+                            
+                            {/* Mode Focus */}
+                            <button
+                              onClick={() => { toggleFocusMode(); setMenuOpen(false); }}
+                              className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Focus className={`w-4 h-4 ${focusMode ? "text-purple-500" : "text-gray-500 dark:text-gray-400"}`} />
+                                <span className="text-sm">Mode Focus</span>
+                              </div>
+                              <div className={`w-9 h-5 rounded-full transition-colors ${focusMode ? "bg-purple-500" : "bg-gray-300 dark:bg-slate-500"}`}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform mt-0.5 ${focusMode ? "translate-x-4 ml-0.5" : "translate-x-0.5"}`} />
+                              </div>
+                            </button>
+
+                            {/* Mode Gestion (masque les emails) */}
+                            <button
+                              onClick={() => { toggleManagementMode(); setMenuOpen(false); }}
+                              className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Briefcase className={`w-4 h-4 ${managementMode ? "text-amber-500" : "text-gray-500 dark:text-gray-400"}`} />
+                                <div className="flex flex-col items-start">
+                                  <span className="text-sm">Mode Gestion</span>
+                                  <span className="text-[10px] text-gray-400">Masque les emails</span>
+                                </div>
+                              </div>
+                              <div className={`w-9 h-5 rounded-full transition-colors ${managementMode ? "bg-amber-500" : "bg-gray-300 dark:bg-slate-500"}`}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform mt-0.5 ${managementMode ? "translate-x-4 ml-0.5" : "translate-x-0.5"}`} />
+                              </div>
+                            </button>
+
+                            {/* Mode Plein écran */}
+                            <button
+                              onClick={() => { toggleImmersiveMode(); setMenuOpen(false); }}
+                              className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Maximize className={`w-4 h-4 ${immersiveMode ? "text-indigo-500" : "text-gray-500 dark:text-gray-400"}`} />
+                                <span className="text-sm">Plein écran</span>
+                              </div>
+                              <div className={`w-9 h-5 rounded-full transition-colors ${immersiveMode ? "bg-indigo-500" : "bg-gray-300 dark:bg-slate-500"}`}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform mt-0.5 ${immersiveMode ? "translate-x-4 ml-0.5" : "translate-x-0.5"}`} />
+                              </div>
+                            </button>
+
+                            {/* Aperçu emails */}
+                            <button
+                              onClick={() => setShowPreview(!showPreview)}
+                              className="w-full flex items-center justify-between py-2 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                {showPreview ? (
+                                  <Eye className="w-4 h-4 text-green-500" />
+                                ) : (
+                                  <EyeOff className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                                )}
+                                <span className="text-sm">Aperçu emails</span>
+                              </div>
+                              <div className={`w-9 h-5 rounded-full transition-colors ${showPreview ? "bg-green-500" : "bg-gray-300 dark:bg-slate-500"}`}>
+                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform mt-0.5 ${showPreview ? "translate-x-4 ml-0.5" : "translate-x-0.5"}`} />
+                              </div>
+                            </button>
+                          </div>
+
+                          <div className="border-t border-gray-200 dark:border-slate-600 my-2" />
+
+                          {/* Raccourcis clavier */}
+                          <button
+                            onClick={() => { window.dispatchEvent(new CustomEvent('shortcuts:show')); setMenuOpen(false); }}
+                            className="w-full px-4 py-2 flex items-center gap-3 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                          >
+                            <Keyboard className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                            <span className="text-sm">Raccourcis clavier</span>
+                            <span className="ml-auto text-xs text-gray-400 bg-gray-200 dark:bg-slate-600 px-1.5 py-0.5 rounded">?</span>
+                          </button>
+
+                        </div>
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => { setShowLoginModal(true); setMenuOpen(false); }}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <Mail className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <span>Gerer les comptes email</span>
+                    </button>
+
+                    <div className="border-t border-gray-100 dark:border-slate-600 my-2" />
+
+                    {user && (
+                      <button 
+                        onClick={() => { setShowChangeCodeModal(true); setMenuOpen(false); }}
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <Lock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        <span>Changer mon code PIN</span>
+                      </button>
+                    )}
+
+                    <button 
+                      onClick={() => { setShowSettingsPanel(true); setMenuOpen(false); }}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <Settings className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <span>Parametres</span>
+                    </button>
+
+                    <div className="border-t border-gray-100 dark:border-slate-600 my-2" />
+
+                    {user && (
+                      <button 
+                        onClick={() => { logout(); setMenuOpen(false); }}
+                        className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
+                      >
+                        <LogOut className="w-5 h-5" />
+                        <span>Deconnexion</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Modal de connexion email */}
       <EmailLoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onSuccess={handleAccountSuccess}
       />
 
-      {/* Modal de changement de code */}
       {user && (
         <ChangeCodeModal
           isOpen={showChangeCodeModal}
@@ -202,7 +438,13 @@ export function Header({
           }}
         />
       )}
-    </div>
+
+      <SettingsPanel
+        isOpen={showSettingsPanel}
+        onClose={() => setShowSettingsPanel(false)}
+        userInfo={user ? { name: user.name, role: user.role, email: userInfo?.email } : undefined}
+      />
+    </header>
   );
 }
 

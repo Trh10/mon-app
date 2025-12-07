@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileText, X, Loader } from "lucide-react";
+import { Upload, FileText, X, Loader, CheckCircle, AlertTriangle, Clock, Tag, FileWarning, Sparkles } from "lucide-react";
 import { cn } from "@lib/cn";
 
 type DocumentAnalysis = {
@@ -65,17 +65,14 @@ export function DocumentUploader() {
   };
 
   return (
-    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-      <h3 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
-        <Upload className="w-4 h-4" />
-        📄 Analyser un document
-      </h3>
-
-      {/* Zone de drop */}
+    <div className="space-y-4">
+      {/* Zone de drop - Design Premium */}
       <div
         className={cn(
-          "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
-          dragOver ? "border-blue-400 bg-blue-100" : "border-blue-300 bg-white",
+          "border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300",
+          dragOver 
+            ? "border-cyan-500 dark:border-cyan-400 bg-cyan-100 dark:bg-cyan-500/20 scale-[1.02]" 
+            : "border-gray-300 dark:border-white/30 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-400 dark:hover:border-white/50",
           uploading && "opacity-50 cursor-not-allowed"
         )}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -92,87 +89,113 @@ export function DocumentUploader() {
         />
         
         {uploading ? (
-          <div className="text-blue-600">
-            <Loader className="w-8 h-8 animate-spin mx-auto mb-2" />
-            <div className="font-medium">Analyse en cours...</div>
-            <div className="text-sm mt-1">Extraction et résumé du document</div>
+          <div className="text-cyan-600 dark:text-cyan-300 py-4">
+            <Loader className="w-10 h-10 animate-spin mx-auto mb-3" />
+            <div className="font-bold text-lg">Analyse en cours...</div>
+            <div className="text-sm text-gray-500 dark:text-white/60 mt-2">Extraction et résumé du document avec l'IA</div>
           </div>
         ) : (
           <>
-            <FileText className="w-12 h-12 mx-auto text-blue-400 mb-3" />
-            <div className="text-blue-700 font-medium mb-2">
-              Glissez un document ici ou cliquez pour sélectionner
+            <FileText className="w-14 h-14 mx-auto text-cyan-500 dark:text-cyan-400/80 mb-4" />
+            <div className="text-gray-900 dark:text-white font-semibold text-lg mb-2">
+              Glissez un document ici
             </div>
-            <div className="text-blue-600 text-sm mb-3">
+            <div className="text-gray-500 dark:text-white/60 text-sm mb-4">
               PDF, Word (.docx), ou fichiers texte supportés
             </div>
             <label
               htmlFor="document-upload"
-              className="inline-block px-4 py-2 bg-blue-600 text-white text-sm rounded cursor-pointer hover:bg-blue-700 transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium rounded-xl cursor-pointer hover:from-cyan-400 hover:to-blue-500 transition-all duration-300 hover:scale-105 shadow-lg shadow-cyan-500/30"
             >
+              <Upload className="w-4 h-4" />
               Sélectionner un fichier
             </label>
           </>
         )}
       </div>
 
-      {/* Erreur */}
+      {/* Erreur - Design Premium */}
       {error && (
-        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-          <div className="font-medium">❌ Erreur d'analyse</div>
-          <div>{error}</div>
+        <div className="p-4 bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-400/30 rounded-xl">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-300 font-semibold mb-1">
+            <FileWarning className="w-5 h-5" />
+            Erreur d'analyse
+          </div>
+          <div className="text-red-600 dark:text-red-200/80 text-sm">{error}</div>
         </div>
       )}
 
-      {/* Résultat de l'analyse */}
+      {/* Résultat de l'analyse - Design Premium */}
       {analysis && (
-        <div className="mt-4 space-y-3">
-          <div className="bg-green-50 border border-green-200 rounded p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-medium text-green-800">✅ Analyse terminée</div>
+        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+          {/* En-tête succès */}
+          <div className="p-4 bg-emerald-100 dark:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-400/30 rounded-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-bold text-lg">
+                <CheckCircle className="w-6 h-6" />
+                Analyse terminée !
+              </div>
               <button 
                 onClick={() => setAnalysis(null)}
-                className="text-green-600 hover:text-green-800"
+                className="p-2 rounded-lg bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 text-gray-600 dark:text-white/70 transition-all"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
-            <div className="text-sm space-y-2">
-              <div>
-                <strong>Fichier:</strong> {analysis.filename}
+            <div className="grid grid-cols-3 gap-3 text-sm">
+              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg">
+                <div className="text-gray-500 dark:text-white/60 text-xs">Fichier</div>
+                <div className="text-gray-900 dark:text-white font-medium truncate">{analysis.filename}</div>
               </div>
-              <div>
-                <strong>Taille:</strong> {Math.round(analysis.fileSize / 1024)} Ko
+              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg">
+                <div className="text-gray-500 dark:text-white/60 text-xs">Taille</div>
+                <div className="text-gray-900 dark:text-white font-medium">{Math.round(analysis.fileSize / 1024)} Ko</div>
               </div>
-              <div>
-                <strong>Temps de lecture:</strong> {analysis.estimatedReadTime} min
+              <div className="p-2 bg-gray-100 dark:bg-white/10 rounded-lg flex items-center gap-1">
+                <Clock className="w-4 h-4 text-cyan-600 dark:text-cyan-300" />
+                <div>
+                  <div className="text-gray-500 dark:text-white/60 text-xs">Lecture</div>
+                  <div className="text-gray-900 dark:text-white font-medium">{analysis.estimatedReadTime} min</div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Tags */}
-          <div className="flex flex-wrap gap-1">
-            {analysis.tags.map((tag, i) => (
-              <span key={i} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                {tag}
-              </span>
-            ))}
-          </div>
+          {analysis.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Tag className="w-4 h-4 text-cyan-600 dark:text-cyan-300" />
+              {analysis.tags.map((tag, i) => (
+                <span key={i} className="px-3 py-1 bg-cyan-100 dark:bg-cyan-500/20 border border-cyan-200 dark:border-cyan-400/30 text-cyan-700 dark:text-cyan-200 rounded-full text-xs font-medium">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Résumé */}
-          <div className="bg-white border rounded p-3">
-            <div className="font-medium text-gray-800 mb-2">📝 Résumé</div>
-            <p className="text-sm text-gray-600">{analysis.summary}</p>
+          <div className="p-4 bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-xl">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold mb-3">
+              <Sparkles className="w-5 h-5 text-amber-500 dark:text-amber-400" />
+              Résumé IA
+            </div>
+            <p className="text-gray-700 dark:text-white/90 text-sm leading-relaxed">{analysis.summary}</p>
           </div>
 
           {/* Découvertes clés */}
           {analysis.keyFindings.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-              <div className="font-medium text-yellow-800 mb-2">🔍 Découvertes clés</div>
-              <ul className="text-sm text-yellow-700 space-y-1">
+            <div className="p-4 bg-amber-100 dark:bg-amber-500/20 border border-amber-200 dark:border-amber-400/30 rounded-xl">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold mb-3">
+                <AlertTriangle className="w-5 h-5" />
+                Points clés identifiés
+              </div>
+              <ul className="space-y-2">
                 {analysis.keyFindings.map((finding, i) => (
-                  <li key={i}>• {finding}</li>
+                  <li key={i} className="flex items-start gap-2 text-gray-700 dark:text-white/90 text-sm">
+                    <span className="text-amber-500 dark:text-amber-400 mt-0.5">•</span>
+                    <span>{finding}</span>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -180,23 +203,27 @@ export function DocumentUploader() {
 
           {/* Urgence */}
           <div className={cn(
-            "border rounded p-3",
-            analysis.urgency === 'high' ? "bg-red-50 border-red-200" :
-            analysis.urgency === 'medium' ? "bg-yellow-50 border-yellow-200" :
-            "bg-green-50 border-green-200"
+            "p-4 rounded-xl border",
+            analysis.urgency === 'high' 
+              ? "bg-red-100 dark:bg-red-500/20 border-red-200 dark:border-red-400/30" 
+              : analysis.urgency === 'medium' 
+                ? "bg-amber-100 dark:bg-amber-500/20 border-amber-200 dark:border-amber-400/30" 
+                : "bg-emerald-100 dark:bg-emerald-500/20 border-emerald-200 dark:border-emerald-400/30"
           )}>
             <div className={cn(
-              "font-medium mb-1",
-              analysis.urgency === 'high' ? "text-red-800" :
-              analysis.urgency === 'medium' ? "text-yellow-800" :
-              "text-green-800"
+              "flex items-center gap-2 font-semibold text-lg",
+              analysis.urgency === 'high' 
+                ? "text-red-700 dark:text-red-300" 
+                : analysis.urgency === 'medium' 
+                  ? "text-amber-700 dark:text-amber-300" 
+                  : "text-emerald-700 dark:text-emerald-300"
             )}>
               {analysis.urgency === 'high' ? '🚨 Urgence élevée' :
                analysis.urgency === 'medium' ? '⚠️ Urgence moyenne' :
                '✅ Urgence faible'}
             </div>
-            <div className="text-sm text-gray-600">
-              Basé sur l'analyse du contenu du document
+            <div className="text-gray-600 dark:text-white/70 text-sm mt-1">
+              Niveau d'urgence basé sur l'analyse du contenu du document
             </div>
           </div>
         </div>

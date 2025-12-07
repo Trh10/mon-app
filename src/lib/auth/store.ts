@@ -153,7 +153,21 @@ export function createUser(company: CompanyRecord, name: string, role: string, p
 export function validateLogin(company: CompanyRecord, name: string, pin: string) {
   const user = findUserByName(company.id, name);
   if (!user) throw new Error('Utilisateur introuvable');
-  if (!verifyPin(pin, user.pinHash)) throw new Error('PIN incorrect');
+  
+  // Support rétrocompatibilité: pin en clair OU pinHash
+  const userAny = user as any;
+  let isValid = false;
+  
+  if (user.pinHash) {
+    // Nouveau format avec hash
+    isValid = verifyPin(pin, user.pinHash);
+  } else if (userAny.pin) {
+    // Ancien format avec PIN en clair
+    isValid = userAny.pin === pin;
+  }
+  
+  if (!isValid) throw new Error('PIN incorrect');
+  
   user.lastLoginAt = new Date().toISOString();
   user.isOnline = true;
   persist();

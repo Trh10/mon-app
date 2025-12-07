@@ -40,11 +40,11 @@ class RealtimeClient {
     this._connect(room);
   }
 
-  on(type: string, handler: Handler) {
+  on(type: string, handler: Handler): () => void {
     let set = this.subs.get(type);
     if (!set) { set = new Set(); this.subs.set(type, set); }
     set.add(handler);
-    return () => set!.delete(handler);
+    return () => { set!.delete(handler); };
   }
 
   off(type: string, handler: Handler) {

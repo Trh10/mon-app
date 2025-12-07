@@ -1,444 +1,227 @@
-"use client";
+﻿"use client";
 
-import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, MessageCircle, Clock, DollarSign, User, Calendar } from 'lucide-react';
-import { useCodeAuth } from '@/components/auth/CodeAuthContext';
-import {
-  PRIORITY_LABELS,
-  PRIORITY_COLORS,
-  CATEGORY_LABELS,
-  STATUS_LABELS,
-  STATUS_COLORS,
-  canAccessRequisitions
-} from '@/lib/requisitions/requisition-types';
+import React, { useState, useEffect, useCallback } from "react";
+import { CheckCircle, XCircle, Clock, User, Calendar, FileText, Download, Eye, Shield, ArrowLeft, RefreshCw, Search, CheckCheck, Ban, Crown } from "lucide-react";
+import { useCodeAuth } from "@/components/auth/CodeAuthContext";
+import Link from "next/link";
 
-interface PendingReview {
-  requisitionId: string;
-  requisitionTitle: string;
-  requisitionDescription: string;
-  category: string;
-  priority: string;
-  budget: number;
-  justification: string;
-  requesterName: string;
-  requesterId: string;
-  createdAt: string;
-  workflowStepId: string;
-  currentStep: any;
-  allSteps: any[];
-  isFirstApproval: boolean;
-  previousApprovals: any[];
-  totalSteps: number;
+interface EtatBesoin {
+  id: string;
+  reference: string;
+  titre: string;
+  demandeur: string;
+  description: string;
+  produits: Array<{ designation: string; quantite: number; prixUnitaire: number; total: number }>;
+  total: number;
+  statut: "brouillon" | "soumis" | "approuve" | "rejete";
+  dateCreation: string;
+  approuvePar?: string;
+  dateApprobation?: string;
+  commentaireApprobation?: string;
 }
 
-interface WorkflowStats {
-  pendingCount: number;
-  totalRequisitions: number;
-  byPriority: {
-    urgente: number;
-    haute: number;
-    moyenne: number;
-    faible: number;
-  };
-  byBudgetRange: {
-    small: number;
-    medium: number;
-    large: number;
-  };
-  approvedTotalThisMonth?: number;
-  approvedListThisMonth?: Array<{
-    id: string;
-    titre: string;
-    montant: number;
-    date: string;
-    approbateur: string;
-  }>;
-}
+const statusConfig: Record<string, { label: string; color: string }> = {
+  brouillon: { label: "Brouillon", color: "bg-gray-100 text-gray-800" },
+  soumis: { label: "En attente", color: "bg-amber-100 text-amber-800" },
+  approuve: { label: "Approuve", color: "bg-green-100 text-green-800" },
+  rejete: { label: "Rejete", color: "bg-red-100 text-red-800" },
+};
 
 export default function ApprovalWorkflow() {
   const { user } = useCodeAuth();
-  const [pendingReviews, setPendingReviews] = useState<PendingReview[]>([]);
-  const [stats, setStats] = useState<WorkflowStats | null>(null);
+  const [besoins, setBesoins] = useState<EtatBesoin[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingAction, setProcessingAction] = useState<string | null>(null);
-  const [selectedRequisition, setSelectedRequisition] = useState<PendingReview | null>(null);
-  const [actionComment, setActionComment] = useState('');
-  const [actionType, setActionType] = useState<'approved' | 'rejected' | 'requested_info' | null>(null);
+  const [selectedBesoin, setSelectedBesoin] = useState<EtatBesoin | null>(null);
+  const [comment, setComment] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [filter, setFilter] = useState<string>("soumis");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Définir la fonction de chargement AVANT tout retour conditionnel
-  const fetchPendingReviews = async () => {
+  // Vérifier le niveau d'accès - level ou role "Directeur Général"
+  const userLevel = (user as any)?.level || 0;
+  const isDG = userLevel >= 10 || user?.role === "Directeur Général";
+
+  const loadBesoins = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await fetch('/api/requisitions/workflow');
-      if (response.ok) {
-        const data = await response.json();
-        setPendingReviews(data.pendingReviews);
-        setStats(data.stats);
-      } else {
-        console.error('Erreur lors de la récupération des révisions');
+      const res = await fetch("/api/besoins");
+      if (res.ok) {
+        const data = await res.json();
+        setBesoins(data.besoins || []);
       }
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error("Erreur:", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  // Toujours appeler les hooks en haut du composant
-  useEffect(() => {
-    fetchPendingReviews();
   }, []);
 
-  // Vérifier les permissions d'accès
-  if (!user) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <XCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-          <h2 className="text-xl font-semibold text-yellow-800 mb-2">Utilisateur non connecté</h2>
-          <p className="text-yellow-600">
-            Veuillez vous connecter avec un code d'entreprise pour accéder aux approbations.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => { loadBesoins(); }, [loadBesoins]);
 
-  if (!canAccessRequisitions(user.level || 0)) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <XCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-semibold text-red-800 mb-2">Accès non autorisé</h2>
-          <p className="text-red-600">
-            Seuls les responsables Finance (niveau 6), Administration (niveau 7) et Direction (niveau 10) 
-            peuvent consulter et approuver les réquisitions.
-          </p>
-          <p className="text-sm text-red-500 mt-2">
-            Votre niveau actuel : {user?.level} - {user?.levelName}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const filteredBesoins = besoins.filter((b) => {
+    const matchFilter = filter === "all" || b.statut === filter;
+    const matchSearch = searchTerm === "" || b.reference.toLowerCase().includes(searchTerm.toLowerCase()) || b.titre.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchFilter && matchSearch;
+  });
 
-  
+  const stats = {
+    total: besoins.length,
+    enAttente: besoins.filter((b) => b.statut === "soumis").length,
+    approuves: besoins.filter((b) => b.statut === "approuve").length,
+    rejetes: besoins.filter((b) => b.statut === "rejete").length,
+    montantTotal: besoins.filter((b) => b.statut === "approuve").reduce((sum, b) => sum + b.total, 0),
+  };
 
-  const handleApprovalAction = async (requisitionId: string, action: 'approved' | 'rejected' | 'requested_info') => {
-    if (processingAction) return;
-
+  const handleDecision = async (decision: "approuve" | "rejete") => {
+    if (!selectedBesoin || !isDG) return;
+    setProcessing(true);
     try {
-      setProcessingAction(requisitionId);
-
-      const response = await fetch('/api/requisitions/workflow', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          requisitionId,
-          action,
-          comment: actionComment
-        }),
+      const res = await fetch("/api/besoins/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ besoinId: selectedBesoin.id, decision, commentaire: comment, approuvePar: user?.name }),
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Afficher un message de succès
-        alert(data.message);
-        
-        // Rafraîchir la liste
-        await fetchPendingReviews();
-        
-        // Réinitialiser le formulaire
-        setSelectedRequisition(null);
-        setActionComment('');
-        setActionType(null);
-      } else {
-        const errorData = await response.json();
-        alert(`Erreur: ${errorData.error}`);
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'action:', error);
-      alert('Erreur lors de l\'action');
-    } finally {
-      setProcessingAction(null);
-    }
+      if (res.ok) { await loadBesoins(); setSelectedBesoin(null); setComment(""); }
+    } catch (error) { console.error(error); }
+    finally { setProcessing(false); }
   };
 
-  const formatBudget = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
+  const formatDate = (d: string) => new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  const formatMoney = (n: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD" }).format(n);
 
-  const formatDate = (dateString: string) => {
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(dateString));
-  };
-
-  if (loading) {
+  // Restreindre l'accès si niveau < 6 ET pas DG
+  if (userLevel < 6 && !isDG) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <Clock className="mx-auto h-8 w-8 text-gray-400 animate-spin mb-4" />
-            <p className="text-gray-600">Chargement des réquisitions en attente...</p>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Acces Restreint</h2>
+          <Link href="/requisitions" className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl"><ArrowLeft className="h-5 w-5" />Retour</Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      {/* Header avec statistiques */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Approbation des Réquisitions</h1>
-        <p className="text-gray-600 mb-6">
-          Niveau d'approbation : <span className="font-semibold">{user.levelName}</span> (Niveau {user.level})
-        </p>
-
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex items-center">
-                <Clock className="h-8 w-8 text-blue-600 mr-3" />
-                <div>
-                  <p className="text-2xl font-bold text-blue-900">{stats.pendingCount}</p>
-                  <p className="text-blue-600 text-sm">En attente</p>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-pink-50">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/requisitions" className="p-2 hover:bg-gray-100 rounded-xl"><ArrowLeft className="h-5 w-5" /></Link>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                {isDG ? <><Crown className="h-6 w-6 text-amber-500" />Approbation DG</> : <><Eye className="h-6 w-6 text-blue-500" />Consultation</>}
+              </h1>
             </div>
-            
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-600 mr-3" />
-                <div>
-                  <p className="text-2xl font-bold text-green-900">{stats.totalRequisitions}</p>
-                  <p className="text-green-600 text-sm">Total réquisitions</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-red-50 p-4 rounded-lg">
-              <div className="flex items-center">
-                <XCircle className="h-8 w-8 text-red-600 mr-3" />
-                <div>
-                  <p className="text-2xl font-bold text-red-900">{stats.byPriority.urgente}</p>
-                  <p className="text-red-600 text-sm">Urgentes</p>
-                </div>
-              </div>
-            </div>
-
-
-            {(user.level === 10 || user.level === 6) && (
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="flex items-center">
-                  <DollarSign className="h-8 w-8 text-purple-600 mr-3" />
-                  <div>
-                    <p className="text-2xl font-bold text-purple-900">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(stats.approvedTotalThisMonth || 0)}</p>
-                    <p className="text-purple-600 text-sm">Total approuvé ce mois</p>
+          </div>
+          <button onClick={loadBesoins} className="p-2 hover:bg-gray-100 rounded-xl"><RefreshCw className={loading ? "animate-spin h-5 w-5" : "h-5 w-5"} /></button>
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {!isDG && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+            <Eye className="h-5 w-5 text-blue-600" />
+            <p className="text-blue-800">Mode observation - Seul le DG peut approuver.</p>
+          </div>
+        )}
+        <div className="grid grid-cols-5 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold">{stats.total}</p><p className="text-xs text-gray-500">Total</p></div>
+          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold text-amber-600">{stats.enAttente}</p><p className="text-xs text-gray-500">En attente</p></div>
+          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold text-green-600">{stats.approuves}</p><p className="text-xs text-gray-500">Approuves</p></div>
+          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold text-red-600">{stats.rejetes}</p><p className="text-xs text-gray-500">Rejetes</p></div>
+          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-lg font-bold text-emerald-600">{formatMoney(stats.montantTotal)}</p><p className="text-xs text-gray-500">Approuve</p></div>
+        </div>
+        <div className="bg-white rounded-xl p-4 shadow-sm border mb-6 flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input type="text" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" />
+          </div>
+          <div className="flex gap-2">
+            {["all", "soumis", "approuve", "rejete"].map((f) => (
+              <button key={f} onClick={() => setFilter(f)} className={filter === f ? "px-4 py-2 rounded-xl bg-purple-600 text-white" : "px-4 py-2 rounded-xl bg-gray-100"}>{f === "all" ? "Tous" : f}</button>
+            ))}
+          </div>
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-20"><div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full"></div></div>
+        ) : filteredBesoins.length === 0 ? (
+          <div className="bg-white rounded-xl p-12 text-center"><FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" /><p>Aucun resultat</p></div>
+        ) : (
+          <div className="space-y-4">
+            {filteredBesoins.map((besoin) => {
+              const status = statusConfig[besoin.statut];
+              return (
+                <div key={besoin.id} className="bg-white rounded-xl shadow-sm border p-6">
+                  <div className="flex justify-between mb-4">
+                    <div>
+                      <span className="text-lg font-bold">{besoin.reference}</span>
+                      <span className={`ml-3 px-3 py-1 rounded-full text-xs ${status.color}`}>{status.label}</span>
+                      <h3 className="text-xl font-semibold mt-1">{besoin.titre}</h3>
+                    </div>
+                    <div className="text-right"><p className="text-2xl font-bold text-purple-600">{formatMoney(besoin.total)}</p></div>
+                  </div>
+                  <div className="flex gap-6 text-sm text-gray-600 mb-4">
+                    <span className="flex items-center gap-2"><User className="h-4 w-4" />{besoin.demandeur}</span>
+                    <span className="flex items-center gap-2"><Calendar className="h-4 w-4" />{formatDate(besoin.dateCreation)}</span>
+                  </div>
+                  {besoin.statut === "approuve" && besoin.approuvePar && (
+                    <div className="bg-green-50 rounded-lg p-3 mb-4 flex items-center gap-2"><CheckCheck className="h-5 w-5 text-green-600" /><span className="text-green-800">Approuve par {besoin.approuvePar}</span></div>
+                  )}
+                  {besoin.statut === "rejete" && (
+                    <div className="bg-red-50 rounded-lg p-3 mb-4">
+                      <div className="flex items-center gap-2"><Ban className="h-5 w-5 text-red-600" /><span className="text-red-800">Rejete par {besoin.approuvePar}</span></div>
+                      {besoin.commentaireApprobation && <p className="text-red-700 text-sm ml-7">{besoin.commentaireApprobation}</p>}
+                    </div>
+                  )}
+                  <div className="flex gap-3 pt-4 border-t">
+                    <button onClick={() => setSelectedBesoin(besoin)} className="px-4 py-2 bg-gray-100 rounded-lg flex items-center gap-2"><Eye className="h-4 w-4" />Details</button>
+                    {besoin.statut === "approuve" && <a href={`/api/besoins/pdf?id=${besoin.id}`} target="_blank" className="px-4 py-2 bg-green-100 text-green-700 rounded-lg flex items-center gap-2"><Download className="h-4 w-4" />PDF</a>}
+                    {isDG && besoin.statut === "soumis" && (
+                      <>
+                        <button onClick={() => setSelectedBesoin(besoin)} className="px-4 py-2 bg-green-600 text-white rounded-lg flex items-center gap-2"><CheckCircle className="h-4 w-4" />Approuver</button>
+                        <button onClick={() => setSelectedBesoin(besoin)} className="px-4 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2"><XCircle className="h-4 w-4" />Rejeter</button>
+                      </>
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
           </div>
         )}
       </div>
-
-      {/* Approbations du mois (DG et Finance uniquement) */}
-      {(user.level === 10 || user.level === 6) && stats?.approvedListThisMonth && stats.approvedListThisMonth.length > 0 && (
-        <div className="bg-white border border-purple-200 rounded-lg p-4 mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-purple-800">Approbations de ce mois</h2>
-            <a
-              href="/api/requisitions/pdf/month"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-            >
-              Exporter le mois en PDF
-            </a>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-700">
-                  <th className="px-2 py-1">Objet</th>
-                  <th className="px-2 py-1">Montant</th>
-                  <th className="px-2 py-1">Date</th>
-                  <th className="px-2 py-1">Approbateur</th>
-                  <th className="px-2 py-1">PDF</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.approvedListThisMonth.map((item) => (
-                  <tr key={item.id} className="border-b last:border-0">
-                    <td className="px-2 py-1 font-medium">{item.titre}</td>
-                    <td className="px-2 py-1">{formatBudget(item.montant)}</td>
-                    <td className="px-2 py-1">{formatDate(item.date)}</td>
-                    <td className="px-2 py-1">{item.approbateur}</td>
-                    <td className="px-2 py-1">
-                      <a
-                        href={`/api/requisitions/pdf?id=${item.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-purple-700 hover:underline"
-                      >
-                        Télécharger
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Liste des réquisitions en attente */}
-      {pendingReviews.length === 0 ? (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-          <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
-          <h3 className="text-lg font-semibold text-green-800 mb-2">Aucune réquisition en attente</h3>
-          <p className="text-green-600">
-            Toutes les réquisitions relevant de votre niveau d'approbation ont été traitées.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Réquisitions en attente d'approbation ({pendingReviews.length})
-          </h2>
-
-          {pendingReviews.map((review) => (
-            <div key={review.requisitionId} className="bg-white border rounded-lg shadow-sm p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{review.requisitionTitle}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${PRIORITY_COLORS[review.priority as keyof typeof PRIORITY_COLORS]}`}>
-                      {PRIORITY_LABELS[review.priority as keyof typeof PRIORITY_LABELS]}
-                    </span>
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {CATEGORY_LABELS[review.category as keyof typeof CATEGORY_LABELS]}
-                    </span>
-                  </div>
-                  
-                  <p className="text-gray-600 mb-3">{review.requisitionDescription}</p>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      <span className="font-semibold text-gray-900">{formatBudget(review.budget)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span>{review.requesterName}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatDate(review.createdAt)}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                    <p className="text-sm font-medium text-gray-700 mb-1">Justification :</p>
-                    <p className="text-sm text-gray-600">{review.justification}</p>
-                  </div>
-
-                  {review.previousApprovals.length > 0 && (
-                    <div className="mt-3 p-3 bg-green-50 rounded-md">
-                      <p className="text-sm font-medium text-green-700 mb-2">Approbations précédentes :</p>
-                      {review.previousApprovals.map((approval: any, index: number) => (
-                        <div key={index} className="text-sm text-green-600">
-                          ✓ {approval.reviewerName} - {approval.comment || 'Approuvé'}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions d'approbation */}
-              <div className="border-t pt-4">
-                {selectedRequisition?.requisitionId === review.requisitionId ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Commentaire (optionnel)
-                      </label>
-                      <textarea
-                        value={actionComment}
-                        onChange={(e) => setActionComment(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={3}
-                        placeholder="Ajoutez un commentaire sur votre décision..."
-                      />
-                    </div>
-                    
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleApprovalAction(review.requisitionId, 'approved')}
-                        disabled={processingAction === review.requisitionId}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        Approuver
-                      </button>
-                      
-                      <button
-                        onClick={() => handleApprovalAction(review.requisitionId, 'rejected')}
-                        disabled={processingAction === review.requisitionId}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
-                      >
-                        <XCircle className="h-4 w-4" />
-                        Rejeter
-                      </button>
-                      
-                      <button
-                        onClick={() => handleApprovalAction(review.requisitionId, 'requested_info')}
-                        disabled={processingAction === review.requisitionId}
-                        className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 disabled:opacity-50"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        Demander info
-                      </button>
-                      
-                      <button
-                        onClick={() => {
-                          setSelectedRequisition(null);
-                          setActionComment('');
-                        }}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                      >
-                        Annuler
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setSelectedRequisition(review);
-                      setActionComment('');
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Examiner et décider
-                  </button>
-                )}
-              </div>
+      {selectedBesoin && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b flex justify-between">
+              <div><h2 className="text-xl font-bold">{selectedBesoin.reference}</h2><p className="text-gray-600">{selectedBesoin.titre}</p></div>
+              <button onClick={() => { setSelectedBesoin(null); setComment(""); }} className="p-2 hover:bg-gray-100 rounded-lg"><XCircle className="h-6 w-6 text-gray-400" /></button>
             </div>
-          ))}
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4"><p className="text-sm text-gray-500">Demandeur</p><p className="font-semibold">{selectedBesoin.demandeur}</p></div>
+                <div className="bg-gray-50 rounded-lg p-4"><p className="text-sm text-gray-500">Date</p><p className="font-semibold">{formatDate(selectedBesoin.dateCreation)}</p></div>
+              </div>
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50"><tr><th className="text-left p-3">Designation</th><th className="text-center p-3">Qte</th><th className="text-right p-3">P.U.</th><th className="text-right p-3">Total</th></tr></thead>
+                  <tbody>
+                    {selectedBesoin.produits.map((p, i) => (<tr key={i} className="border-t"><td className="p-3">{p.designation}</td><td className="text-center p-3">{p.quantite}</td><td className="text-right p-3">{formatMoney(p.prixUnitaire)}</td><td className="text-right p-3 font-medium">{formatMoney(p.total)}</td></tr>))}
+                  </tbody>
+                  <tfoot className="bg-purple-50"><tr><td colSpan={3} className="p-3 text-right font-semibold">Total:</td><td className="p-3 text-right font-bold text-purple-600">{formatMoney(selectedBesoin.total)}</td></tr></tfoot>
+                </table>
+              </div>
+              {isDG && selectedBesoin.statut === "soumis" && (
+                <div className="border-t pt-6">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2"><Crown className="h-5 w-5 text-amber-500" />Decision DG</h4>
+                  <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className="w-full border rounded-lg p-3 mb-4" placeholder="Commentaire..." />
+                  <div className="flex gap-3">
+                    <button onClick={() => handleDecision("approuve")} disabled={processing} className="flex-1 py-3 bg-green-600 text-white rounded-xl flex items-center justify-center gap-2"><CheckCircle className="h-5 w-5" />{processing ? "..." : "Approuver"}</button>
+                    <button onClick={() => handleDecision("rejete")} disabled={processing} className="flex-1 py-3 bg-red-600 text-white rounded-xl flex items-center justify-center gap-2"><XCircle className="h-5 w-5" />{processing ? "..." : "Rejeter"}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

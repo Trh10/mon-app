@@ -1,6 +1,6 @@
 // Centralisation branding & identifiants génériques pour déploiement neutre
-export const APP_NAME = process.env.APP_NAME || 'Collab Suite';
-export const COMPANY_DEFAULT = process.env.COMPANY_DEFAULT || 'ACME';
+export const APP_NAME = process.env.APP_NAME || 'ICONES BOX';
+export const COMPANY_DEFAULT = process.env.COMPANY_DEFAULT || 'ICONES';
 // Legacy identifiers (used in codebase; retain for data mapping / compatibility)
 export const LEGACY_BRAND_NAMES = ['ICONES BOX','ICONES'];
 export const LEGACY_COMPANY_IDS = ['icones-rdc'];
@@ -13,4 +13,4 @@ export const UI_BRAND_CLASSES = {
   sidebar: 'app-sidebar',
   panel: 'app-panel'
 };
-export const SYSTEM_EVENT_PREFIX = 'app'; // remplace pepite
+export const SYSTEM_EVENT_PREFIX = 'icones'; // remplace pepite

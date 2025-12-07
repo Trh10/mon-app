@@ -272,17 +272,17 @@ export function ExpandedEmailReader({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full bg-white">
+      <div className="flex items-center justify-center h-full bg-white dark:bg-slate-900 transition-colors">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Chargement de l'email...</p>
+          <p className="text-gray-600 dark:text-gray-300">Chargement de l'email...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col bg-white relative">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-900 relative transition-colors">
       {/* Notification toast */}
       {notification && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg ${
@@ -298,7 +298,7 @@ export function ExpandedEmailReader({
       )}
 
       {/* Header - différent selon le mode */}
-      <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
+      <div className="border-b border-gray-200 dark:border-white/10 bg-white dark:bg-slate-900 sticky top-0 z-10 transition-colors">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-4">
             <button
@@ -312,13 +312,13 @@ export function ExpandedEmailReader({
                   onBack();
                 }
               }}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
               title={isComposing ? "Annuler" : "Retour"}
             >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+              <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
             </button>
             
-            <h2 className="text-lg font-medium text-gray-900">
+            <h2 className="text-lg font-medium text-gray-900 dark:text-white">
               {isComposing ? (
                 composeType === 'reply' ? 'Répondre' :
                 composeType === 'replyAll' ? 'Répondre à tous' : 'Transférer'
@@ -348,7 +348,7 @@ export function ExpandedEmailReader({
               <button
                 type="button"
                 onClick={cancelCompose}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
               >
                 Annuler
               </button>
@@ -359,13 +359,13 @@ export function ExpandedEmailReader({
                 type="button"
                 onClick={(e) => handleAction('archive', e)}
                 disabled={actionLoading === 'archive'}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
                 title="Archiver"
               >
                 {actionLoading === 'archive' ? (
                   <div className="w-5 h-5 animate-spin border-2 border-gray-400 border-t-transparent rounded-full" />
                 ) : (
-                  <Archive className="w-5 h-5 text-gray-600" />
+                  <Archive className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 )}
               </button>
               
@@ -373,13 +373,13 @@ export function ExpandedEmailReader({
                 type="button"
                 onClick={(e) => handleAction('delete', e)}
                 disabled={actionLoading === 'delete'}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
                 title="Supprimer"
               >
                 {actionLoading === 'delete' ? (
                   <div className="w-5 h-5 animate-spin border-2 border-gray-400 border-t-transparent rounded-full" />
                 ) : (
-                  <Trash2 className="w-5 h-5 text-gray-600" />
+                  <Trash2 className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 )}
               </button>
 
@@ -387,7 +387,7 @@ export function ExpandedEmailReader({
                 type="button"
                 onClick={(e) => handleAction(isStarred ? 'unstar' : 'star', e)}
                 disabled={actionLoading === 'star' || actionLoading === 'unstar'}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
                 title={isStarred ? "Retirer l'étoile" : "Ajouter une étoile"}
               >
                 {(actionLoading === 'star' || actionLoading === 'unstar') ? (
@@ -395,7 +395,7 @@ export function ExpandedEmailReader({
                 ) : isStarred ? (
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
                 ) : (
-                  <StarOff className="w-5 h-5 text-gray-600" />
+                  <StarOff className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 )}
               </button>
 
@@ -407,18 +407,18 @@ export function ExpandedEmailReader({
                     e.stopPropagation();
                     setShowDropdown(!showDropdown);
                   }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors"
                   title="Plus"
                 >
-                  <MoreVertical className="w-5 h-5 text-gray-600" />
+                  <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 </button>
 
                 {showDropdown && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[180px]">
+                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-lg shadow-lg py-1 z-20 min-w-[180px]">
                     <button 
                       type="button"
                       onClick={(e) => handleAction('markUnread', e)}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700"
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
                     >
                       Marquer comme non lu
                     </button>
@@ -430,7 +430,7 @@ export function ExpandedEmailReader({
                         window.print();
                         setShowDropdown(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 text-gray-700"
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-gray-300"
                     >
                       Imprimer
                     </button>
@@ -455,14 +455,14 @@ export function ExpandedEmailReader({
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="font-medium text-gray-900 text-sm">
+                      <div className="font-medium text-gray-900 dark:text-white text-sm">
                         {email.fromName || email.from}
                       </div>
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         <span>&lt;{email.from}&gt;</span>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500 text-right">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
                       <div>{new Date(email.date).toLocaleDateString('fr-FR', { 
                         day: 'numeric', 
                         month: 'short', 
@@ -474,7 +474,7 @@ export function ExpandedEmailReader({
                       })}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     à moi
                   </div>
                 </div>
@@ -492,7 +492,7 @@ export function ExpandedEmailReader({
                   });
                   return (
                     <div
-                      className="prose prose-sm max-w-none email-content gmail-rich"
+                      className="prose prose-sm max-w-none email-content gmail-rich dark:prose-invert"
                       dangerouslySetInnerHTML={{ __html: html }}
                     />
                   );
@@ -500,20 +500,20 @@ export function ExpandedEmailReader({
                   // Texte brut enrichi (liens cliquables)
                   const textWithLinks = email.bodyText.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
                   return (
-                    <div className="text-gray-900 whitespace-pre-wrap font-mono text-sm email-content gmail-rich" dangerouslySetInnerHTML={{ __html: textWithLinks }} />
+                    <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap font-mono text-sm email-content gmail-rich" dangerouslySetInnerHTML={{ __html: textWithLinks }} />
                   );
                 } else if (email.body) {
-                  return <div className="text-gray-900 whitespace-pre-wrap email-content gmail-rich">{email.body}</div>;
+                  return <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap email-content gmail-rich">{email.body}</div>;
                 } else {
-                  return <div className="text-gray-900 whitespace-pre-wrap email-content gmail-rich">{email.snippet || 'Aucun contenu disponible'}</div>;
+                  return <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap email-content gmail-rich">{email.snippet || 'Aucun contenu disponible'}</div>;
                 }
               })()}
             </div>
 
             {/* Affichage des pièces jointes */}
             {email.attachments && email.attachments.length > 0 && (
-              <div className="mb-6 border-t pt-4">
-                <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+              <div className="mb-6 border-t border-gray-200 dark:border-white/10 pt-4">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <Paperclip className="w-4 h-4" />
                   Pièces jointes ({email.attachments.length})
                 </h3>
@@ -521,10 +521,10 @@ export function ExpandedEmailReader({
                   {email.attachments.map((attachment: any, index: number) => (
                     <div 
                       key={index} 
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white rounded border">
+                        <div className="p-2 bg-white dark:bg-slate-700 rounded border border-gray-200 dark:border-white/10">
                           {attachment.mimeType?.startsWith('image/') ? (
                             <ImageIcon className="w-4 h-4 text-blue-500" />
                           ) : attachment.mimeType?.includes('pdf') ? (
@@ -536,14 +536,14 @@ export function ExpandedEmailReader({
                               DOC
                             </div>
                           ) : (
-                            <Paperclip className="w-4 h-4 text-gray-500" />
+                            <Paperclip className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="font-medium text-sm text-gray-900">
+                          <div className="font-medium text-sm text-gray-900 dark:text-white">
                             {attachment.filename || attachment.name || 'Fichier sans nom'}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {attachment.size ? (
                               attachment.size > 1024 * 1024 
                                 ? `${(attachment.size / (1024 * 1024)).toFixed(1)} MB`
@@ -576,7 +576,7 @@ export function ExpandedEmailReader({
                                 setTimeout(() => URL.revokeObjectURL(url), 1000);
                               }
                             }}
-                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors"
                           >
                             Aperçu image
                           </button>
@@ -605,7 +605,7 @@ export function ExpandedEmailReader({
                               URL.revokeObjectURL(url);
                             }
                           }}
-                          className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                          className="px-3 py-1 text-xs bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-white/20 transition-colors"
                         >
                           Télécharger
                         </button>
@@ -617,7 +617,7 @@ export function ExpandedEmailReader({
             )}
 
             {/* Boutons d'action */}
-            <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
+            <div className="flex items-center gap-3 pt-6 border-t border-gray-100 dark:border-white/10">
               <button
                 type="button"
                 onClick={(e) => startCompose('reply', e)}
@@ -630,7 +630,7 @@ export function ExpandedEmailReader({
               <button
                 type="button"
                 onClick={(e) => startCompose('replyAll', e)}
-                className="flex items-center gap-2 px-6 py-2 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-6 py-2 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
               >
                 <ReplyAll className="w-4 h-4" />
                 <span>Répondre à tous</span>
@@ -639,7 +639,7 @@ export function ExpandedEmailReader({
               <button
                 type="button"
                 onClick={(e) => startCompose('forward', e)}
-                className="flex items-center gap-2 px-6 py-2 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-6 py-2 border border-gray-300 dark:border-white/20 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-50 dark:hover:bg-white/10 transition-colors"
               >
                 <Forward className="w-4 h-4" />
                 <span>Transférer</span>
@@ -654,15 +654,15 @@ export function ExpandedEmailReader({
             {/* Champs destinataires */}
             <div className="space-y-3 mb-6">
               <div className="flex items-center gap-4">
-                <label className="w-12 text-sm text-gray-600 font-medium">À</label>
+                <label className="w-12 text-sm text-gray-600 dark:text-gray-300 font-medium">À</label>
                 <input
                   type="email"
                   value={composeTo}
                   onChange={(e) => setComposeTo(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-white/20 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Destinataires"
                 />
-                <div className="flex gap-2 text-sm text-gray-600">
+                <div className="flex gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <button 
                     type="button"
                     onClick={(e) => {
@@ -688,12 +688,12 @@ export function ExpandedEmailReader({
 
               {showCc && (
                 <div className="flex items-center gap-4">
-                  <label className="w-12 text-sm text-gray-600 font-medium">Cc</label>
+                  <label className="w-12 text-sm text-gray-600 dark:text-gray-300 font-medium">Cc</label>
                   <input
                     type="email"
                     value={composeCc}
                     onChange={(e) => setComposeCc(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-white/20 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Copie"
                   />
                 </div>
@@ -701,59 +701,59 @@ export function ExpandedEmailReader({
 
               {showBcc && (
                 <div className="flex items-center gap-4">
-                  <label className="w-12 text-sm text-gray-600 font-medium">Cci</label>
+                  <label className="w-12 text-sm text-gray-600 dark:text-gray-300 font-medium">Cci</label>
                   <input
                     type="email"
                     value={composeBcc}
                     onChange={(e) => setComposeBcc(e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-white/20 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Copie cachée"
                   />
                 </div>
               )}
 
               <div className="flex items-center gap-4">
-                <label className="w-12 text-sm text-gray-600 font-medium">Objet</label>
+                <label className="w-12 text-sm text-gray-600 dark:text-gray-300 font-medium">Objet</label>
                 <input
                   type="text"
                   value={composeSubject}
                   onChange={(e) => setComposeSubject(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-white/20 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Objet"
                 />
               </div>
             </div>
 
             {/* Barre d'outils */}
-            <div className="flex items-center gap-1 mb-4 p-2 bg-gray-50 border border-gray-200 rounded">
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Gras">
-                <Bold className="w-4 h-4 text-gray-600" />
+            <div className="flex items-center gap-1 mb-4 p-2 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded">
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Gras">
+                <Bold className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Italique">
-                <Italic className="w-4 h-4 text-gray-600" />
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Italique">
+                <Italic className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Souligné">
-                <Underline className="w-4 h-4 text-gray-600" />
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Souligné">
+                <Underline className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <div className="w-px h-4 bg-gray-300 mx-1"></div>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Aligner">
-                <AlignLeft className="w-4 h-4 text-gray-600" />
+              <div className="w-px h-4 bg-gray-300 dark:bg-white/20 mx-1"></div>
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Aligner">
+                <AlignLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Liste">
-                <List className="w-4 h-4 text-gray-600" />
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Liste">
+                <List className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <div className="w-px h-4 bg-gray-300 mx-1"></div>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Pièce jointe">
-                <Paperclip className="w-4 h-4 text-gray-600" />
+              <div className="w-px h-4 bg-gray-300 dark:bg-white/20 mx-1"></div>
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Pièce jointe">
+                <Paperclip className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Image">
-                <ImageIcon className="w-4 h-4 text-gray-600" />
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Image">
+                <ImageIcon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Lien">
-                <Link2 className="w-4 h-4 text-gray-600" />
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Lien">
+                <Link2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
-              <button type="button" className="p-2 hover:bg-gray-200 rounded" title="Emoji">
-                <Smile className="w-4 h-4 text-gray-600" />
+              <button type="button" className="p-2 hover:bg-gray-200 dark:hover:bg-white/10 rounded" title="Emoji">
+                <Smile className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
             </div>
 
@@ -762,7 +762,7 @@ export function ExpandedEmailReader({
               <textarea
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
-                className="w-full h-96 p-4 border border-gray-300 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full h-96 p-4 border border-gray-300 dark:border-white/20 rounded bg-white dark:bg-slate-800 text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400 dark:placeholder-gray-500"
                 placeholder="Rédigez votre message..."
               />
             </div>
