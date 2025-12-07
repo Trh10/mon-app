@@ -195,9 +195,9 @@ export default function PremiumTeamPanel({ onClose, onStartPrivateChat, onStartC
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[480px] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col z-50 shadow-2xl">
+    <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:w-[420px] md:w-[480px] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex flex-col z-50 shadow-2xl">
       {/* Header Premium */}
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden flex-shrink-0">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-pink-500/20 to-amber-500/20" />
         
         <div className="relative px-6 py-5">

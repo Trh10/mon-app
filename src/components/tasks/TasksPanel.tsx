@@ -329,23 +329,23 @@ export default function TasksPanel({
   );
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[580px] bg-gray-50 dark:bg-slate-900 shadow-2xl z-50 flex flex-col">
+    <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:w-[420px] md:w-[520px] lg:w-[580px] bg-gray-50 dark:bg-slate-900 shadow-2xl z-50 flex flex-col">
       {/* Header Premium */}
-      <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-5">
+      <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-4 sm:p-5 flex-shrink-0">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl" />
         </div>
         <div className="relative flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 backdrop-blur-xl rounded-xl flex items-center justify-center">
-              <CheckSquare className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur-xl rounded-xl flex items-center justify-center flex-shrink-0">
+              <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">Gestion des Tâches</h2>
-              <p className="text-purple-200 text-sm">{stats.total} tâches · {stats.completionRate}% complété</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-bold text-white truncate">Gestion des Tâches</h2>
+              <p className="text-purple-200 text-xs sm:text-sm">{stats.total} tâches · {stats.completionRate}% complété</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all">
+          <button onClick={onClose} className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all flex-shrink-0">
             <X className="w-5 h-5" />
           </button>
         </div>

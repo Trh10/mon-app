@@ -173,9 +173,9 @@ export default function ModernTeamPanel({ onClose }: ModernTeamPanelProps) {
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[520px] bg-white border-l border-gray-200 shadow-2xl z-50 flex flex-col">
+    <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:w-[420px] md:w-[480px] lg:w-[520px] bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-700 shadow-2xl z-50 flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-slate-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />

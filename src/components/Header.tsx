@@ -124,21 +124,21 @@ export function Header({
 
   return (
     <header className="w-full bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 text-gray-900 dark:text-white shadow-lg dark:shadow-xl transition-colors duration-300">
-      <div className="px-6 py-4">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between">
+      <div className="px-3 sm:px-6 py-3 sm:py-4">
+        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2">
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink-0">
             {/* Logo ICONES BOX */}
-            <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg ring-2 ring-cyan-400/30">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden shadow-lg ring-2 ring-cyan-400/30 flex-shrink-0">
               <img 
                 src="/icone-logo.jpg" 
                 alt="ICONES BOX Logo" 
                 className="w-full h-full object-cover"
               />
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-gray-900 dark:text-white transition-colors">{companyName || 'ICONES BOX'}</h1>
-              {user && <p className="text-xs text-purple-600 dark:text-purple-300 transition-colors">{user.name} - {user.role}</p>}
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-bold tracking-tight text-gray-900 dark:text-white transition-colors truncate max-w-[120px] sm:max-w-none">{companyName || 'ICONES BOX'}</h1>
+              {user && <p className="text-[10px] sm:text-xs text-purple-600 dark:text-purple-300 transition-colors truncate">{user.name} - {user.role}</p>}
             </div>
           </div>
 
@@ -150,7 +150,7 @@ export function Header({
             <span className="font-medium">{folderLabel}</span>
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
             <OnlineUsersBadge className="hidden sm:flex" />
             <NotificationToggle />
             
@@ -162,26 +162,26 @@ export function Header({
             
             <button 
               onClick={onRefresh} 
-              className="p-2.5 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl transition-all hover:rotate-180 duration-500 text-gray-700 dark:text-white"
+              className="p-2 sm:p-2.5 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl transition-all hover:rotate-180 duration-500 text-gray-700 dark:text-white"
               title="Rafraichir"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             <div className="relative" ref={menuRef}>
               <button 
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="p-2.5 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl transition-all text-gray-700 dark:text-white"
+                className="p-2 sm:p-2.5 bg-gray-200 dark:bg-white/10 hover:bg-gray-300 dark:hover:bg-white/20 rounded-xl transition-all text-gray-700 dark:text-white"
               >
-                {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {menuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-700 transition-colors">
+                <div className="absolute right-0 top-full mt-2 w-[calc(100vw-24px)] sm:w-72 max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-2xl overflow-hidden z-50 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-slate-700 transition-colors max-h-[80vh] overflow-y-auto">
                   
-                  <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-                    <p className="font-semibold">{user?.name || "Utilisateur"}</p>
-                    <p className="text-xs text-purple-200">{user?.role || "Invite"}</p>
+                  <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white sticky top-0">
+                    <p className="font-semibold truncate">{user?.name || "Utilisateur"}</p>
+                    <p className="text-xs text-purple-200 truncate">{user?.role || "Invite"}</p>
                   </div>
 
                   <div className="py-2">

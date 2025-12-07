@@ -85,8 +85,8 @@ export default function TeamPanel({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-y-0 right-0 w-[520px] bg-white border-l border-gray-300 shadow-2xl z-50 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b">
+    <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:w-[420px] md:w-[480px] lg:w-[520px] bg-white dark:bg-slate-900 border-l border-gray-300 dark:border-slate-700 shadow-2xl z-50 flex flex-col">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b dark:border-slate-700">
         <div className="font-semibold">Équipe</div>
         <button onClick={onClose} className="px-2 py-1 rounded-md hover:bg-gray-100">✕</button>
       </div>
