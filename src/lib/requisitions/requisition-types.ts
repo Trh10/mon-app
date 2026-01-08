@@ -104,17 +104,18 @@ export interface WorkflowActionData {
 }
 
 // Configuration d'approbation par défaut
+// Workflow hiérarchique: Finance (6) → Administration (7) → DG (10)
 export const DEFAULT_APPROVAL_CONFIG = {
-  // Budget < $1100 : Approbation niveau 7 uniquement
+  // Budget < $1100 : Approbation niveau 6 (Finance) uniquement
   SMALL_BUDGET_THRESHOLD: 1100, // 1000 EUR → 1100 USD
-  SMALL_BUDGET_LEVELS: [7],
+  SMALL_BUDGET_LEVELS: [6],
   
-  // Budget $1100-$5400 : Approbation niveau 7 puis 6
+  // Budget $1100-$5400 : Approbation niveau 6 (Finance) puis 7 (Administration)
   MEDIUM_BUDGET_THRESHOLD: 5400, // 5000 EUR → 5400 USD
-  MEDIUM_BUDGET_LEVELS: [7, 6],
+  MEDIUM_BUDGET_LEVELS: [6, 7],
   
-  // Budget > $5400 : Approbation niveau 7, puis 6, puis 10
-  LARGE_BUDGET_LEVELS: [7, 6, 10]
+  // Budget > $5400 : Approbation niveau 6 (Finance), puis 7 (Administration), puis 10 (DG)
+  LARGE_BUDGET_LEVELS: [6, 7, 10]
 };
 
 // Labels pour l'affichage

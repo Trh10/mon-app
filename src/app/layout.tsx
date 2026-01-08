@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: `${APP_NAME} - Plateforme de Collaboration`,
   description: `${APP_NAME} - Gestion d'emails, collaboration et workflow intelligent`,
   keywords: `email, collaboration, workflow, réquisitions, ${APP_NAME.toLowerCase()}`,
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 // Définition du viewport pour une adaptation mobile correcte

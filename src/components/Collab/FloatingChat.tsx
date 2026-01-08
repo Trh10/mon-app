@@ -10,7 +10,7 @@ const setNotifyEnabled = (enabled: boolean) => localStorage.setItem("__notify_en
 const canNotifyNow = () => !document.hasFocus();
 const showNotification = (title: string, body: string) => {
   if (Notification.permission === "granted" && canNotifyNow()) {
-    new Notification(title, { body, icon: "/favicon.ico" });
+    new Notification(title, { body, icon: "/logo.png" });
   }
 };
 const ensurePermission = async () => {

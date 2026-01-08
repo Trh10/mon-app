@@ -131,7 +131,7 @@ export function Header({
             {/* Logo ICONES BOX */}
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl overflow-hidden shadow-lg ring-2 ring-cyan-400/30 flex-shrink-0">
               <img 
-                src="/icone-logo.jpg" 
+                src="/logo.png" 
                 alt="ICONES BOX Logo" 
                 className="w-full h-full object-cover"
               />

@@ -22,8 +22,8 @@ export default function RealtimeNotifications({ userId }: { userId?: string }) {
     if (Notification.permission === "granted") {
       new Notification(notif.title, {
         body: notif.message,
-        icon: "/logo.svg",
-        badge: "/logo.svg"
+        icon: "/logo.png",
+        badge: "/logo.png"
       });
     }
     

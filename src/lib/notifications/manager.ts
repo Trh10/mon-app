@@ -111,7 +111,7 @@ class NotificationManager {
     
     const desktopNotif = new Notification(notification.title, {
       body: notification.message,
-      icon: "/favicon.ico",
+      icon: "/logo.png",
       tag: notification.id,
       requireInteraction: notification.priority === "urgent"
     });

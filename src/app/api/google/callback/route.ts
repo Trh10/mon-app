@@ -59,8 +59,55 @@ export async function GET(req: NextRequest) {
 
     // Persister le compte dans la base (org/user scope via session)
     const session = await getSession(req);
-    if (session.organizationId && session.userId) {
-      const created = await upsertAccount(session, {
+    
+    // Si la session n'a pas d'organizationId/userId, essayer de les récupérer depuis le cookie user-session
+    let orgId = session.organizationId;
+    let usrId = session.userId;
+    
+    if (!orgId || !usrId) {
+      try {
+        const userSessionCookie = req.cookies.get('user-session')?.value;
+        if (userSessionCookie) {
+          const userData = JSON.parse(userSessionCookie);
+          const companyCode = userData.companyCode || userData.company || 'default';
+          
+          // Créer ou trouver l'organisation
+          const { prisma } = await import('@/lib/db');
+          let org = await prisma.organization.findFirst({ where: { slug: companyCode.toLowerCase() } });
+          if (!org) {
+            org = await prisma.organization.create({
+              data: { slug: companyCode.toLowerCase(), name: companyCode }
+            });
+          }
+          orgId = org.id;
+          
+          // Créer ou trouver l'utilisateur
+          const externalId = userData.id;
+          let user = await prisma.user.findFirst({ 
+            where: { OR: [{ externalId }, { organizationId: orgId, name: userData.name }] }
+          });
+          if (!user) {
+            user = await prisma.user.create({
+              data: {
+                organizationId: orgId,
+                externalId,
+                name: userData.name,
+                displayName: userData.name,
+                role: userData.level >= 10 ? 'admin' : 'user'
+              }
+            });
+          }
+          usrId = user.id;
+          console.log(`✅ Session récupérée depuis cookie: orgId=${orgId}, userId=${usrId}`);
+        }
+      } catch (e) {
+        console.error('Erreur récupération session depuis cookie:', e);
+      }
+    }
+    
+    if (orgId && usrId) {
+      const sessionData = { organizationId: orgId, userId: usrId } as any;
+      const created = await upsertAccount(sessionData, {
         email,
         provider: { id: 'gmail', name, type: 'gmail', icon: '📧', color: 'bg-red-500' },
         providerId: 'gmail',
@@ -70,7 +117,10 @@ export async function GET(req: NextRequest) {
         connectedAt: new Date().toISOString(),
         credentials: { email, oauth: 'google' }
       });
-      await setActiveAccount(session, created.id);
+      await setActiveAccount(sessionData, created.id);
+      console.log(`✅ Compte Gmail ${email} enregistré avec succès`);
+    } else {
+      console.warn('⚠️ Session incomplète, compte Gmail non persisté en BDD mais cookie créé');
     }
 
     // Étape 6: Créer le cookie et rediriger
@@ -78,34 +128,28 @@ export async function GET(req: NextRequest) {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       expiry_date: tokens.expiry_date,
+      email: email, // Ajouter l'email pour référence
     });
-    // Déterminer le flag secure à partir de BASE_URL si présent, sinon selon l'URL de la requête
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-    const useSecure = baseUrl.startsWith('https') || req.url.startsWith('https');
-    console.log("✅ Étape 6: Cookie préparé et compte persisté.");
+    // En localhost, toujours secure=false
+    const isLocalhost = req.url.includes('localhost') || req.url.includes('127.0.0.1');
+    const useSecure = !isLocalhost && (process.env.NODE_ENV === 'production');
+    console.log(`✅ Étape 6: Cookie préparé. isLocalhost=${isLocalhost}, secure=${useSecure}`);
 
     const response = NextResponse.redirect(new URL('/?gmail_connected=success', req.url));
-    // Définir cookies: primaire + un legacy pour compat
-    response.cookies.set({
-      name: COOKIE_GOOGLE_PRIMARY, // 'oauth_google_tokens'
-      value: cookieValue,
+    
+    // Définir les deux cookies pour compatibilité
+    const cookieOptions = {
       httpOnly: true,
       secure: useSecure,
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-    // Écrire aussi un cookie legacy attendu par certains anciens chemins
-    response.cookies.set({
-      name: 'pepite_google_tokens',
-      value: cookieValue,
-      httpOnly: true,
-      secure: useSecure,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-    });
-    console.log("✅ Étape 7: Redirection vers l'accueil avec succès Gmail.");
+      maxAge: 60 * 60 * 24 * 30, // 30 jours
+    };
+    
+    response.cookies.set({ name: COOKIE_GOOGLE_PRIMARY, value: cookieValue, ...cookieOptions });
+    response.cookies.set({ name: 'pepite_google_tokens', value: cookieValue, ...cookieOptions });
+    
+    console.log("✅ Étape 7: Cookies créés:", COOKIE_GOOGLE_PRIMARY, "et pepite_google_tokens");
     console.log("--- Fin du callback Google (Succès) ---");
     return response;
 

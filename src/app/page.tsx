@@ -261,11 +261,11 @@ function SmartLoginComponent() {
             <div className="absolute inset-0 bg-gradient-to-tr from-fuchsia-500 to-cyan-400 rounded-full blur-xl opacity-20 scale-110"></div>
             
             {/* Conteneur du logo */}
-            <div className="relative w-32 h-32 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-cyan-400/30 ring-offset-4 ring-offset-[#0a1628]">
+            <div className="relative w-28 h-28 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-cyan-400/30 ring-offset-4 ring-offset-[#0a1628]">
               <img 
-                src="/icone-logo.jpg" 
+                src="/logo.png" 
                 alt="ICONES BOX Logo" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover scale-125 animate-[spin_8s_linear_infinite]"
               />
             </div>
           </div>

@@ -29,6 +29,7 @@ export function getStableUserId(key = "app_uid") {
 
 class RealtimeClient {
   private es: EventSource | null = null;
+  private userEs: EventSource | null = null; // Second SSE pour les messages privés
   private subs: Map<string, Set<Handler>> = new Map();
   private _room = "default";
   private ident: Identity = { id: getStableUserId(), name: "Anonyme", role: "employe" };
@@ -89,7 +90,10 @@ class RealtimeClient {
   }
 
   subscribe(room: string, event: string, handler: Handler) {
-    this._ensure(room);
+    // Don't change rooms for user channels - they're handled by userEs
+    if (!room.startsWith("user:")) {
+      this._ensure(room);
+    }
     return this.on(event, handler);
   }
 
@@ -121,8 +125,9 @@ class RealtimeClient {
     const es = new EventSource(url);
     const builtin = [
       "presence:state","presence:join","presence:leave",
-      "chat","status","cursor","heartbeat",
-      "focus_session_start","focus_session_end",
+      "chat","dm","status","cursor","heartbeat","reaction","typing",
+      "typing:start","typing:stop","message:delete","message:edit",
+      "focus_session_start","focus_session_end","task","file","call",
     ];
     for (const evt of builtin) {
       es.addEventListener(evt, (e: MessageEvent) => {
@@ -131,6 +136,31 @@ class RealtimeClient {
     }
     es.onerror = () => { /* auto-retry */ };
     this.es = es;
+
+    // Aussi connecter au canal personnel pour recevoir les DM
+    this._connectUserChannel();
+  }
+
+  private _connectUserChannel() {
+    if (this.userEs) { try { this.userEs.close(); } catch {} this.userEs = null; }
+    
+    const userRoom = `user:${this.ident.id}`;
+    const url =
+      `/api/realtime/stream` +
+      `?room=${encodeURIComponent(userRoom)}` +
+      `&id=${encodeURIComponent(this.ident.id)}` +
+      `&name=${encodeURIComponent(this.ident.name)}` +
+      `&role=${encodeURIComponent(this.ident.role)}`;
+
+    const es = new EventSource(url);
+    const userEvents = ["dm", "task", "file", "notification"];
+    for (const evt of userEvents) {
+      es.addEventListener(evt, (e: MessageEvent) => {
+        try { this.dispatch(evt, JSON.parse(e.data || "{}")); } catch {}
+      });
+    }
+    es.onerror = () => { /* auto-retry */ };
+    this.userEs = es;
   }
 
   dispatch(type: string, data: any) {
@@ -139,6 +169,7 @@ class RealtimeClient {
 
   disconnect() {
     if (this.es) { try { this.es.close(); } catch {} this.es = null; }
+    if (this.userEs) { try { this.userEs.close(); } catch {} this.userEs = null; }
   }
 
   get room() { return this._room; }

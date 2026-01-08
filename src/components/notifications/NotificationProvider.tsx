@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useCallback, useState } from "react";
+import NotificationToast from "./NotificationToast";
 
 export type NotificationType = "email" | "chat" | "task";
 
@@ -49,6 +50,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       toggleNotifications
     }}>
       {children}
+      {/* Toast notifications en haut à droite */}
+      <NotificationToast />
     </NotificationContext.Provider>
   );
 }

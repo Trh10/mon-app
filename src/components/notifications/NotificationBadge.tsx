@@ -52,20 +52,33 @@ export default function NotificationBadge({
 // Badge pour le bouton global de collaboration
 export function GlobalNotificationBadge({ className = "" }: { className?: string }) {
   const [count, setCount] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
   const notificationManager = getNotificationManager();
 
   useEffect(() => {
     const unsubscribe = notificationManager.subscribe(() => {
-      setCount(notificationManager.getUnreadCount());
+      const newCount = notificationManager.getUnreadCount();
+      if (newCount > count) {
+        // Nouvelle notification - déclencher l'animation
+        setIsAnimating(true);
+        setTimeout(() => setIsAnimating(false), 1000);
+      }
+      setCount(newCount);
     });
     return unsubscribe;
-  }, [notificationManager]);
+  }, [notificationManager, count]);
 
   if (count === 0) return null;
 
   return (
     <span 
-      className={`absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-500 rounded-full ${className}`}
+      className={`
+        absolute -top-1 -right-1 inline-flex items-center justify-center 
+        min-w-[18px] h-[18px] px-1 text-xs font-bold text-white 
+        bg-gradient-to-r from-red-500 to-pink-500 rounded-full shadow-lg
+        ${isAnimating ? 'animate-bounce' : ''}
+        ${className}
+      `}
     >
       {count > 99 ? '99+' : count}
     </span>

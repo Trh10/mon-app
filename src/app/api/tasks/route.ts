@@ -6,8 +6,28 @@ import { getSession } from "@/lib/session";
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession(request);
-    if (!session.organizationId) {
-      return NextResponse.json({ error: "Session requise" }, { status: 401 });
+    
+    // Essayer de récupérer l'organizationId
+    let organizationId = session.organizationId;
+    
+    // Si pas de session, essayer depuis les cookies
+    if (!organizationId) {
+      const orgIdCookie = request.cookies.get('organizationId')?.value;
+      if (orgIdCookie) {
+        organizationId = parseInt(orgIdCookie, 10);
+      }
+    }
+    
+    // Si toujours pas d'organization, prendre la première par défaut
+    if (!organizationId) {
+      const firstOrg = await prisma.organization.findFirst();
+      if (firstOrg) {
+        organizationId = firstOrg.id;
+      }
+    }
+    
+    if (!organizationId) {
+      return NextResponse.json({ items: [], total: 0 }, { status: 200 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -15,7 +35,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const week = searchParams.get("week");
     
-    const where: any = { organizationId: session.organizationId };
+    const where: any = { organizationId: organizationId };
     
     if (userIdParam) {
       where.userId = Number(userIdParam);

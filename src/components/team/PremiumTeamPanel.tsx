@@ -104,28 +104,56 @@ export default function PremiumTeamPanel({ onClose, onStartPrivateChat, onStartC
 
   // Charger les membres de l'équipe
   const loadMembers = useCallback(async () => {
-    if (!user?.companyCode && !user?.companyId) {
-      setError("Veuillez vous connecter pour voir l'équipe");
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (user.companyCode) params.set("companyCode", user.companyCode);
-      else if (user.companyId) params.set("companyId", user.companyId);
-
-      const res = await fetch(`/api/team/all?${params.toString()}`);
+      setError(null);
+      
+      // Essayer d'abord l'API team/directory qui a le fallback
+      const res = await fetch(`/api/team/directory`);
       const data = await res.json();
 
-      if (data.success) {
-        setMembers(data.members || []);
-        setError(null);
+      if (res.ok && data.items && data.items.length > 0) {
+        // Transformer les données du directory en format TeamMember
+        const teamMembers: TeamMember[] = data.items.map((item: any) => ({
+          id: item.id,
+          name: item.name || "Utilisateur",
+          email: item.email || "",
+          role: item.displayRole || item.role || "Employé",
+          level: item.level || 3,
+          levelName: item.displayRole || "Employé",
+          isOnline: item.isOnline || false,
+          lastSeen: item.lastSeen,
+          activeTasks: item.activeTasks || 0,
+          completedTasks: item.completedTasks || 0,
+          companyId: item.companyId,
+        }));
+        setMembers(teamMembers);
+        return;
+      }
+      
+      // Fallback: essayer l'ancienne API si on a les infos user
+      if (user?.companyCode || user?.companyId) {
+        const params = new URLSearchParams();
+        if (user.companyCode) params.set("companyCode", user.companyCode);
+        else if (user.companyId) params.set("companyId", user.companyId);
+
+        const res2 = await fetch(`/api/team/all?${params.toString()}`);
+        const data2 = await res2.json();
+
+        if (data2.success) {
+          setMembers(data2.members || []);
+          return;
+        }
+      }
+      
+      // Si aucune donnée, afficher un message approprié
+      if (data.items?.length === 0) {
+        setMembers([]);
       } else {
-        setError(data.error || "Erreur de chargement");
+        setError("Impossible de charger l'équipe");
       }
     } catch (err: any) {
+      console.error("Error loading team:", err);
       setError(err.message || "Erreur de connexion");
     } finally {
       setLoading(false);

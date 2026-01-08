@@ -1,9 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  // Désactiver Edge Runtime pour le middleware pour éviter les conflits avec nodemailer
+  typescript: {
+    ignoreBuildErrors: false, // Mettre à true temporairement si besoin
+  },
+  eslint: {
+    ignoreDuringBuilds: false, // Mettre à true temporairement si besoin
+  },
   experimental: {
-    serverComponentsExternalPackages: ['nodemailer']
-  }
+    // Consolidated external packages (merged nodemailer + firebase-admin)
+    serverComponentsExternalPackages: ['firebase-admin', 'nodemailer'],
+  },
+  // Configuration pour le déploiement
+  output: 'standalone',
+  // Optimisations
+  swcMinify: true,
+  compress: true,
 };
+
 module.exports = nextConfig;

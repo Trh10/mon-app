@@ -19,6 +19,7 @@ model Organization {
   tasks       Task[]
   activityLogs ActivityLog[]
   requisitions Requisition[]
+  needs       Need[]
   meetings    Meeting[]
   emailAccounts EmailAccount[]
   emailSelections EmailActiveSelection[]
@@ -43,6 +44,8 @@ model User {
   activityLogs    ActivityLog[]
   requisitionsRequested Requisition[] @relation("UserRequestedRequisitions")
   workflowStepsReviewed  WorkflowStep[] @relation("UserReviewedSteps")
+  needsRequested Need[] @relation("UserRequestedNeeds")
+  needWorkflowStepsReviewed NeedWorkflowStep[] @relation("UserReviewedNeedSteps")
   meetingsCreated Meeting[]
   emailAccounts   EmailAccount[]
   emailSelections EmailActiveSelection[]
@@ -214,4 +217,223 @@ model EmailActiveSelection {
   updatedAt        DateTime      @updatedAt
 
   @@unique([organizationId, userId])
+}
+
+// Système de besoins (Needs)
+model Need {
+  id             String        @id @default(uuid())
+  title          String
+  description    String
+  category       String        // 'materiel' | 'logiciel' | 'formation' | 'service' | 'fourniture' | 'maintenance' | 'autre'
+  priority       String        // 'faible' | 'moyenne' | 'haute' | 'urgente'
+  budget         Float         @default(0)
+  justification  String?
+  status         String        @default("soumis") // 'brouillon' | 'soumis' | 'en_review' | 'approuve' | 'rejete' | 'complete' | 'annule'
+  requester      User?         @relation(name: "UserRequestedNeeds", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterId    Int?
+  requesterName  String?
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  workflow       NeedWorkflowStep[]
+  attachments    NeedAttachment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, status])
+  @@index([requesterId])
+}
+
+model NeedWorkflowStep {
+  id             String    @id @default(uuid())
+  need           Need      @relation(fields: [needId], references: [id], onDelete: Cascade)
+  needId         String
+  reviewer       User?     @relation(name: "UserReviewedNeedSteps", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerId     Int?
+  reviewerName   String
+  reviewerLevel  Int
+  action         String    @default("pending") // 'pending' | 'approved' | 'rejected' | 'commented' | 'requested_info'
+  isRequired     Boolean   @default(true)
+  isCompleted    Boolean   @default(false)
+  comment        String?
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+}
+
+model NeedAttachment {
+  id          String    @id @default(uuid())
+  need        Need      @relation(fields: [needId], references: [id], onDelete: Cascade)
+  needId      String
+  fileName    String
+  fileSize    Int
+  fileType    String
+  uploadedBy  String
+  url         String
+  createdAt   DateTime  @default(now())
+
+  @@index([needId])
+}
+
+// ============================================
+// MODÈLES FACTURATION (ICONES & ALL IN ONE)
+// ============================================
+
+model InvoiceClient {
+  id              String    @id @default(uuid())
+  company         String    // 'icones' | 'allinone'
+  companyName     String    // Nom de l'entreprise cliente
+  contactName     String    // Nom du contact
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  country         String?
+  taxNumber       String?   // Numéro de taxe/TVA
+  notes           String?
+  invoices        Invoice[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([company])
+  @@index([companyName])
+}
+
+model Invoice {
+  id                  String    @id @default(uuid())
+  invoiceNumber       String    @unique  // Ex: FAC-2025-0001 ou N°012/C.E/Juil/25
+  template            String    // facture_a, facture_b, placement, transfert, etc.
+  company             String    // 'icones' | 'allinone'
+  
+  // Relations
+  client              InvoiceClient @relation(fields: [clientId], references: [id])
+  clientId            String
+  
+  // Snapshot client au moment de la facture
+  clientSnapshot      Json?     // Copie des données client
+  
+  // Dates
+  issueDate           DateTime
+  dueDate             DateTime
+  
+  // Lignes de facture
+  lines               InvoiceLine[]
+  sections            InvoiceSection[]
+  
+  // Montants
+  subtotal            Float     @default(0)
+  taxRate             Float     @default(0)
+  taxAmount           Float     @default(0)
+  total               Float     @default(0)
+  
+  // Champs spécifiques ALL IN ONE
+  serviceType         String?   // Type de service
+  templateCode        String?   // Code template (C.E, Plac, etc.)
+  
+  // Options Placement
+  placementTVAEnabled Boolean   @default(false)
+  chargesTTCMode      Boolean   @default(true)
+  
+  // Options Transfert
+  transfertDeduction  Float     @default(0)
+  
+  // Options Facture B
+  projectDescription  String?
+  projectName         String?
+  managementFeeRate   Float?
+  commissionRate      Float?
+  
+  // Statut & Paiement
+  status              String    @default("draft") // draft, sent, partial, paid, overdue, cancelled
+  paymentTerms        String?
+  paymentMethod       String?
+  paidAt              DateTime?
+  paidAmount          Float     @default(0)
+  
+  // Paiements
+  payments            InvoicePayment[]
+  
+  // Notes
+  notes               String?
+  publicNotes         String?
+  
+  // Métadonnées
+  createdBy           String
+  createdByInitials   String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([company])
+  @@index([status])
+  @@index([clientId])
+  @@index([issueDate])
+  @@index([invoiceNumber])
+}
+
+model InvoiceLine {
+  id              String    @id @default(uuid())
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId       String
+  
+  description     String
+  quantity        Float     @default(1)
+  unitPrice       Float     @default(0)
+  total           Float     @default(0)
+  
+  // Pour Placement/Transfert
+  chargesTTC      Float?    // Charges TTC
+  
+  // Pour Facture B
+  squareMeters    Float?    // M²
+  days            Float?    // Jours
+  
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@index([invoiceId])
+}
+
+model InvoiceSection {
+  id              String    @id @default(uuid())
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId       String
+  
+  title           String
+  subtotal        Float     @default(0)
+  sortOrder       Int       @default(0)
+  
+  lines           InvoiceSectionLine[]
+  createdAt       DateTime  @default(now())
+
+  @@index([invoiceId])
+}
+
+model InvoiceSectionLine {
+  id              String    @id @default(uuid())
+  section         InvoiceSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId       String
+  
+  description     String
+  quantity        Float     @default(1)
+  squareMeters    Float?
+  days            Float?
+  unitPrice       Float     @default(0)
+  total           Float     @default(0)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+
+  @@index([sectionId])
+}
+
+model InvoicePayment {
+  id              String    @id @default(uuid())
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId       String
+  
+  amount          Float
+  paymentDate     DateTime
+  paymentMethod   String?
+  reference       String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  @@index([invoiceId])
 }

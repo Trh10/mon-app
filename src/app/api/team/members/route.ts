@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
         id: true,
         email: true,
         name: true,
+        displayName: true,
         role: true,
         createdAt: true,
       },
@@ -24,9 +25,10 @@ export async function GET(req: NextRequest) {
     });
 
     // Transformer pour l'API (format attendu par le frontend)
+    // Priorité pour le nom: displayName > name > email
     const formatted = members.map(m => ({
       id: String(m.id),
-      name: m.name || m.email,
+      name: m.displayName || m.name || m.email?.split('@')[0] || 'Utilisateur',
       email: m.email,
       role: m.role === 'admin' ? 'chef' : 'employe',
       level: m.role === 'admin' ? 10 : 3,

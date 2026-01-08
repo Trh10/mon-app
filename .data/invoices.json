@@ -1,0 +1,557 @@
+{
+  "invoices": [
+    {
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2025-12-18",
+      "dueDate": "2026-01-17",
+      "lines": [
+        {
+          "id": "LINE-1766070267478-0",
+          "description": "voirture ",
+          "quantity": 5,
+          "unitPrice": 60000,
+          "total": 300000
+        },
+        {
+          "id": "LINE-1766070267478-1",
+          "description": "pneu",
+          "quantity": 5,
+          "unitPrice": 250,
+          "total": 1250
+        }
+      ],
+      "subtotal": 301250,
+      "taxRate": 16,
+      "taxAmount": 48200,
+      "total": 349450,
+      "status": "paid",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1766070267479-cbjmxochk",
+      "invoiceNumber": "FAC-2025-0001",
+      "createdAt": "2025-12-18T15:04:27.479Z",
+      "updatedAt": "2026-01-07T16:55:46.918Z",
+      "paidAt": "2026-01-07T16:55:46.854Z",
+      "paidAmount": 349450,
+      "remainingAmount": 0
+    },
+    {
+      "template": "travaux",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2025-12-18",
+      "dueDate": "2026-01-17",
+      "lines": [
+        {
+          "id": "LINE-1766098114161-0",
+          "description": "velo",
+          "quantity": 1,
+          "unitPrice": 1000,
+          "total": 1000
+        },
+        {
+          "id": "LINE-1766098114161-1",
+          "description": "CIXO",
+          "quantity": 44,
+          "unitPrice": 30,
+          "total": 1320
+        }
+      ],
+      "subtotal": 2320,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 2320,
+      "status": "partial",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1766098114163-indgf4xl0",
+      "invoiceNumber": "FAC-2025-0003",
+      "createdAt": "2025-12-18T22:48:34.163Z",
+      "updatedAt": "2026-01-07T20:58:28.486Z",
+      "paidAmount": 320,
+      "remainingAmount": 2000
+    },
+    {
+      "template": "travaux",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2025-12-23",
+      "dueDate": "2026-01-22",
+      "lines": [
+        {
+          "id": "LINE-1766505550497-0",
+          "description": "voiture",
+          "quantity": 4,
+          "unitPrice": 20000,
+          "total": 80000
+        },
+        {
+          "id": "LINE-1766505550497-1",
+          "description": "VELOT",
+          "quantity": 3,
+          "unitPrice": 400,
+          "total": 1200
+        }
+      ],
+      "subtotal": 81200,
+      "taxRate": 16,
+      "taxAmount": 12992,
+      "total": 94192,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1766505550498-xnlg4v9g0",
+      "invoiceNumber": "FAC-2025-0004",
+      "createdAt": "2025-12-23T15:59:10.498Z",
+      "updatedAt": "2025-12-23T15:59:10.498Z"
+    },
+    {
+      "template": "proforma",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2025-12-23",
+      "dueDate": "2026-01-22",
+      "lines": [
+        {
+          "id": "LINE-1766505758178-0",
+          "description": "CCC",
+          "quantity": 1,
+          "unitPrice": 3450,
+          "total": 3450
+        }
+      ],
+      "subtotal": 3450,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 3450,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "commissionRate": 17,
+      "managementFeeRate": 5,
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1766505758180-zwbo931nl",
+      "invoiceNumber": "FAC-2025-0005",
+      "createdAt": "2025-12-23T16:02:38.180Z",
+      "updatedAt": "2025-12-23T16:02:38.180Z"
+    },
+    {
+      "template": "travaux",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2026-01-07",
+      "dueDate": "2026-02-06",
+      "lines": [
+        {
+          "id": "LINE-1767796281941-0",
+          "description": "voiture",
+          "quantity": 5,
+          "unitPrice": 40000,
+          "total": 200000
+        },
+        {
+          "id": "LINE-1767796281941-1",
+          "description": "VELO",
+          "quantity": 1,
+          "unitPrice": 500,
+          "total": 500
+        }
+      ],
+      "subtotal": 200500,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 200500,
+      "status": "paid",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1767796281942-gokb5ih59",
+      "invoiceNumber": "FAC-2026-0001",
+      "createdAt": "2026-01-07T14:31:21.942Z",
+      "updatedAt": "2026-01-07T14:32:11.756Z",
+      "paidAt": "2026-01-07T14:32:11.698Z",
+      "paidAmount": 200500,
+      "remainingAmount": 0
+    },
+    {
+      "template": "facture_b",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2026-01-07",
+      "dueDate": "2026-02-06",
+      "lines": [],
+      "sections": [
+        {
+          "id": "section-1",
+          "title": "branding",
+          "lines": [
+            {
+              "id": "line-1",
+              "description": "cube",
+              "quantity": 2,
+              "squareMeters": 20,
+              "days": 1,
+              "unitPrice": 100,
+              "total": 4000
+            },
+            {
+              "id": "line-1767800922922",
+              "description": "ST",
+              "quantity": 2,
+              "squareMeters": 20,
+              "days": 2,
+              "unitPrice": 100,
+              "total": 8000
+            }
+          ],
+          "subtotal": 12000
+        }
+      ],
+      "projectName": "congres panafrician",
+      "projectDescription": "amenagement et plan 3D",
+      "subtotal": 12000,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 14640,
+      "status": "paid",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "commissionRate": 17,
+      "managementFeeRate": 5,
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1767800982481-bn49yep2y",
+      "invoiceNumber": "FAC-2026-0003",
+      "createdAt": "2026-01-07T15:49:42.481Z",
+      "updatedAt": "2026-01-07T16:55:05.021Z",
+      "paidAt": "2026-01-07T16:55:04.899Z",
+      "paidAmount": 14640,
+      "remainingAmount": 0
+    },
+    {
+      "template": "facture_b",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2026-01-07",
+      "dueDate": "2026-02-06",
+      "lines": [],
+      "sections": [
+        {
+          "id": "section-1",
+          "title": "branding ",
+          "lines": [
+            {
+              "id": "line-1",
+              "description": "hull palais du peuple",
+              "quantity": 2,
+              "squareMeters": 500,
+              "days": 0,
+              "unitPrice": 15,
+              "total": 15000
+            },
+            {
+              "id": "line-1767802008541",
+              "description": "location ecran",
+              "quantity": 2,
+              "squareMeters": 30,
+              "days": 3,
+              "unitPrice": 150,
+              "total": 27000
+            }
+          ],
+          "subtotal": 42000
+        }
+      ],
+      "projectName": "udps",
+      "projectDescription": "congres",
+      "subtotal": 42000,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 51240,
+      "status": "paid",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "commissionRate": 17,
+      "managementFeeRate": 5,
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1767802288213-jbrald09o",
+      "invoiceNumber": "FAC-2026-0004",
+      "createdAt": "2026-01-07T16:11:28.213Z",
+      "updatedAt": "2026-01-07T16:14:33.121Z",
+      "paidAt": "2026-01-07T16:14:33.035Z",
+      "paidAmount": 51240,
+      "remainingAmount": 0
+    },
+    {
+      "template": "facture_a",
+      "clientId": "CLI-1766070104130-oab4g0nc8",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767831581064-0",
+          "description": "fff",
+          "quantity": 1,
+          "unitPrice": 1,
+          "total": 1
+        }
+      ],
+      "subtotal": 1,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 1,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "id": "INV-1767831581065-we5l6udt6",
+      "invoiceNumber": "FAC-T-E/08/01/2026/0001",
+      "createdAt": "2026-01-08T00:19:41.065Z",
+      "updatedAt": "2026-01-08T00:19:41.065Z",
+      "createdByInitials": "T-E"
+    },
+    {
+      "template": "creation_entreprise",
+      "clientId": "CLI-1767837784605-yo08zmdi9",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767838091536-0",
+          "description": "frais admin",
+          "quantity": 1,
+          "unitPrice": 110,
+          "total": 110
+        },
+        {
+          "id": "LINE-1767838091536-1",
+          "description": "FRAIS BANCAIRES ",
+          "quantity": 1,
+          "unitPrice": 11,
+          "total": 11
+        },
+        {
+          "id": "LINE-1767838091536-2",
+          "description": "FRAIS SUIVIS ",
+          "quantity": 1,
+          "unitPrice": 200,
+          "total": 200
+        },
+        {
+          "id": "LINE-1767838091536-3",
+          "description": "HONORAIRES",
+          "quantity": 1,
+          "unitPrice": 500,
+          "total": 500
+        }
+      ],
+      "subtotal": 821,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 903.1,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "managementFeeRate": 10,
+      "createdBy": "u_wb9smzrq",
+      "company": "allinone",
+      "id": "INV-1767838091537-artt9ed2l",
+      "invoiceNumber": "N°001/C.E/Janv/26",
+      "createdAt": "2026-01-08T02:08:11.537Z",
+      "updatedAt": "2026-01-08T02:08:11.537Z",
+      "createdByInitials": "T-E"
+    },
+    {
+      "template": "creation_asbl",
+      "clientId": "CLI-1767837784605-yo08zmdi9",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767841178872-0",
+          "description": "identification",
+          "quantity": 1,
+          "unitPrice": 555,
+          "total": 555
+        },
+        {
+          "id": "LINE-1767841178872-1",
+          "description": "FRAIS B",
+          "quantity": 1,
+          "unitPrice": 27,
+          "total": 27
+        },
+        {
+          "id": "LINE-1767841178872-2",
+          "description": "AVIS",
+          "quantity": 1,
+          "unitPrice": 250,
+          "total": 250
+        },
+        {
+          "id": "LINE-1767841178872-3",
+          "description": "ARRETE",
+          "quantity": 1,
+          "unitPrice": 680,
+          "total": 680
+        },
+        {
+          "id": "LINE-1767841178872-4",
+          "description": "FRAIS DE SUIVIS",
+          "quantity": 1,
+          "unitPrice": 88,
+          "total": 88
+        },
+        {
+          "id": "LINE-1767841178872-5",
+          "description": "HONORAIRE",
+          "quantity": 1,
+          "unitPrice": 800,
+          "total": 800
+        }
+      ],
+      "subtotal": 2400,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 2640,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "managementFeeRate": 10,
+      "createdBy": "u_wb9smzrq",
+      "company": "allinone",
+      "id": "INV-1767841178875-qmgwurnbh",
+      "invoiceNumber": "N°002/C.As/Janv/26",
+      "createdAt": "2026-01-08T02:59:38.875Z",
+      "updatedAt": "2026-01-08T02:59:38.875Z",
+      "createdByInitials": "T-E"
+    },
+    {
+      "template": "recrutement",
+      "clientId": "CLI-1767837784605-yo08zmdi9",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767853974740-0",
+          "description": "responsable de recrouvement",
+          "quantity": 1,
+          "unitPrice": 1500,
+          "total": 1500
+        }
+      ],
+      "subtotal": 1500,
+      "taxRate": 16,
+      "taxAmount": 240,
+      "total": 1740,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "company": "allinone",
+      "id": "INV-1767853974758-oh2jyf4kg",
+      "invoiceNumber": "N°003/REC/Janv/26",
+      "createdAt": "2026-01-08T06:32:54.748Z",
+      "updatedAt": "2026-01-08T06:32:54.748Z",
+      "createdByInitials": "T-E"
+    },
+    {
+      "template": "placement",
+      "clientId": "CLI-1767837784605-yo08zmdi9",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767867631299-0",
+          "description": "26",
+          "quantity": 13,
+          "unitPrice": 7000,
+          "total": 91000,
+          "chargesTTC": 2836.64
+        }
+      ],
+      "subtotal": 10290.5024,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 10290.5024,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "managementFeeRate": 0,
+      "createdBy": "u_wb9smzrq",
+      "company": "allinone",
+      "placementTVAEnabled": true,
+      "chargesTTCMode": false,
+      "id": "INV-1767867631305-qo4egrek8",
+      "invoiceNumber": "N°005/Plac/Janv/26",
+      "createdAt": "2026-01-08T10:20:31.303Z",
+      "updatedAt": "2026-01-08T10:20:31.303Z",
+      "createdByInitials": "T-E"
+    },
+    {
+      "template": "placement",
+      "clientId": "CLI-1767837784605-yo08zmdi9",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767868101078-0",
+          "description": "26",
+          "quantity": 37,
+          "unitPrice": 15800,
+          "total": 584600,
+          "chargesTTC": 7700
+        }
+      ],
+      "subtotal": 23500,
+      "taxRate": 0,
+      "taxAmount": 0,
+      "total": 23500,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "managementFeeRate": 0,
+      "createdBy": "u_wb9smzrq",
+      "company": "allinone",
+      "placementTVAEnabled": false,
+      "chargesTTCMode": true,
+      "id": "INV-1767868101079-nyezgflm0",
+      "invoiceNumber": "N°006/Plac/Janv/26",
+      "createdAt": "2026-01-08T10:28:21.079Z",
+      "updatedAt": "2026-01-08T10:28:21.079Z",
+      "createdByInitials": "T-E"
+    },
+    {
+      "template": "transfert",
+      "clientId": "CLI-1767837784605-yo08zmdi9",
+      "issueDate": "2026-01-08",
+      "dueDate": "2026-02-07",
+      "lines": [
+        {
+          "id": "LINE-1767874045478-0",
+          "description": "26",
+          "quantity": 13,
+          "unitPrice": 7000,
+          "total": 91000,
+          "chargesTTC": 2836.64
+        }
+      ],
+      "subtotal": 9836.64,
+      "taxRate": 16,
+      "taxAmount": 453.8624,
+      "total": 10290.5024,
+      "status": "draft",
+      "paymentTerms": "Net 30 jours",
+      "publicNotes": "",
+      "createdBy": "u_wb9smzrq",
+      "company": "allinone",
+      "placementTVAEnabled": false,
+      "chargesTTCMode": true,
+      "transfertDeduction": 0,
+      "id": "INV-1767874045481-t8lrel184",
+      "invoiceNumber": "N°007/Transf/Janv/26",
+      "createdAt": "2026-01-08T12:07:25.481Z",
+      "updatedAt": "2026-01-08T12:07:25.481Z",
+      "createdByInitials": "F-F"
+    }
+  ],
+  "lastInvoiceNumber": "FAC-T-E/08/01/2026/0001",
+  "lastUpdated": "2026-01-08T12:07:25.482Z",
+  "lastAllinoneNumber": "N°007/Transf/Janv/26"
+}

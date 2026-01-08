@@ -202,62 +202,86 @@ export default function ChatPanel({
   useEffect(() => {
     rt.setUser({ id: userId, name: user, role });
     const offs: Array<() => void> = [];
-    const readyRoom = mode === "room" ? roomKey : dmRoomKey || roomKey;
-    offs.push(rt.subscribe(readyRoom, "ready", () => setConnReady(true)));
+    
+    // Connection state
+    offs.push(rt.on("presence:state", () => setConnReady(true)));
 
-    if (mode === "room") {
-      offs.push(rt.subscribe(roomKey, "chat", (env) => {
-        const m: Msg = { id: env?.payload?.id, text: env?.payload?.text, user: env?.user, ts: env?.ts };
-        if (!m?.id || seenIds.current.has(m.id)) return;
-        seenIds.current.add(m.id);
-        setMsgs((prev) => { const next = [...prev, m].slice(-200); requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" })); return next; });
-      }));
-      offs.push(rt.subscribe(roomKey, "file", (env) => {
-        const p = env?.payload as FileEvt;
-        if (!p?.id) return;
+    // Chat public - toujours écouter
+    offs.push(rt.on("chat", (env) => {
+      if (mode !== "room") return; // Ignorer si en mode DM
+      const m: Msg = { id: env?.payload?.id, text: env?.payload?.text, user: env?.user, ts: env?.ts };
+      if (!m?.id || seenIds.current.has(m.id)) return;
+      seenIds.current.add(m.id);
+      setMsgs((prev) => { 
+        const next = [...prev, m].slice(-200); 
+        requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" })); 
+        return next; 
+      });
+    }));
+
+    // DM - écouter via le canal utilisateur
+    offs.push(rt.on("dm", (env) => {
+      if (mode !== "dm") return; // Ignorer si pas en mode DM
+      const fromId = env?.user?.id;
+      const toId = env?.payload?.toUserId;
+      
+      // Vérifier que le message concerne la conversation actuelle
+      const isRelevant = dmTarget && (
+        (fromId === dmTarget.id && toId === userId) || // Message reçu
+        (fromId === userId && toId === dmTarget.id)    // Message envoyé (echo)
+      );
+      
+      if (!isRelevant) return;
+      
+      const m: Msg = { id: env?.payload?.id, text: env?.payload?.text, user: env?.user, ts: env?.ts };
+      if (!m?.id || seenIds.current.has(m.id)) return;
+      seenIds.current.add(m.id);
+      setMsgs((prev) => {
+        const next = [...prev, m].slice(-200);
+        requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" }));
+        return next;
+      });
+    }));
+
+    // Fichiers
+    offs.push(rt.on("file", (env) => {
+      const p = env?.payload as FileEvt;
+      if (!p?.id) return;
+      
+      if (mode === "room") {
         setFiles((prev) => [p, ...prev]);
-      }));
-    } else if (dmRoomKey) {
-      offs.push(rt.subscribe(dmRoomKey, "dm", (env) => {
-        const m: Msg = { id: env?.payload?.id, text: env?.payload?.text, user: env?.user, ts: env?.ts };
-        if (!m?.id || seenIds.current.has(m.id)) return;
-        seenIds.current.add(m.id);
-        setMsgs((prev) => [...prev, m].slice(-200));
-      }));
-      offs.push(rt.subscribe(dmRoomKey, "task", (env) => {
-        const p = env?.payload as any; const t = p?.task; if (!t?.id) return;
+      } else if (dmTarget) {
+        // Fichier DM - vérifier si c'est pour cette conversation
+        if ((p.toUserId === userId && (env?.user?.id) === dmTarget.id) || 
+            (p.toUserId === dmTarget.id && (env?.user?.id) === userId)) {
+          setFiles((prev) => [p, ...prev]);
+        }
+      }
+    }));
+
+    // Tâches assignées
+    offs.push(rt.on("task", (env) => {
+      const p = env?.payload as any;
+      const t = p?.task;
+      if (!t?.id) return;
+      
+      if (mode === "dm" && dmTarget && (t.userId === dmTarget.id || t.createdBy?.id === dmTarget.id)) {
         const suffix = [
           t.isPrivate ? 'Privée' : null,
           t.dueAt ? `Échéance: ${new Date(t.dueAt).toLocaleString()}` : null
         ].filter(Boolean).join(' · ');
-        const sys: Msg = { id: `task-${t.id}`, ts: env?.ts || Date.now(), user: env?.user, text: `Tâche assignée: "${t.title}" (${t.project})${suffix ? ` · ${suffix}` : ''}` };
-        if (!seenIds.current.has(sys.id)) { seenIds.current.add(sys.id); setMsgs((prev) => [...prev, sys].slice(-200)); }
-      }));
-      offs.push(rt.subscribe(`user:${userId}`, "file", (env) => {
-        const p = env?.payload as FileEvt; if (!p?.id) return;
-        if ((p.toUserId === userId && (env?.user?.id) === dmTarget?.id) || (p.toUserId === dmTarget?.id && (env?.user?.id) === userId)) {
-          setFiles((prev) => [p, ...prev]);
+        const sys: Msg = { 
+          id: `task-${t.id}`, 
+          ts: env?.ts || Date.now(), 
+          user: env?.user, 
+          text: `Tâche assignée: "${t.title}" (${t.project})${suffix ? ` · ${suffix}` : ''}` 
+        };
+        if (!seenIds.current.has(sys.id)) { 
+          seenIds.current.add(sys.id); 
+          setMsgs((prev) => [...prev, sys].slice(-200)); 
         }
-      }));
-      offs.push(rt.subscribe(`user:${userId}`, "dm", (env) => {
-        const fromId = env?.user?.id; if (!fromId || fromId !== dmTarget?.id) return;
-        const m: Msg = { id: env?.payload?.id, text: env?.payload?.text, user: env?.user, ts: env?.ts };
-        if (!m?.id || seenIds.current.has(m.id)) return;
-        seenIds.current.add(m.id);
-        setMsgs((prev) => [...prev, m].slice(-200));
-      }));
-      offs.push(rt.subscribe(`user:${userId}`, "task", (env) => {
-        const p = env?.payload as any; const t = p?.task; if (!t?.id) return;
-        if (dmTarget && (t.userId === dmTarget.id || t.createdBy?.id === dmTarget.id)) {
-          const suffix = [
-            t.isPrivate ? 'Privée' : null,
-            t.dueAt ? `Échéance: ${new Date(t.dueAt).toLocaleString()}` : null
-          ].filter(Boolean).join(' · ');
-          const sys: Msg = { id: `task-${t.id}`, ts: env?.ts || Date.now(), user: env?.user, text: `Tâche assignée: "${t.title}" (${t.project})${suffix ? ` · ${suffix}` : ''}` };
-          if (!seenIds.current.has(sys.id)) { seenIds.current.add(sys.id); setMsgs((prev) => [...prev, sys].slice(-200)); }
-        }
-      }));
-    }
+      }
+    }));
 
     return () => { offs.forEach((off) => off?.()); };
   }, [mode, roomKey, dmRoomKey, userId, user, role, rt, dmTarget]);

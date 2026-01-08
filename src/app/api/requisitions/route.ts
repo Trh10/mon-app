@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
       data: stepsLevels.map((level) => ({
         requisitionId: created.id,
         reviewerId: null,
-        reviewerName: level === 7 ? 'Administration' : level === 6 ? 'Finance' : 'Direction Générale',
+        reviewerName: level === 6 ? 'Finance' : level === 7 ? 'Administration' : 'Direction Générale',
         reviewerLevel: level,
         action: 'pending',
         isRequired: true,
@@ -265,7 +265,7 @@ export async function PUT(req: NextRequest) {
         data: stepsLevels.map((level) => ({
           requisitionId,
           reviewerId: null,
-          reviewerName: level === 7 ? 'Administration' : level === 6 ? 'Finance' : 'Direction Générale',
+          reviewerName: level === 6 ? 'Finance' : level === 7 ? 'Administration' : 'Direction Générale',
           reviewerLevel: level,
           action: 'pending',
           isRequired: true,

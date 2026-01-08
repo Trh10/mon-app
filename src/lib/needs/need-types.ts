@@ -1,13 +1,32 @@
-// Types pour le système de gestion des réquisitions
-export interface Requisition {
+// Types pour le système de gestion des besoins (Needs)
+// Réutilise les types de base de requisition-types pour éviter la duplication
+
+import {
+  RequisitionCategory,
+  RequisitionPriority,
+  RequisitionStatus,
+  WorkflowAction,
+  Attachment
+} from '@/lib/requisitions/requisition-types';
+
+// Alias de types pour le module Needs
+export type NeedCategory = RequisitionCategory;
+export type NeedPriority = RequisitionPriority;
+export type NeedStatus = RequisitionStatus;
+
+// Réexporter pour compatibilité
+export type { WorkflowAction, Attachment };
+
+// Interface Need (légèrement différente de Requisition pour supporter needId)
+export interface Need {
   id: string;
   title: string;
   description: string;
-  category: RequisitionCategory;
-  priority: RequisitionPriority;
+  category: NeedCategory;
+  priority: NeedPriority;
   budget: number;
   justification: string;
-  status: RequisitionStatus;
+  status: NeedStatus;
   requesterId: string;
   requesterName: string;
   companyId: string;
@@ -15,57 +34,26 @@ export interface Requisition {
   createdAt: string;
   updatedAt: string;
   workflow: WorkflowStep[];
-  attachments?: Attachment[];
+  attachments?: NeedAttachment[];
 }
 
-export type RequisitionCategory = 
-  | 'materiel'      // Équipements, machines, outils
-  | 'logiciel'      // Software, licences, applications
-  | 'formation'     // Formation du personnel
-  | 'service'       // Services externes, consultants
-  | 'fourniture'    // Fournitures de bureau, consommables
-  | 'maintenance'   // Réparations, entretien
-  | 'autre';        // Autres besoins
-
-export type RequisitionPriority = 
-  | 'faible'        // Peut attendre
-  | 'moyenne'       // Normal
-  | 'haute'         // Important
-  | 'urgente';      // Critique
-
-export type RequisitionStatus = 
-  | 'brouillon'     // En cours de rédaction
-  | 'soumis'        // Soumis pour approbation
-  | 'en_review'     // En cours d'examen
-  | 'approuve'      // Approuvé et en cours
-  | 'rejete'        // Rejeté
-  | 'complete'      // Terminé/livré
-  | 'annule';       // Annulé
-
-// Compatible avec les deux systèmes (requisition et need)
+// WorkflowStep adapté pour les besoins (utilise needId au lieu de requisitionId)
 export interface WorkflowStep {
   id: string;
-  // L'un des deux peut être utilisé selon le module
-  requisitionId?: string;
-  needId?: string;
+  needId: string;
   reviewerId: string;
   reviewerName: string;
   reviewerLevel: number;
   action: WorkflowAction;
   comment?: string;
   createdAt: string;
+  completedAt?: string;
   isRequired: boolean;
   isCompleted: boolean;
 }
 
-export type WorkflowAction = 
-  | 'pending'       // En attente de review
-  | 'approved'      // Approuvé
-  | 'rejected'      // Rejeté
-  | 'commented'     // Commenté
-  | 'requested_info'; // Demande d'informations
-
-export interface Attachment {
+// Attachment adapté pour les besoins
+export interface NeedAttachment {
   id: string;
   needId: string;
   fileName: string;
@@ -106,10 +94,10 @@ export interface WorkflowActionData {
 
 // Configuration par défaut des approbations
 export const DEFAULT_APPROVAL_CONFIG = {
-  level5_max: 500,      // Employé : jusqu'à 500€
-  level6_required: 1000,   // Finance : à partir de 1000€
-  level7_required: 5400,   // Admin : à partir de $5400 (5000 EUR → 5400 USD)
-  level10_required: 10000  // DG : à partir de 10000€
+  level5_max: 500,        // Employé : jusqu'à 500€
+  level6_required: 1000,  // Finance : à partir de 1000€
+  level7_required: 5400,  // Admin : à partir de $5400 (5000 EUR → 5400 USD)
+  level10_required: 10000 // DG : à partir de 10000€
 };
 
 // Labels pour l'interface utilisateur
@@ -157,9 +145,3 @@ export const STATUS_COLORS: Record<NeedStatus, string> = {
   complete: 'bg-purple-100 text-purple-800',
   annule: 'bg-gray-100 text-gray-800'
 };
-
-// Alias de types pour compatibilité avec l'API des "needs"
-export type Need = Requisition;
-export type NeedCategory = RequisitionCategory;
-export type NeedPriority = RequisitionPriority;
-export type NeedStatus = RequisitionStatus;

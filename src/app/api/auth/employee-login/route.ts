@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getIronSession } from 'iron-session';
+import { prisma } from '@/lib/db';
 import { 
   findCompanyByName,
   createUser,
@@ -16,6 +18,99 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Configuration de la session iron-session
+const sessionOptions = {
+  password: process.env.SESSION_PASSWORD || "default-32-char-secret-change-in-production!",
+  cookieName: "icones-session",
+  cookieOptions: {
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 7,
+    sameSite: "lax" as const,
+  },
+};
+
+// Helper pour créer/mettre à jour la session iron-session et le cookie legacy
+async function setAuthSession(req: NextRequest, res: NextResponse, userData: any) {
+  // 1. Session iron-session (utilisée par les APIs Prisma)
+  const session = await getIronSession<any>(req, res, sessionOptions);
+  
+  // Trouver ou créer l'organisation et l'utilisateur Prisma correspondants
+  let prismaUser = null;
+  let organizationId = 1;
+  
+  try {
+    // D'abord, chercher l'utilisateur par son externalId ou nom
+    prismaUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { externalId: userData.id },
+          { name: userData.name },
+          { displayName: userData.name }
+        ]
+      },
+      include: { organization: true }
+    });
+    
+    if (prismaUser) {
+      // Utilisateur trouvé - utiliser son organisation
+      organizationId = prismaUser.organizationId;
+    } else {
+      // Utilisateur non trouvé - créer l'organisation et l'utilisateur
+      const orgSlug = (userData.companyCode || 'default').toLowerCase();
+      let org = await prisma.organization.findFirst({ where: { slug: orgSlug } });
+      
+      if (!org) {
+        org = await prisma.organization.create({
+          data: {
+            slug: orgSlug,
+            name: userData.companyCode || 'Default Company',
+          },
+        });
+      }
+      organizationId = org.id;
+      
+      // Créer l'utilisateur
+      prismaUser = await prisma.user.create({
+        data: {
+          organizationId: org.id,
+          externalId: userData.id,
+          name: userData.name,
+          displayName: userData.name,
+          role: userData.level >= 10 ? 'admin' : 'user',
+        },
+        include: { organization: true }
+      });
+    }
+  } catch (e) {
+    console.error('Prisma user sync failed:', e);
+  }
+
+  session.organizationId = prismaUser?.organizationId || organizationId;
+  session.organizationSlug = prismaUser?.organization?.slug || 'default';
+  session.userId = prismaUser?.id || parseInt(userData.id) || 1;
+  session.userRole = userData.role;
+  session.userName = userData.name;
+  await session.save();
+
+  // 2. Cookie legacy (pour compatibilité avec le frontend)
+  const cookieStore = cookies();
+  cookieStore.set('user-session', JSON.stringify(userData), {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 3600
+  });
+
+  // 3. Cookie organizationId (fallback pour certaines APIs)
+  cookieStore.set('organizationId', String(session.organizationId), {
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 3600
+  });
+}
 
 /*
   POST /api/auth/employee-login
@@ -44,25 +139,25 @@ export async function POST(req: NextRequest) {
 
     // Protection: empêcher d'usurper nom DG/Admin/Finance existant
     const existing = findUserByName(company.id, name);
+    const res = new NextResponse();
+    
     if (existing) {
       // User exists -> login path
       try {
         const logged = validateLogin(company, name, pin);
-        const cookieStore = cookies();
-        cookieStore.set('user-session', JSON.stringify({
+        const userData = {
           id: logged.id,
           name: logged.name,
-            role: logged.role,
-            level: logged.level,
-            companyId: logged.companyId,
-            companyCode: logged.companyCode,
-            permissions: logged.permissions
-        }), {
-          httpOnly: true,
-          sameSite: 'strict',
-          secure: process.env.NODE_ENV === 'production',
-          maxAge: 30 * 24 * 3600
-        });
+          role: logged.role,
+          level: logged.level,
+          companyId: logged.companyId,
+          companyCode: logged.companyCode,
+          permissions: logged.permissions
+        };
+        
+        // Créer les sessions (iron-session + cookie legacy)
+        await setAuthSession(req, res, userData);
+        
         return NextResponse.json({ success: true, user: publicUser(logged), created: false });
       } catch (e: any) {
         return NextResponse.json({ error: e.message || 'Échec connexion' }, { status: 401 });
@@ -95,8 +190,7 @@ export async function POST(req: NextRequest) {
         }
       }
       const user = createUser(company, name, role, pin, 'self');
-      const cookieStore = cookies();
-      cookieStore.set('user-session', JSON.stringify({
+      const userData = {
         id: user.id,
         name: user.name,
         role: user.role,
@@ -104,12 +198,11 @@ export async function POST(req: NextRequest) {
         companyId: user.companyId,
         companyCode: user.companyCode,
         permissions: user.permissions
-      }), {
-        httpOnly: true,
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 30 * 24 * 3600
-      });
+      };
+      
+      // Créer les sessions (iron-session + cookie legacy)
+      await setAuthSession(req, res, userData);
+      
       return NextResponse.json({ success: true, user: publicUser(user), created: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message || 'Erreur création utilisateur' }, { status: 400 });

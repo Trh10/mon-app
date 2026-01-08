@@ -2,9 +2,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { ImapFlow } from 'imapflow';
 import { google } from 'googleapis';
-import { getAuthenticatedClient } from '@/lib/google-auth';
+import { getAuthenticatedClient, getGoogleAuth } from '@/lib/google-auth';
 import { listAccounts } from '@/lib/emailAccountsDb';
 import { getSession } from '@/lib/session';
+import { prisma } from '@/lib/db';
+import { COOKIE_GOOGLE_PRIMARY, LEGACY_GOOGLE_COOKIES } from '@/config/branding';
 type AccountsData = { accounts: any[]; activeAccount: string | null };
 
 function mapFolder(folder: string) {
@@ -16,6 +18,34 @@ function mapFolder(folder: string) {
   return folder;
 }
 
+async function getSessionFromCookie(request: NextRequest) {
+  const session = await getSession(request);
+  let orgId = session.organizationId;
+  let usrId = session.userId;
+  
+  if (!orgId || !usrId) {
+    try {
+      const userSessionCookie = request.cookies.get('user-session')?.value;
+      if (userSessionCookie) {
+        const userData = JSON.parse(userSessionCookie);
+        const companyCode = userData.companyCode || userData.company || 'default';
+        
+        const org = await prisma.organization.findFirst({ where: { slug: companyCode.toLowerCase() } });
+        if (org) {
+          orgId = org.id;
+          const externalId = userData.id;
+          const user = await prisma.user.findFirst({ 
+            where: { OR: [{ externalId }, { organizationId: orgId, name: userData.name }] }
+          });
+          if (user) usrId = user.id;
+        }
+      }
+    } catch {}
+  }
+  
+  return { organizationId: orgId, userId: usrId };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const globalAny: any = global as any;
@@ -25,14 +55,86 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get('folder') || 'INBOX';
 
-    const session = await getSession(request);
-    if (!session.organizationId || !session.userId) {
+    const sessionData = await getSessionFromCookie(request);
+    if (!sessionData.organizationId || !sessionData.userId) {
       return NextResponse.json({ success: true, emails: [], account: null, folder, total: 0, message: 'Non authentifié' });
     }
-    const store = await listAccounts(session);
+    const store = await listAccounts(sessionData as any);
     const data: AccountsData = { accounts: store.accounts as any, activeAccount: store.activeAccount };
 
+    // Si pas de compte actif en BDD, vérifier si on a un cookie Google directement
     if (!data.activeAccount) {
+      // Chercher un cookie Google OAuth
+      let googleCookie = request.cookies.get(COOKIE_GOOGLE_PRIMARY)?.value;
+      if (!googleCookie) {
+        for (const legacy of LEGACY_GOOGLE_COOKIES) {
+          googleCookie = request.cookies.get(legacy)?.value;
+          if (googleCookie) break;
+        }
+      }
+      
+      if (googleCookie) {
+        // On a un cookie Google mais pas de compte en BDD - utiliser directement le cookie
+        console.log('[emails] Cookie Google trouvé sans compte BDD - lecture directe');
+        try {
+          const tokenData = JSON.parse(googleCookie);
+          const auth = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET
+          );
+          auth.setCredentials(tokenData);
+          const gmail = google.gmail({ version: 'v1', auth });
+          
+          const mappedFolder = mapFolder(folder);
+          let query = '';
+          if (folder.toUpperCase() === 'SENT') query = 'in:sent';
+          else if (folder.toUpperCase() === 'DRAFTS') query = 'in:draft';
+          else if (folder.toUpperCase() === 'STARRED') query = 'is:starred';
+          else if (folder.toUpperCase() !== 'INBOX') query = `label:${mappedFolder}`;
+
+          const list = await gmail.users.messages.list({ userId: 'me', maxResults: 100, q: query || undefined });
+          const ids = list.data.messages || [];
+          const emails = await Promise.all(ids.slice(0, 100).map(async (m) => {
+            try {
+              const msg = await gmail.users.messages.get({ userId: 'me', id: m.id!, format: 'metadata', metadataHeaders: ['From','Subject','Date'] });
+              const headers = (msg.data.payload?.headers || []) as any[];
+              const get = (k: string) => headers.find(h => h.name?.toLowerCase() === k.toLowerCase())?.value || '';
+              const subject = get('Subject') || '(sans objet)';
+              const from = get('From');
+              const date = get('Date');
+              const labelIds = msg.data.labelIds || [];
+              const unread = labelIds.includes('UNREAD');
+              const hasAttachments = (msg.data.payload?.parts || []).some(p => p?.filename);
+              return {
+                id: m.id!,
+                subject,
+                from,
+                fromName: from,
+                date: date ? new Date(date).toISOString() : new Date().toISOString(),
+                snippet: msg.data.snippet || '',
+                unread,
+                hasAttachments
+              };
+            } catch {
+              return null;
+            }
+          }));
+          const validEmails = emails.filter(Boolean) as any[];
+          const googleEmail = tokenData.email || 'Gmail';
+          return NextResponse.json({ 
+            success: true, 
+            emails: validEmails, 
+            account: { email: googleEmail, provider: 'Gmail', unreadCount: validEmails.filter(e => e.unread).length }, 
+            folder, 
+            total: validEmails.length,
+            source: 'google_cookie_direct'
+          });
+        } catch (e: any) {
+          console.error('[emails] Erreur lecture cookie Google:', e);
+          // Continuer avec le message "pas de compte"
+        }
+      }
+      
       return NextResponse.json({
         success: true,
         emails: [],

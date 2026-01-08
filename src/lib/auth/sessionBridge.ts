@@ -32,20 +32,34 @@ export async function ensureOrgAndUserFromCookie(req: NextRequest): Promise<{
     // Ensure User exists (optional)
     let userId: number | null = null;
     const externalId = parsed.id ? String(parsed.id) : undefined;
+    const userName = parsed.name || "Utilisateur";
+    
     if (externalId) {
       let user = await prisma.user.findFirst({
         where: { organizationId: org.id, externalId },
       });
       if (!user) {
+        // Créer l'utilisateur avec le bon nom
         user = await prisma.user.create({
           data: {
             organizationId: org.id,
             externalId,
-            name: parsed.name || "Utilisateur",
-            displayName: parsed.name || null,
+            name: userName,
+            displayName: userName,
             role: (parsed.role && String(parsed.role).toLowerCase().includes("directeur")) ? "admin" : "user",
           },
         });
+      } else {
+        // Mettre à jour le nom si différent (synchronisation)
+        if (user.name !== userName || user.displayName !== userName) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              name: userName,
+              displayName: userName,
+            },
+          });
+        }
       }
       userId = user.id;
     }
