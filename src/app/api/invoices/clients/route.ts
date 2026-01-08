@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getAllClients, 
-  getClientById, 
-  createClient, 
-  updateClient, 
-  deleteClient 
-} from '@/lib/invoices/invoice-store';
+import { invoiceService } from '@/lib/invoices/prisma-invoice-service';
 import { canAccessInvoices, Company } from '@/lib/invoices/invoice-types';
 
 // Vérifier l'accès utilisateur
@@ -42,16 +36,17 @@ export async function GET(request: NextRequest) {
     const company = searchParams.get('company') as Company | null;
     
     if (id) {
-      const client = getClientById(id);
+      const client = await invoiceService.getClientById(id);
       if (!client) {
         return NextResponse.json({ success: false, error: 'Client non trouvé' }, { status: 404 });
       }
       return NextResponse.json({ success: true, client });
     }
     
-    const clients = getAllClients(company || undefined);
+    const clients = await invoiceService.getAllClients(company || undefined);
     return NextResponse.json({ success: true, clients });
   } catch (error: any) {
+    console.error('GET /api/invoices/clients error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -67,28 +62,29 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
     
     // Validation basique
-    if (!data.companyName || !data.email) {
+    if (!data.companyName) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Nom de l\'entreprise et email requis' 
+        error: 'Nom de l\'entreprise requis' 
       }, { status: 400 });
     }
     
-    const client = createClient({
+    const client = await invoiceService.createClient({
+      company: data.company || 'allinone',
       companyName: data.companyName,
       contactName: data.contactName || '',
-      email: data.email,
+      email: data.email || '',
       phone: data.phone || '',
       address: data.address || '',
       city: data.city || '',
-      country: data.country || 'Congo-Kinshasa',
-      taxNumber: data.taxNumber,
-      notes: data.notes,
-      company: data.company || 'icones',
+      country: data.country || '',
+      taxNumber: data.taxNumber || '',
+      notes: data.notes || '',
     });
     
     return NextResponse.json({ success: true, client }, { status: 201 });
   } catch (error: any) {
+    console.error('POST /api/invoices/clients error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -107,7 +103,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID requis' }, { status: 400 });
     }
     
-    const client = updateClient(data.id, data);
+    const client = await invoiceService.updateClient(data.id, {
+      companyName: data.companyName,
+      contactName: data.contactName,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      city: data.city,
+      country: data.country,
+      taxNumber: data.taxNumber,
+      notes: data.notes,
+    });
     
     if (!client) {
       return NextResponse.json({ success: false, error: 'Client non trouvé' }, { status: 404 });
@@ -115,6 +121,7 @@ export async function PUT(request: NextRequest) {
     
     return NextResponse.json({ success: true, client });
   } catch (error: any) {
+    console.error('PUT /api/invoices/clients error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
@@ -134,14 +141,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID requis' }, { status: 400 });
     }
     
-    const deleted = deleteClient(id);
-    
-    if (!deleted) {
-      return NextResponse.json({ success: false, error: 'Client non trouvé' }, { status: 404 });
-    }
-    
+    await invoiceService.deleteClient(id);
     return NextResponse.json({ success: true, message: 'Client supprimé' });
   } catch (error: any) {
+    console.error('DELETE /api/invoices/clients error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
