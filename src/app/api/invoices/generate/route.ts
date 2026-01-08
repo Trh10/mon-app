@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getInvoiceById, getClientById } from '@/lib/invoices/invoice-store';
+import { invoiceService } from '@/lib/invoices/prisma-invoice-service';
 import { canAccessInvoices, ALLINONE_TEMPLATES, ALLINONE_COMPANY_INFO, ALLINONE_BANK_ACCOUNTS } from '@/lib/invoices/invoice-types';
 import fs from 'fs';
 import path from 'path';
@@ -2210,12 +2210,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'ID de facture requis' }, { status: 400 });
     }
     
-    const invoice = getInvoiceById(id);
+    const invoice = await invoiceService.getInvoiceById(id);
     if (!invoice) {
       return NextResponse.json({ success: false, error: 'Facture non trouvée' }, { status: 404 });
     }
 
-    const client = getClientById(invoice.clientId);
+    // Le client est déjà inclus dans invoice.client grâce à Prisma
+    const client = invoice.client;
     
     let enteteBase64 = '';
     const entetePath = path.join(process.cwd(), 'public', 'entete.jpg');
@@ -2259,6 +2260,7 @@ export async function GET(request: NextRequest) {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
   } catch (error: any) {
+    console.error('Generate invoice error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
