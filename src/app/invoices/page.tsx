@@ -360,7 +360,7 @@ export default function InvoicesPage() {
                 onChange={(e) => setLoginLastName(e.target.value)}
                 placeholder="Votre nom"
                 className="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all !bg-white !text-gray-900"
-                onKeyPress={(e) => e.key === 'Enter' && handleBillingLogin()}}
+                onKeyPress={(e) => e.key === 'Enter' && handleBillingLogin()}
               />
             </div>
             
