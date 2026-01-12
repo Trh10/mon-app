@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* FIX: Inputs sur fond blanc - texte visible */
+.bg-white input,
+.bg-white textarea,
+.bg-white select,
+input.!bg-white,
+input[style*="background-color: white"],
+input[style*="backgroundColor"] {
+  color: #111827 !important;
+  background-color: white !important;
+}
+
+input::placeholder {
+  color: #9ca3af !important;
+}
+
 /* Animation pour les notifications */
 @keyframes slide-in {
   from {
