@@ -125,11 +125,11 @@ export default function ApprovalWorkflow() {
           </div>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 mb-6">
-          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold">{stats.total}</p><p className="text-[10px] sm:text-xs text-gray-500">Total</p></div>
-          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold text-amber-600">{stats.enAttente}</p><p className="text-[10px] sm:text-xs text-gray-500">En attente</p></div>
-          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold text-green-600">{stats.approuves}</p><p className="text-[10px] sm:text-xs text-gray-500">Approuves</p></div>
-          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold text-red-600">{stats.rejetes}</p><p className="text-[10px] sm:text-xs text-gray-500">Rejetes</p></div>
-          <div className="col-span-2 sm:col-span-1 bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-base sm:text-lg font-bold text-emerald-600">{formatMoney(stats.montantTotal)}</p><p className="text-[10px] sm:text-xs text-gray-500">Approuve</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100"><p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</p><p className="text-[10px] sm:text-xs text-gray-500">Total</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100"><p className="text-xl sm:text-2xl font-bold text-amber-600">{stats.enAttente}</p><p className="text-[10px] sm:text-xs text-gray-500">En attente</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100"><p className="text-xl sm:text-2xl font-bold text-green-600">{stats.approuves}</p><p className="text-[10px] sm:text-xs text-gray-500">Approuves</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100"><p className="text-xl sm:text-2xl font-bold text-red-600">{stats.rejetes}</p><p className="text-[10px] sm:text-xs text-gray-500">Rejetes</p></div>
+          <div className="col-span-2 sm:col-span-1 bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-100"><p className="text-base sm:text-lg font-bold text-emerald-600">{formatMoney(stats.montantTotal)}</p><p className="text-[10px] sm:text-xs text-gray-500">Approuve</p></div>
         </div>
         <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
