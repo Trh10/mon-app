@@ -116,6 +116,9 @@ export async function POST(request: NextRequest) {
         placementTVAEnabled: data.placementTVAEnabled || false,
         chargesTTCMode: data.chargesTTCMode !== false,
         transfertDeduction: data.transfertDeduction || 0,
+        placementDeduction: data.placementDeduction || 0,
+        enablePlacementDeduction: data.enablePlacementDeduction === true,
+        enableTransfertDeduction: data.enableTransfertDeduction === true,
         paymentTerms: data.paymentTerms || 'Net 30 jours',
         publicNotes: data.publicNotes,
         notes: data.notes,
@@ -150,8 +153,9 @@ export async function POST(request: NextRequest) {
         paymentTerms: data.paymentTerms || 'Net 30 jours',
         publicNotes: data.publicNotes,
         notes: data.notes,
-        commissionRate: data.commissionRate || 17,
-        managementFeeRate: data.managementFeeRate || 5,
+        commissionRate: data.commissionRate || 0,
+        managementFeeRate: data.managementFeeRate || 0,
+        acomptes: data.acomptes || null,
         createdBy: access.userId || 'unknown',
         createdByInitials: userInitials,
       });
@@ -218,6 +222,9 @@ export async function PUT(request: NextRequest) {
     }
     
     const invoice = await invoiceService.updateInvoice(data.id, {
+      clientId: data.clientId,
+      issueDate: data.issueDate,
+      dueDate: data.dueDate,
       status: data.status,
       paymentTerms: data.paymentTerms,
       publicNotes: data.publicNotes,
@@ -226,6 +233,18 @@ export async function PUT(request: NextRequest) {
       taxRate: data.taxRate,
       taxAmount: data.taxAmount,
       total: data.total,
+      paidAmount: data.paidAmount,
+      paidAt: data.paidAt,
+      // Nouveaux champs pour édition complète
+      lines: data.lines,
+      sections: data.sections,
+      acomptes: data.acomptes,
+      projectDescription: data.projectDescription,
+      projectName: data.projectName,
+      enablePlacementDeduction: data.enablePlacementDeduction,
+      placementDeduction: data.placementDeduction,
+      enableTransfertDeduction: data.enableTransfertDeduction,
+      transfertDeduction: data.transfertDeduction,
     });
     
     if (!invoice) {

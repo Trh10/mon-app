@@ -16,12 +16,15 @@ import {
   Calendar,
   ArrowRight,
   User,
-  LogOut
+  LogOut,
+  Wallet
 } from 'lucide-react';
+import Link from 'next/link';
 import ClientsList from '@/components/invoices/ClientsList';
 import InvoicesList from '@/components/invoices/InvoicesList';
 import CreateInvoiceModal from '@/components/invoices/CreateInvoiceModal';
 import CreateClientModal from '@/components/invoices/CreateClientModal';
+import { ALLINONE_TEMPLATES, INVOICE_TEMPLATES } from '@/lib/invoices/invoice-types';
 
 type Tab = 'invoices' | 'clients';
 type StatsModal = 'soldees' | 'encours' | 'recapitulatif' | null;
@@ -104,6 +107,9 @@ export default function InvoicesPage() {
   // Modals de détails stats
   const [statsModal, setStatsModal] = useState<StatsModal>(null);
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
+  
+  // Filtre par type de template
+  const [templateFilter, setTemplateFilter] = useState<string>('all');
 
   // Vérifier si l'utilisateur est connecté au module facturation
   useEffect(() => {
@@ -202,10 +208,13 @@ export default function InvoicesPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    if (isNaN(amount) || amount === null || amount === undefined) {
+      return '0,00 $';
+    }
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount) + ' $';
   };
 
   const formatDate = (dateStr: string) => {
@@ -440,6 +449,13 @@ export default function InvoicesPage() {
               </div>
               
               {/* Boutons actions - Icons only sur mobile */}
+              <Link
+                href={`/invoices/${billingUser.company}/treasury`}
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-green-50 hover:border-green-300 hover:text-green-700 transition-colors flex-shrink-0"
+              >
+                <Wallet className="w-4 h-4" />
+                <span className="hidden sm:inline">Trésorerie</span>
+              </Link>
               <button
                 onClick={() => setShowCreateClient(true)}
                 className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
@@ -571,10 +587,70 @@ export default function InvoicesPage() {
                   placeholder={activeTab === 'invoices' ? 'Rechercher une facture...' : 'Rechercher un client...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64"
+                  className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-64 bg-white text-gray-900"
                 />
               </div>
             </div>
+            
+            {/* Filtres par type de facture - ALL IN ONE uniquement */}
+            {activeTab === 'invoices' && billingUser?.company === 'allinone' && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 overflow-x-auto">
+                <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Filtrer:</span>
+                <button
+                  onClick={() => setTemplateFilter('all')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
+                    templateFilter === 'all'
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white text-gray-600 border border-gray-300 hover:border-red-300 hover:text-red-600'
+                  }`}
+                >
+                  Toutes
+                </button>
+                {Object.entries(ALLINONE_TEMPLATES).map(([key, template]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTemplateFilter(key)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
+                      templateFilter === key
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-gray-600 border border-gray-300 hover:border-red-300 hover:text-red-600'
+                    }`}
+                  >
+                    {template.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Filtres par type de facture - ICONES uniquement */}
+            {activeTab === 'invoices' && billingUser?.company === 'icones' && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200 overflow-x-auto">
+                <span className="text-xs text-gray-500 font-medium whitespace-nowrap">Filtrer:</span>
+                <button
+                  onClick={() => setTemplateFilter('all')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
+                    templateFilter === 'all'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-600 border border-gray-300 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                >
+                  Toutes
+                </button>
+                {Object.entries(INVOICE_TEMPLATES).map(([key, template]) => (
+                  <button
+                    key={key}
+                    onClick={() => setTemplateFilter(key)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
+                      templateFilter === key
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white text-gray-600 border border-gray-300 hover:border-blue-300 hover:text-blue-600'
+                    }`}
+                  >
+                    {template.category === 'proforma' ? 'Proforma ' : 'Facture '}{template.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Content */}
@@ -585,6 +661,7 @@ export default function InvoicesPage() {
                 refreshKey={refreshKey}
                 onRefresh={handleRefresh}
                 company={billingUser.company}
+                templateFilter={templateFilter}
               />
             ) : (
               <ClientsList 

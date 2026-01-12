@@ -1,5 +1,5 @@
 // Service de facturation avec Prisma (PostgreSQL/Neon)
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -53,6 +53,9 @@ export interface CreateInvoiceData {
   placementTVAEnabled?: boolean;
   chargesTTCMode?: boolean;
   transfertDeduction?: number;
+  placementDeduction?: number;
+  enablePlacementDeduction?: boolean;
+  enableTransfertDeduction?: boolean;
   projectDescription?: string;
   projectName?: string;
   managementFeeRate?: number;
@@ -62,14 +65,20 @@ export interface CreateInvoiceData {
   notes?: string;
   createdBy: string;
   createdByInitials?: string;
+  acomptes?: {
+    acompte1?: { percent: number; amount: number } | null;
+    acompte2?: { amount: number } | null;
+    acompte3?: { amount: number } | null;
+    totalPaye?: number;
+  } | null;
 }
 
 // ============================================
 // GÉNÉRATION NUMÉRO DE FACTURE
 // ============================================
 
-// Pour ICONES: FAC-2026-0001 ou PRO-2026-0001
-async function generateIconesInvoiceNumber(template: string): Promise<string> {
+// Pour ICONES: FAC-2026-0001-TE ou PRO-2026-0001-TE
+async function generateIconesInvoiceNumber(template: string, initials?: string): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = template.startsWith('proforma') ? 'PRO' : 'FAC';
   
@@ -84,7 +93,8 @@ async function generateIconesInvoiceNumber(template: string): Promise<string> {
   });
   
   const nextNum = (count + 1).toString().padStart(4, '0');
-  return `${prefix}-${year}-${nextNum}`;
+  const initialsStr = initials ? `-${initials}` : '';
+  return `${prefix}-${year}-${nextNum}${initialsStr}`;
 }
 
 // Pour ALL IN ONE: N°012/C.E/Janv/26
@@ -275,7 +285,7 @@ export async function getInvoiceByNumber(invoiceNumber: string) {
 export async function createInvoice(data: CreateInvoiceData) {
   // Générer le numéro de facture
   const invoiceNumber = data.company === 'icones'
-    ? await generateIconesInvoiceNumber(data.template)
+    ? await generateIconesInvoiceNumber(data.template, data.createdByInitials)
     : await generateAllinoneInvoiceNumber(data.templateCode || 'C.E');
   
   // Récupérer les infos client pour le snapshot
@@ -302,10 +312,14 @@ export async function createInvoice(data: CreateInvoiceData) {
       placementTVAEnabled: data.placementTVAEnabled || false,
       chargesTTCMode: data.chargesTTCMode ?? true,
       transfertDeduction: data.transfertDeduction || 0,
+      placementDeduction: data.placementDeduction || 0,
+      enablePlacementDeduction: data.enablePlacementDeduction === true,
+      enableTransfertDeduction: data.enableTransfertDeduction === true,
       projectDescription: data.projectDescription,
       projectName: data.projectName,
       managementFeeRate: data.managementFeeRate,
       commissionRate: data.commissionRate,
+      acomptes: data.acomptes ? data.acomptes as Prisma.InputJsonValue : Prisma.JsonNull,
       paymentTerms: data.paymentTerms,
       publicNotes: data.publicNotes,
       notes: data.notes,
@@ -357,10 +371,27 @@ export async function createInvoice(data: CreateInvoiceData) {
   return invoice;
 }
 
-export async function updateInvoice(id: string, data: Partial<CreateInvoiceData> & { status?: string }) {
+export async function updateInvoice(id: string, data: Partial<CreateInvoiceData> & { 
+  status?: string;
+  paidAmount?: number;
+  paidAt?: string | Date;
+  remainingAmount?: number;
+  lines?: any[];
+  sections?: any[];
+  acomptes?: any;
+  projectDescription?: string;
+  projectName?: string;
+  enablePlacementDeduction?: boolean;
+  placementDeduction?: number;
+  enableTransfertDeduction?: boolean;
+  transfertDeduction?: number;
+}) {
   // Mettre à jour les champs de base
   const updateData: any = {};
   
+  if (data.clientId) updateData.clientId = data.clientId;
+  if (data.issueDate) updateData.issueDate = new Date(data.issueDate);
+  if (data.dueDate) updateData.dueDate = new Date(data.dueDate);
   if (data.status) updateData.status = data.status;
   if (data.paymentTerms) updateData.paymentTerms = data.paymentTerms;
   if (data.publicNotes !== undefined) updateData.publicNotes = data.publicNotes;
@@ -370,17 +401,107 @@ export async function updateInvoice(id: string, data: Partial<CreateInvoiceData>
   if (data.taxAmount !== undefined) updateData.taxAmount = data.taxAmount;
   if (data.total !== undefined) updateData.total = data.total;
   
-  return prisma.invoice.update({
-    where: { id },
-    data: updateData,
-    include: {
-      client: true,
-      lines: true,
-      sections: {
-        include: { lines: true }
-      },
-      payments: true
+  // Champs spécifiques
+  if (data.projectDescription !== undefined) updateData.projectDescription = data.projectDescription;
+  if (data.projectName !== undefined) updateData.projectName = data.projectName;
+  if (data.acomptes !== undefined) updateData.acomptes = data.acomptes;
+  if (data.enablePlacementDeduction !== undefined) updateData.enablePlacementDeduction = data.enablePlacementDeduction;
+  if (data.placementDeduction !== undefined) updateData.placementDeduction = data.placementDeduction;
+  if (data.enableTransfertDeduction !== undefined) updateData.enableTransfertDeduction = data.enableTransfertDeduction;
+  if (data.transfertDeduction !== undefined) updateData.transfertDeduction = data.transfertDeduction;
+  
+  // Gérer les paiements/avances
+  if (data.paidAmount !== undefined) updateData.paidAmount = data.paidAmount;
+  if (data.paidAt !== undefined) updateData.paidAt = data.paidAt ? new Date(data.paidAt) : null;
+  
+  // Utiliser une transaction pour mettre à jour les lignes et sections
+  return prisma.$transaction(async (tx) => {
+    // Mise à jour des lignes si fournies
+    if (data.lines && data.lines.length > 0) {
+      // Supprimer les anciennes lignes
+      await tx.invoiceLine.deleteMany({
+        where: { invoiceId: id }
+      });
+      
+      // Créer les nouvelles lignes
+      for (const line of data.lines) {
+        await tx.invoiceLine.create({
+          data: {
+            invoiceId: id,
+            description: line.description || '',
+            quantity: line.quantity || 0,
+            unitPrice: line.unitPrice || 0,
+            total: (line.quantity || 1) * (line.unitPrice || 0),
+            chargesTTC: line.chargesTTC || 0,
+          }
+        });
+      }
     }
+    
+    // Mise à jour des sections si fournies (Facture B)
+    if (data.sections && data.sections.length > 0) {
+      // Supprimer les anciennes sections et leurs lignes
+      const existingSections = await tx.invoiceSection.findMany({
+        where: { invoiceId: id }
+      });
+      
+      for (const section of existingSections) {
+        await tx.invoiceSectionLine.deleteMany({
+          where: { sectionId: section.id }
+        });
+      }
+      
+      await tx.invoiceSection.deleteMany({
+        where: { invoiceId: id }
+      });
+      
+      // Créer les nouvelles sections avec leurs lignes
+      for (let i = 0; i < data.sections.length; i++) {
+        const section = data.sections[i];
+        const createdSection = await tx.invoiceSection.create({
+          data: {
+            invoiceId: id,
+            title: section.title || '',
+            sortOrder: i,
+            subtotal: section.subtotal || 0,
+          }
+        });
+        
+        // Créer les lignes de la section
+        if (section.lines && section.lines.length > 0) {
+          for (let j = 0; j < section.lines.length; j++) {
+            const line = section.lines[j];
+            await tx.invoiceSectionLine.create({
+              data: {
+                sectionId: createdSection.id,
+                description: line.description || '',
+                quantity: line.quantity || 0,
+                squareMeters: line.squareMeters || 0,
+                days: line.days || 0,
+                unitPrice: line.unitPrice || 0,
+                total: line.total || 0,
+                sortOrder: j,
+                daysImpactPrice: line.daysImpactPrice !== false,
+              }
+            });
+          }
+        }
+      }
+    }
+    
+    // Mise à jour de la facture elle-même
+    return tx.invoice.update({
+      where: { id },
+      data: updateData,
+      include: {
+        client: true,
+        lines: true,
+        sections: {
+          include: { lines: true }
+        },
+        payments: true
+      }
+    });
   });
 }
 
@@ -443,37 +564,50 @@ export async function addPayment(invoiceId: string, data: {
 export async function getInvoiceStats(company?: 'icones' | 'allinone') {
   const where = company ? { company } : {};
   
-  const [total, draft, sent, paid, overdue, totalAmount, paidAmount] = await Promise.all([
-    prisma.invoice.count({ where }),
-    prisma.invoice.count({ where: { ...where, status: 'draft' } }),
-    prisma.invoice.count({ where: { ...where, status: 'sent' } }),
-    prisma.invoice.count({ where: { ...where, status: 'paid' } }),
-    prisma.invoice.count({ 
-      where: { 
-        ...where, 
-        status: { in: ['sent', 'partial'] },
-        dueDate: { lt: new Date() }
-      } 
-    }),
-    prisma.invoice.aggregate({
-      where,
-      _sum: { total: true }
-    }),
-    prisma.invoice.aggregate({
-      where,
-      _sum: { paidAmount: true }
-    })
-  ]);
+  // Récupérer toutes les factures pour calculer correctement
+  const allInvoices = await prisma.invoice.findMany({ where });
+  
+  const total = allInvoices.length;
+  const draft = allInvoices.filter(i => i.status === 'draft').length;
+  const sent = allInvoices.filter(i => i.status === 'sent').length;
+  const paid = allInvoices.filter(i => i.status === 'paid').length;
+  const partial = allInvoices.filter(i => i.status === 'partial').length;
+  const overdue = allInvoices.filter(i => 
+    (i.status === 'sent' || i.status === 'partial') && 
+    new Date(i.dueDate) < new Date()
+  ).length;
+  
+  // Montant total de toutes les factures
+  const totalAmount = allInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+  
+  // Montant des factures soldées (payées complètement)
+  const paidInvoicesAmount = allInvoices
+    .filter(i => i.status === 'paid')
+    .reduce((sum, inv) => sum + (inv.total || 0), 0);
+  
+  // Montant des avances sur factures en cours
+  const partialPaidAmount = allInvoices
+    .filter(i => i.status === 'partial')
+    .reduce((sum, inv) => sum + (inv.paidAmount || 0), 0);
+  
+  // Total encaissé = factures soldées + avances
+  const totalPaidAmount = paidInvoicesAmount + partialPaidAmount;
+  
+  // Montant en cours = total - encaissé
+  const pendingAmount = totalAmount - totalPaidAmount;
   
   return {
     total,
     draft,
     sent,
     paid,
+    partial,
     overdue,
-    totalAmount: totalAmount._sum.total || 0,
-    paidAmount: paidAmount._sum.paidAmount || 0,
-    unpaidAmount: (totalAmount._sum.total || 0) - (paidAmount._sum.paidAmount || 0)
+    totalAmount: totalAmount || 0,
+    paidAmount: totalPaidAmount || 0,
+    pendingAmount: pendingAmount || 0,
+    // Pour compatibilité
+    unpaidAmount: pendingAmount || 0
   };
 }
 

@@ -7,7 +7,7 @@ export type Company = 'icones' | 'allinone';
 export type IconesTemplate = 'facture_a' | 'facture_b' | 'proforma_a' | 'proforma_b';
 
 // Types de factures ALL IN ONE
-export type AllinoneTemplate = 'creation_entreprise' | 'creation_asbl' | 'recrutement' | 'placement' | 'transfert';
+export type AllinoneTemplate = 'creation_entreprise' | 'creation_asbl' | 'recrutement' | 'placement' | 'transfert' | 'regularisation_eup';
 
 // Tous les templates
 export type InvoiceTemplate = IconesTemplate | AllinoneTemplate;
@@ -107,6 +107,17 @@ export const ALLINONE_TEMPLATES = {
     tvaRate: 16,
     hasDeduction: true,
   },
+  regularisation_eup: {
+    id: 'regularisation_eup',
+    code: 'Rg.EUP',
+    label: 'Régularisation EUP',
+    description: 'Régularisation avec frais et honoraires',
+    company: 'allinone',
+    columns: ['N°', 'Description', 'Qté', 'P.U', 'P.T'],
+    hasManagementFees: true,
+    managementFeeRate: 10,
+    hasTVA: false,
+  },
 } as const;
 
 // Informations bancaires ALL IN ONE
@@ -114,7 +125,7 @@ export const ALLINONE_BANK_ACCOUNTS = [
   { ville: 'KINSHASA', banque: 'RAWBANK SA', intitule: 'ALL IN ONE SAS', compte: '05101-01090698801-19', devise: 'USD' },
   { ville: 'KINSHASA', banque: 'EQUITYBCDC SA', intitule: 'ALL IN ONE SAS', compte: '23320018855446', devise: 'USD' },
   { ville: 'KINSHASA', banque: 'ADVANS CONGO', intitule: 'ALL IN ONE SAS', compte: '28001010011033000000', devise: 'USD' },
-  { ville: 'KINSHASA', banque: 'BGFI BANK RDC', intitule: 'ALL IN ONE', compte: '40049592011', devise: 'USD', iban: 'CD48 0003 1261 0040 0495 9201 185', bic: 'BGFICDKI' },
+  { ville: 'KINSHASA', banque: 'BGFI BANK RDC', intitule: 'ALL IN ONE SAS', compte: '00031-26100-40049592011-85', devise: 'USD' },
   { ville: 'LUBUMBASHI', banque: 'RAWBANK SA', intitule: 'ALL IN ONE SAS', compte: '05130-00906988002-97', devise: 'USD' },
 ];
 

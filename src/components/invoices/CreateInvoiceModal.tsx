@@ -38,6 +38,7 @@ interface InvoiceLineB {
   squareMeters: number;
   days: number;
   unitPrice: number;
+  daysImpactPrice: boolean; // Si true, les jours multiplient le prix
 }
 
 // Pour Facture B - Section
@@ -75,9 +76,20 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
   // Pour Placement: Charges TTC ou Charges HT + TVA
   const [chargesTTCMode, setChargesTTCMode] = useState(true); // true = TTC, false = HT avec TVA possible
   const [enablePlacementTVA, setEnablePlacementTVA] = useState(false);
+  const [placementDeduction, setPlacementDeduction] = useState(0);
+  const [enablePlacementDeduction, setEnablePlacementDeduction] = useState(false);
   
   // Pour Transfert: TVA toujours 16% et Déduction
   const [transfertDeduction, setTransfertDeduction] = useState(0);
+  const [enableTransfertDeduction, setEnableTransfertDeduction] = useState(false);
+  
+  // Pour ICONES Facture B: Acomptes
+  const [enableAcompte1, setEnableAcompte1] = useState(false);
+  const [acompte1Percent, setAcompte1Percent] = useState(60); // % du total général
+  const [enableAcompte2, setEnableAcompte2] = useState(false);
+  const [acompte2Amount, setAcompte2Amount] = useState(0); // Montant fixe
+  const [enableAcompte3, setEnableAcompte3] = useState(false);
+  const [acompte3Amount, setAcompte3Amount] = useState(0); // Montant fixe
   
   const [formData, setFormData] = useState({
     template: 'facture_a' as InvoiceTemplate,
@@ -106,7 +118,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
 
   // Sections pour Facture B
   const [sections, setSections] = useState<SectionB[]>([
-    { id: 'section-1', title: '', lines: [{ id: 'line-1', description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0 }] }
+    { id: 'section-1', title: '', lines: [{ id: 'line-1', description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0, daysImpactPrice: true }] }
   ]);
 
   // === SYSTÈME DE BROUILLON AUTO-SAUVEGARDÉ ===
@@ -284,7 +296,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
     setSections([...sections, { 
       id: newId, 
       title: '', 
-      lines: [{ id: `line-${Date.now()}`, description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0 }] 
+      lines: [{ id: `line-${Date.now()}`, description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0, daysImpactPrice: true }] 
     }]);
   };
 
@@ -308,7 +320,8 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
       quantity: 0, 
       squareMeters: 0, 
       days: 0, 
-      unitPrice: 0 
+      unitPrice: 0,
+      daysImpactPrice: true // Par défaut, les jours impactent le prix
     });
     setSections(newSections);
   };
@@ -321,7 +334,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
     }
   };
 
-  const updateSectionLine = (sectionIndex: number, lineIndex: number, field: keyof InvoiceLineB, value: string | number) => {
+  const updateSectionLine = (sectionIndex: number, lineIndex: number, field: keyof InvoiceLineB, value: string | number | boolean) => {
     const newSections = [...sections];
     (newSections[sectionIndex].lines[lineIndex] as any)[field] = value;
     setSections(newSections);
@@ -329,10 +342,11 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
 
   // Calcul du total d'une ligne Facture B
   const calculateLineBTotal = (line: InvoiceLineB): number => {
-    // Le total est calculé selon: (Qté ou 1) * (M² ou 1) * (Jour ou 1) * Prix unitaire
+    // Le total est calculé selon: (Qté ou 1) * (M² ou 1) * (Jour ou 1 si impact) * Prix unitaire
     const qty = line.quantity || 1;
     const m2 = line.squareMeters || 1;
-    const days = line.days || 1;
+    // Si daysImpactPrice est false ou undefined (rétrocompatibilité), on utilise 1 sinon la valeur des jours
+    const days = (line.daysImpactPrice !== false && line.days) ? line.days : 1;
     return qty * m2 * days * line.unitPrice;
   };
 
@@ -341,11 +355,15 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
     return section.lines.reduce((sum, line) => sum + calculateLineBTotal(line), 0);
   };
 
-  // Total hors taxe pour Facture B
+  // Total hors taxe pour Facture B (ICONES) - Plus de management fees / commission, juste le total
   const subtotalB = sections.reduce((sum, section) => sum + calculateSectionSubtotal(section), 0);
-  const managementFees = enableManagementFee ? subtotalB * (formData.managementFeeRate / 100) : 0;
-  const commissionAgence = enableCommission ? subtotalB * (formData.commissionRate / 100) : 0;
-  const totalB = subtotalB + managementFees + commissionAgence;
+  const totalGeneralB = subtotalB; // Le total général est simplement le sous-total
+  
+  // Calcul des acomptes pour ICONES Facture B
+  const acompte1Value = enableAcompte1 ? totalGeneralB * (acompte1Percent / 100) : 0;
+  const acompte2Value = enableAcompte2 ? acompte2Amount : 0;
+  const acompte3Value = enableAcompte3 ? acompte3Amount : 0;
+  const totalPaye = acompte1Value + acompte2Value + acompte3Value;
 
   // Calculs pour modèle A et ALL IN ONE
   // Pour Placement: Rémunérations brutes = Salaires Nets + Charges (+ TVA si applicable)
@@ -353,7 +371,9 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
   const placementTVA = (!chargesTTCMode && enablePlacementTVA) ? placementChargesHT * 0.16 : 0;
   const subtotal = company === 'allinone' && selectedAllinoneTemplate === 'placement'
     ? lines.reduce((sum, line) => sum + line.unitPrice + ((line as any).chargesTTC || 0), 0) + placementTVA
-    : lines.reduce((sum, line) => sum + (line.quantity * line.unitPrice), 0);
+    : company === 'allinone' && selectedAllinoneTemplate === 'recrutement'
+      ? lines.reduce((sum, line) => sum + ((line.quantity || 1) * line.unitPrice), 0) // Pour recrutement, quantity default à 1
+      : lines.reduce((sum, line) => sum + (line.quantity * line.unitPrice), 0);
   const taxAmount = enableTax ? subtotal * (formData.taxRate / 100) : 0;
   const total = subtotal + taxAmount;
 
@@ -478,13 +498,23 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
           requestBody.sections = validSections;
           requestBody.projectDescription = formData.projectDescription;
           requestBody.projectName = formData.projectName;
-          requestBody.commissionRate = enableCommission ? formData.commissionRate : 0;
-          requestBody.managementFeeRate = enableManagementFee ? formData.managementFeeRate : 0;
+          
+          // Acomptes pour Facture B (ICONES)
+          requestBody.acomptes = {
+            acompte1: enableAcompte1 ? { percent: acompte1Percent, amount: acompte1Value } : null,
+            acompte2: enableAcompte2 ? { amount: acompte2Value } : null,
+            acompte3: enableAcompte3 ? { amount: acompte3Value } : null,
+            totalPaye: totalPaye,
+          };
+          
+          // Plus de management fees / commission pour ICONES
+          requestBody.commissionRate = 0;
+          requestBody.managementFeeRate = 0;
           requestBody.taxRate = 0;
           
           // Calculer les totaux
           requestBody.subtotal = subtotalB;
-          requestBody.total = totalB;
+          requestBody.total = totalGeneralB;
         }
       } else {
         // ALL IN ONE - selon le template
@@ -503,6 +533,8 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
           // Ajouter info TVA pour Placement
           requestBody.placementTVAEnabled = !chargesTTCMode && enablePlacementTVA;
           requestBody.chargesTTCMode = chargesTTCMode;
+          requestBody.placementDeduction = enablePlacementDeduction ? placementDeduction : 0;
+          requestBody.enablePlacementDeduction = enablePlacementDeduction;
         } else if (selectedAllinoneTemplate === 'transfert') {
           // Transfert: similaire à Placement mais avec TVA obligatoire et Déduction
           validLines = lines.filter(l => l.quantity > 0 && l.unitPrice > 0).map(l => ({
@@ -511,16 +543,17 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
             chargesTTC: (l as any).chargesTTC || 0
           }));
           
-          // TVA 16% sur charges obligatoire pour Transfert
-          requestBody.transfertDeduction = transfertDeduction;
+          // TVA 16% sur rémunérations brutes obligatoire pour Transfert
+          requestBody.transfertDeduction = enableTransfertDeduction ? transfertDeduction : 0;
+          requestBody.enableTransfertDeduction = enableTransfertDeduction;
           
           // Calculer totaux Transfert
           const totalSalaires = validLines.reduce((sum, l) => sum + l.unitPrice, 0);
           const totalCharges = validLines.reduce((sum, l) => sum + ((l as any).chargesTTC || 0), 0);
           const totalRemunerations = totalSalaires + totalCharges;
-          const totalTVA = totalCharges * 0.16;
+          const totalTVA = totalRemunerations * 0.16; // TVA sur rémunérations brutes
           const totalGeneral = totalRemunerations + totalTVA;
-          const netAPayer = totalGeneral - transfertDeduction;
+          const netAPayer = totalGeneral - (enableTransfertDeduction ? transfertDeduction : 0);
           
           requestBody.subtotal = totalRemunerations;
           requestBody.taxRate = 16;
@@ -528,7 +561,11 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
           requestBody.total = netAPayer;
         } else if (selectedAllinoneTemplate === 'recrutement') {
           // Recrutement: Postes (description) et Salaire net (unitPrice) > 0
-          validLines = lines.filter(l => l.description && l.unitPrice > 0);
+          // Pour recrutement, quantity par défaut à 1 (effectif)
+          validLines = lines.filter(l => l.description && l.unitPrice > 0).map(l => ({
+            ...l,
+            quantity: l.quantity || 1
+          }));
         } else {
           validLines = lines.filter(l => l.description && l.quantity > 0 && l.unitPrice > 0);
         }
@@ -600,7 +637,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
     setEnableCommission(true);
     setEnableManagementFee(true);
     setLines([{ description: '', quantity: 0, unitPrice: 0 }]);
-    setSections([{ id: 'section-1', title: '', lines: [{ id: 'line-1', description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0 }] }]);
+    setSections([{ id: 'section-1', title: '', lines: [{ id: 'line-1', description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0, daysImpactPrice: true }] }]);
     setError('');
     // Supprimer le brouillon après création réussie
     clearDraft();
@@ -637,7 +674,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
       setEnableCommission(true);
       setEnableManagementFee(true);
       setLines([{ description: '', quantity: 0, unitPrice: 0 }]);
-      setSections([{ id: 'section-1', title: '', lines: [{ id: 'line-1', description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0 }] }]);
+      setSections([{ id: 'section-1', title: '', lines: [{ id: 'line-1', description: '', quantity: 0, squareMeters: 0, days: 0, unitPrice: 0, daysImpactPrice: true }] }]);
       setError('');
     }
   };
@@ -818,7 +855,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                     >
                       <div className="font-semibold text-gray-900 text-sm">{template.label}</div>
                       <div className="text-xs text-gray-500 mt-1">{template.description}</div>
-                      <div className="mt-2 text-xs font-mono bg-gray-100 px-2 py-1 rounded inline-block">
+                      <div className="mt-2 text-xs font-mono bg-purple-100 text-purple-700 px-2 py-1 rounded inline-block">
                         Code: {template.code}
                       </div>
                     </button>
@@ -999,7 +1036,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                             </td>
                             {/* Rémunérations brutes (calculé) */}
                             <td className="py-2 px-2 text-right text-sm font-medium text-gray-900">
-                              {formatCurrency(line.unitPrice + ((line as any).chargesTTC || 0))} $
+                              {formatCurrency(line.unitPrice + ((line as any).chargesTTC || 0))}
                             </td>
                             <td className="py-2 px-2">
                               <button
@@ -1069,11 +1106,11 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                             </td>
                             {/* Rémunérations brutes (calculé) */}
                             <td className="py-2 px-2 text-right text-sm font-medium text-gray-900">
-                              {formatCurrency(line.unitPrice + ((line as any).chargesTTC || 0))} $
+                              {formatCurrency(line.unitPrice + ((line as any).chargesTTC || 0))}
                             </td>
-                            {/* TVA 16% (calculé sur charges) */}
+                            {/* TVA 16% (calculé sur rémunérations brutes) */}
                             <td className="py-2 px-2 text-right text-sm font-medium text-gray-900">
-                              {formatCurrency(((line as any).chargesTTC || 0) * 0.16)} $
+                              {formatCurrency((line.unitPrice + ((line as any).chargesTTC || 0)) * 0.16)}
                             </td>
                             <td className="py-2 px-2">
                               <button
@@ -1246,6 +1283,36 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                         </label>
                       </div>
                     )}
+                    <div className="flex items-center justify-between pt-2 border-t border-purple-200">
+                      <div className="flex items-center gap-2 text-sm">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enablePlacementDeduction}
+                            onChange={(e) => {
+                              setEnablePlacementDeduction(e.target.checked);
+                              if (!e.target.checked) setPlacementDeduction(0);
+                            }}
+                            className="w-4 h-4 text-purple-600 rounded"
+                          />
+                          <span className="text-gray-700">Activer Déduction (absences & retards)</span>
+                        </label>
+                      </div>
+                      {enablePlacementDeduction && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={placementDeduction || ''}
+                            onChange={(e) => setPlacementDeduction(parseFloat(e.target.value) || 0)}
+                            className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
@@ -1260,20 +1327,33 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-purple-200">
                       <div className="flex items-center gap-2 text-sm">
-                        <span className="text-gray-700">Déduction pour absences & retards:</span>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enableTransfertDeduction}
+                            onChange={(e) => {
+                              setEnableTransfertDeduction(e.target.checked);
+                              if (!e.target.checked) setTransfertDeduction(0);
+                            }}
+                            className="w-4 h-4 text-purple-600 rounded"
+                          />
+                          <span className="text-gray-700">Activer Déduction (absences & retards)</span>
+                        </label>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-500">$</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={transfertDeduction || ''}
-                          onChange={(e) => setTransfertDeduction(parseFloat(e.target.value) || 0)}
-                          className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900"
-                          placeholder="0.00"
-                        />
-                      </div>
+                      {enableTransfertDeduction && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={transfertDeduction || ''}
+                            onChange={(e) => setTransfertDeduction(parseFloat(e.target.value) || 0)}
+                            className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1452,13 +1532,27 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                                 />
                               </td>
                               <td className="py-1 px-1">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={line.days || ''}
-                                  onChange={(e) => updateSectionLine(sectionIndex, lineIndex, 'days', parseFloat(e.target.value) || 0)}
-                                  className="w-full px-1 py-1 border border-gray-200 rounded text-xs text-center bg-white text-gray-900"
-                                />
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={line.days || ''}
+                                    onChange={(e) => updateSectionLine(sectionIndex, lineIndex, 'days', parseFloat(e.target.value) || 0)}
+                                    className="w-full px-1 py-1 border border-gray-200 rounded text-xs text-center bg-white text-gray-900"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => updateSectionLine(sectionIndex, lineIndex, 'daysImpactPrice', !line.daysImpactPrice)}
+                                    className={`p-0.5 rounded transition-colors ${
+                                      line.daysImpactPrice !== false 
+                                        ? 'text-green-600 bg-green-100 hover:bg-green-200' 
+                                        : 'text-gray-400 bg-gray-100 hover:bg-gray-200'
+                                    }`}
+                                    title={line.daysImpactPrice !== false ? 'Jour multiplie le prix (cliquez pour désactiver)' : 'Jour informatif seulement (cliquez pour activer)'}
+                                  >
+                                    <Calculator className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </td>
                               <td className="py-1 px-2">
                                 <input
@@ -1504,63 +1598,108 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                 </div>
               </div>
 
-              {/* Frais supplémentaires Facture B - avec checkboxes */}
+              {/* Acomptes pour ICONES Facture B */}
               <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">Frais additionnels (optionnels)</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Acomptes (optionnels)</h4>
                 
-                {/* Management Fees */}
+                {/* Acompte 1 - Pourcentage */}
                 <div className="flex items-center gap-3 mb-3">
                   <input
                     type="checkbox"
-                    id="enableManagementFee"
-                    checked={enableManagementFee}
-                    onChange={(e) => setEnableManagementFee(e.target.checked)}
+                    id="enableAcompte1"
+                    checked={enableAcompte1}
+                    onChange={(e) => setEnableAcompte1(e.target.checked)}
                     className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                   />
-                  <label htmlFor="enableManagementFee" className="text-sm text-gray-700 flex-1">
-                    Management fees
+                  <label htmlFor="enableAcompte1" className="text-sm text-gray-700 flex-1">
+                    Acompte payé
                   </label>
-                  {enableManagementFee && (
+                  {enableAcompte1 && (
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
                         min="0"
-                        step="0.5"
-                        value={formData.managementFeeRate}
-                        onChange={(e) => setFormData({ ...formData, managementFeeRate: parseFloat(e.target.value) || 0 })}
+                        max="100"
+                        step="1"
+                        value={acompte1Percent}
+                        onChange={(e) => setAcompte1Percent(parseFloat(e.target.value) || 0)}
                         className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-center bg-white text-gray-900"
                       />
                       <span className="text-sm text-gray-500">%</span>
+                      <span className="text-sm text-green-600 font-medium ml-2">
+                        {formatCurrency(acompte1Value)}
+                      </span>
                     </div>
                   )}
                 </div>
                 
-                {/* Commission Agence */}
-                <div className="flex items-center gap-3">
+                {/* Acompte 2 - Montant fixe */}
+                <div className="flex items-center gap-3 mb-3">
                   <input
                     type="checkbox"
-                    id="enableCommission"
-                    checked={enableCommission}
-                    onChange={(e) => setEnableCommission(e.target.checked)}
+                    id="enableAcompte2"
+                    checked={enableAcompte2}
+                    onChange={(e) => setEnableAcompte2(e.target.checked)}
                     className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                   />
-                  <label htmlFor="enableCommission" className="text-sm text-gray-700 flex-1">
-                    Commission Agence
+                  <label htmlFor="enableAcompte2" className="text-sm text-gray-700 flex-1">
+                    Deuxième acompte payé
                   </label>
-                  {enableCommission && (
+                  {enableAcompte2 && (
                     <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">$</span>
                       <input
                         type="number"
                         min="0"
-                        step="0.5"
-                        value={formData.commissionRate}
-                        onChange={(e) => setFormData({ ...formData, commissionRate: parseFloat(e.target.value) || 0 })}
-                        className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-center bg-white text-gray-900"
+                        step="0.01"
+                        value={acompte2Amount}
+                        onChange={(e) => setAcompte2Amount(parseFloat(e.target.value) || 0)}
+                        className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900"
                       />
-                      <span className="text-sm text-gray-500">%</span>
                     </div>
                   )}
                 </div>
+                
+                {/* Acompte 3 - Montant fixe */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="enableAcompte3"
+                    checked={enableAcompte3}
+                    onChange={(e) => setEnableAcompte3(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <label htmlFor="enableAcompte3" className="text-sm text-gray-700 flex-1">
+                    Troisième acompte payé
+                  </label>
+                  {enableAcompte3 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={acompte3Amount}
+                        onChange={(e) => setAcompte3Amount(parseFloat(e.target.value) || 0)}
+                        className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-right bg-white text-gray-900"
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Total payé si au moins un acompte */}
+                {(enableAcompte1 || enableAcompte2 || enableAcompte3) && (
+                  <div className="mt-4 pt-3 border-t border-gray-200">
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className="text-gray-700">Total Payé</span>
+                      <span className="text-green-600">{formatCurrency(totalPaye)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm mt-1">
+                      <span className="text-gray-500">Reste à payer</span>
+                      <span className="text-orange-600 font-medium">{formatCurrency(totalGeneralB - totalPaye)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             )}
@@ -1636,33 +1775,48 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                     <span className="font-medium">{formatCurrency(subtotalB)}</span>
                   </div>
                   
-                  {(enableManagementFee || enableCommission) && (
-                    <>
-                      <hr className="my-2" />
-                      <div className="text-xs text-gray-500 mb-1">AUTRES FRAIS</div>
-                      
-                      {enableManagementFee && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Management fees {formData.managementFeeRate}%</span>
-                          <span className="font-medium">{formatCurrency(managementFees)}</span>
-                        </div>
-                      )}
-                      
-                      {enableCommission && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Commission Agence {formData.commissionRate}%</span>
-                          <span className="font-medium">{formatCurrency(commissionAgence)}</span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
                   <hr className="my-2" />
                   
                   <div className="flex justify-between">
                     <span className="font-semibold text-gray-900">TOTAL GÉNÉRAL</span>
-                    <span className="text-xl font-bold text-blue-600">{formatCurrency(totalB)}</span>
+                    <span className="text-xl font-bold text-blue-600">{formatCurrency(totalGeneralB)}</span>
                   </div>
+                  
+                  {/* Acomptes si activés */}
+                  {(enableAcompte1 || enableAcompte2 || enableAcompte3) && (
+                    <>
+                      <hr className="my-2" />
+                      <div className="text-xs text-gray-500 mb-1">ACOMPTES</div>
+                      
+                      {enableAcompte1 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Acompte payé ({acompte1Percent}%)</span>
+                          <span className="font-medium text-green-600">{formatCurrency(acompte1Value)}</span>
+                        </div>
+                      )}
+                      
+                      {enableAcompte2 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Deuxième acompte payé</span>
+                          <span className="font-medium text-green-600">{formatCurrency(acompte2Value)}</span>
+                        </div>
+                      )}
+                      
+                      {enableAcompte3 && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Troisième acompte payé</span>
+                          <span className="font-medium text-green-600">{formatCurrency(acompte3Value)}</span>
+                        </div>
+                      )}
+                      
+                      <hr className="my-2" />
+                      
+                      <div className="flex justify-between text-sm">
+                        <span className="font-semibold text-gray-700">TOTAL PAYÉ</span>
+                        <span className="font-bold text-green-600">{formatCurrency(totalPaye)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
                 )}
 
@@ -1673,10 +1827,11 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                   {selectedAllinoneTemplate === 'placement' ? (
                     (() => {
                       const salairesNets = lines.reduce((sum, l) => sum + (l.unitPrice || 0), 0);
-                      const chargesHT = lines.reduce((sum, l) => sum + ((l as any).chargesTTC || 0), 0);
-                      const tvaOnCharges = !chargesTTCMode && enablePlacementTVA ? chargesHT * 0.16 : 0;
-                      const chargesFinal = chargesHT + tvaOnCharges;
-                      const remunerationsBrutes = salairesNets + chargesFinal;
+                      const charges = lines.reduce((sum, l) => sum + ((l as any).chargesTTC || 0), 0);
+                      const remunerationsBrutes = salairesNets + charges;
+                      const tvaOnRemunerations = !chargesTTCMode && enablePlacementTVA ? remunerationsBrutes * 0.16 : 0;
+                      const totalGeneral = remunerationsBrutes + tvaOnRemunerations;
+                      const netAPayer = totalGeneral - placementDeduction;
                       
                       return (
                         <>
@@ -1686,18 +1841,32 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-600">{chargesTTCMode ? 'Charges TTC' : 'Charges'}</span>
-                            <span className="font-medium">{formatCurrency(chargesHT)}</span>
+                            <span className="font-medium">{formatCurrency(charges)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Rémunérations brutes</span>
+                            <span className="font-medium">{formatCurrency(remunerationsBrutes)}</span>
                           </div>
                           {!chargesTTCMode && enablePlacementTVA && (
                             <div className="flex justify-between text-sm text-purple-600">
-                              <span>TVA 16% sur charges</span>
-                              <span className="font-medium">{formatCurrency(tvaOnCharges)}</span>
+                              <span>TVA 16% sur rém. brutes</span>
+                              <span className="font-medium">{formatCurrency(tvaOnRemunerations)}</span>
                             </div>
                           )}
                           <hr className="my-2" />
                           <div className="flex justify-between">
-                            <span className="font-semibold text-gray-900">RÉMUNÉRATIONS BRUTES</span>
-                            <span className="text-xl font-bold text-purple-600">{formatCurrency(remunerationsBrutes)}</span>
+                            <span className="font-semibold text-gray-900">TOTAL GÉNÉRAL</span>
+                            <span className="text-xl font-bold text-purple-600">{formatCurrency(totalGeneral)}</span>
+                          </div>
+                          {placementDeduction > 0 && (
+                            <div className="flex justify-between text-sm text-orange-600">
+                              <span>Déduction absences/retards</span>
+                              <span className="font-medium">- {formatCurrency(placementDeduction)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-2 border-t border-purple-300">
+                            <span className="font-bold text-gray-900">NET À PAYER</span>
+                            <span className="text-xl font-bold text-green-600">{formatCurrency(netAPayer)}</span>
                           </div>
                         </>
                       );
@@ -1707,7 +1876,7 @@ export default function CreateInvoiceModal({ isOpen, onClose, onSuccess, presele
                       const salairesNets = lines.reduce((sum, l) => sum + (l.unitPrice || 0), 0);
                       const charges = lines.reduce((sum, l) => sum + ((l as any).chargesTTC || 0), 0);
                       const remunerationsBrutes = salairesNets + charges;
-                      const tva16 = charges * 0.16;
+                      const tva16 = remunerationsBrutes * 0.16; // TVA sur rémunérations brutes
                       const totalGeneral = remunerationsBrutes + tva16;
                       const netAPayer = totalGeneral - transfertDeduction;
                       

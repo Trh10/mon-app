@@ -24,9 +24,10 @@ interface Props {
   refreshKey: number;
   onRefresh: () => void;
   company: Company;
+  templateFilter?: string;
 }
 
-export default function InvoicesList({ searchQuery, refreshKey, onRefresh, company }: Props) {
+export default function InvoicesList({ searchQuery, refreshKey, onRefresh, company, templateFilter = 'all' }: Props) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
@@ -142,14 +143,17 @@ export default function InvoicesList({ searchQuery, refreshKey, onRefresh, compa
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('fr-CA', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+    if (isNaN(amount) || amount === null || amount === undefined) {
+      return '0,00 $';
+    }
+    return new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount) + ' $';
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-CA');
+    return new Date(dateStr).toLocaleDateString('fr-FR');
   };
 
   const formatMonthYear = (dateStr: string) => {
@@ -164,6 +168,12 @@ export default function InvoicesList({ searchQuery, refreshKey, onRefresh, compa
 
   // Filtrer les factures
   const filteredInvoices = invoices.filter(inv => {
+    // Filtre par template
+    if (templateFilter && templateFilter !== 'all') {
+      if (inv.template !== templateFilter) return false;
+    }
+    
+    // Filtre par recherche
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (

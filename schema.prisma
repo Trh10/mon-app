@@ -331,15 +331,19 @@ model Invoice {
   // Options Placement
   placementTVAEnabled Boolean   @default(false)
   chargesTTCMode      Boolean   @default(true)
+  placementDeduction  Float     @default(0)
+  enablePlacementDeduction Boolean @default(false)
   
   // Options Transfert
   transfertDeduction  Float     @default(0)
+  enableTransfertDeduction Boolean @default(false)
   
   // Options Facture B
   projectDescription  String?
   projectName         String?
   managementFeeRate   Float?
   commissionRate      Float?
+  acomptes            Json?     // {acompte1: {percent, amount}, acompte2: {amount}, acompte3: {amount}, totalPaye}
   
   // Statut & Paiement
   status              String    @default("draft") // draft, sent, partial, paid, overdue, cancelled
@@ -417,6 +421,7 @@ model InvoiceSectionLine {
   days            Float?
   unitPrice       Float     @default(0)
   total           Float     @default(0)
+  daysImpactPrice Boolean   @default(true)
   sortOrder       Int       @default(0)
   createdAt       DateTime  @default(now())
 
@@ -436,4 +441,85 @@ model InvoicePayment {
   createdAt       DateTime  @default(now())
 
   @@index([invoiceId])
+}
+
+// ============================================
+// TRÉSORERIE & DÉPENSES
+// ============================================
+
+model ExpenseCategory {
+  id              String    @id @default(uuid())
+  company         String    // 'icones' | 'allinone'
+  name            String    // Ex: "Loyer", "Salaires", "Fournitures"
+  color           String?   // Couleur pour l'affichage
+  icon            String?   // Icône (ex: "home", "users", "box")
+  isActive        Boolean   @default(true)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  expenses        Expense[]
+  
+  @@unique([company, name])
+  @@index([company])
+}
+
+model Expense {
+  id              String    @id @default(uuid())
+  company         String    // 'icones' | 'allinone'
+  
+  // Catégorie
+  category        ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  categoryId      String?
+  
+  // Détails
+  description     String
+  amount          Float
+  expenseDate     DateTime
+  
+  // Paiement
+  paymentMethod   String?   // "Espèces", "Virement", "Chèque", "Carte"
+  reference       String?   // N° de chèque, référence virement, etc.
+  vendor          String?   // Fournisseur/Bénéficiaire
+  
+  // Pièce jointe (reçu, facture)
+  receiptUrl      String?
+  
+  // Notes
+  notes           String?
+  
+  // Métadonnées
+  createdBy       String?
+  createdByName   String?
+  isRecurring     Boolean   @default(false)
+  recurringType   String?   // "monthly", "weekly", "yearly"
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([company])
+  @@index([categoryId])
+  @@index([expenseDate])
+}
+
+// Vue mensuelle de la trésorerie (cache pour performance)
+model TreasuryMonth {
+  id              String    @id @default(uuid())
+  company         String    // 'icones' | 'allinone'
+  year            Int
+  month           Int       // 1-12
+  
+  // Totaux calculés
+  totalIncome     Float     @default(0) // Total des factures encaissées
+  totalExpenses   Float     @default(0) // Total des dépenses
+  balance         Float     @default(0) // Income - Expenses
+  
+  // Détails par catégorie (JSON)
+  expensesByCategory Json?
+  
+  // Métadonnées
+  lastUpdated     DateTime  @default(now())
+  
+  @@unique([company, year, month])
+  @@index([company])
 }

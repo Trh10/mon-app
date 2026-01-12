@@ -299,7 +299,7 @@ function generateTravauxHTML(invoice: any, client: any, enteteBase64: string): s
         <tbody>${linesHTML}</tbody>
       </table>
       <div class="footer-section">
-        <div class="signature-section" style="display:flex;flex-direction:column;justify-content:flex-end;">
+        <div class="signature-section" style="display:flex;flex-direction:column;justify-content:flex-end;margin-right:15mm;">
           <div class="signature-title" style="margin-bottom:0;">Service Comptabilité</div>
           <div style="border-bottom:1px solid #000;width:35%;margin-top:5mm;"></div>
         </div>
@@ -412,7 +412,7 @@ function generateProformaHTML(invoice: any, client: any, enteteBase64: string): 
         <tbody>${linesHTML}</tbody>
       </table>
       <div style="margin-top:3mm;display:flex;justify-content:space-between;align-items:flex-end;">
-        <div style="display:flex;flex-direction:column;justify-content:flex-end;">
+        <div style="display:flex;flex-direction:column;justify-content:flex-end;margin-right:15mm;">
           <div class="signature-title" style="margin-bottom:0;">Service Comptabilité</div>
           <div style="border-bottom:1px solid #000;width:35%;margin-top:5mm;"></div>
         </div>
@@ -462,6 +462,9 @@ function generateProformaHTML(invoice: any, client: any, enteteBase64: string): 
 
 // Facture B - Format avec sections (reproduction EXACTE de la photo)
 function generateFactureBHTML(invoice: any, client: any, enteteBase64: string): string {
+  console.log('=== FACTURE B DEBUG ===');
+  console.log('invoice.acomptes:', JSON.stringify(invoice.acomptes, null, 2));
+  
   const sections = invoice.sections || [];
   const commissionRate = invoice.commissionRate || 17;
   const managementFeeRate = invoice.managementFeeRate || 5;
@@ -510,7 +513,7 @@ function generateFactureBHTML(invoice: any, client: any, enteteBase64: string): 
     // Sous-total de section
     sectionsHTML += `
       <tr>
-        <td colspan="5" style="padding:3px 6px;border:1px solid #000;text-align:right;font-weight:bold;font-size:9px;background:#f0f0f0;">Sous-total ${sectionNumber}</td>
+        <td colspan="5" style="padding:3px 6px;border:1px solid #000;text-align:left;font-weight:bold;font-size:9px;background:#f0f0f0;">Sous-total ${sectionNumber}</td>
         <td style="padding:3px 6px;border:1px solid #000;text-align:right;font-weight:bold;font-size:9px;background:#f0f0f0;">$${formatCurrency(section.subtotal || 0)}</td>
       </tr>`;
     
@@ -600,21 +603,26 @@ function generateFactureBHTML(invoice: any, client: any, enteteBase64: string): 
       font-size: 12px;
       padding: 6px 15px;
       border: 2px solid #000;
-      margin-bottom: 5mm;
+      margin-bottom: 0;
     }
     .info-box {
-      display: table;
+      display: flex;
       width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 5mm;
+      margin-bottom: 0;
       border: 1px solid #000;
+      border-top: none;
     }
     .info-box > div {
-      display: table-cell;
       padding: 6px 10px;
       font-size: 10px;
-      border: 1px solid #000;
       vertical-align: top;
+    }
+    .info-box > div:first-child {
+      width: 50%;
+      border-right: 1px solid #000;
+    }
+    .info-box > div:last-child {
+      width: 50%;
     }
     
     .main-table {
@@ -732,30 +740,39 @@ function generateFactureBHTML(invoice: any, client: any, enteteBase64: string): 
     }
   `;
 
-  // Générer les acomptes si présents
+  // Générer les acomptes si présents (nouveau format)
   let acomptesHTML = '';
-  if (invoice.payments && invoice.payments.length > 0) {
-    let totalPaye = 0;
-    invoice.payments.forEach((payment: any, index: number) => {
-      const percent = Math.round((payment.amount / totalGeneral) * 100);
-      totalPaye += payment.amount;
-      const label = index === 0 ? `Acompte payé (${percent}%)` : 
-                   index === 1 ? 'Deuxième acompte payé' : 
-                   `${index + 1}ème acompte payé`;
+  const acomptes = invoice.acomptes;
+  if (acomptes && (acomptes.acompte1 || acomptes.acompte2 || acomptes.acompte3)) {
+    if (acomptes.acompte1) {
       acomptesHTML += `
         <tr>
-          <td class="acompte-label">${label}</td>
-          <td class="acompte-value">$${formatCurrency(payment.amount)}</td>
+          <td style="border:1px solid #000;padding:4px 10px;background:#f0f0f0;">Acompte payé (${acomptes.acompte1.percent}%)</td>
+          <td style="border:1px solid #000;padding:4px 10px;text-align:right;">$${formatCurrency(acomptes.acompte1.amount)}</td>
         </tr>`;
-    });
-    acomptesHTML = `
-      <table class="acomptes-table">
-        ${acomptesHTML}
-        <tr class="total-paye">
-          <td>TOTAL PAYE</td>
-          <td style="text-align:right;">$${formatCurrency(totalPaye)}</td>
-        </tr>
-      </table>`;
+    }
+    
+    if (acomptes.acompte2) {
+      acomptesHTML += `
+        <tr>
+          <td style="border:1px solid #000;padding:4px 10px;background:#f0f0f0;">Deuxième acompte payé</td>
+          <td style="border:1px solid #000;padding:4px 10px;text-align:right;">$${formatCurrency(acomptes.acompte2.amount)}</td>
+        </tr>`;
+    }
+    
+    if (acomptes.acompte3) {
+      acomptesHTML += `
+        <tr>
+          <td style="border:1px solid #000;padding:4px 10px;background:#f0f0f0;">Troisième acompte payé</td>
+          <td style="border:1px solid #000;padding:4px 10px;text-align:right;">$${formatCurrency(acomptes.acompte3.amount)}</td>
+        </tr>`;
+    }
+    
+    acomptesHTML += `
+        <tr style="background:#4a4a4a;color:white;font-weight:bold;">
+          <td style="border:1px solid #000;padding:4px 10px;">TOTAL PAYE</td>
+          <td style="border:1px solid #000;padding:4px 10px;text-align:right;">$${formatCurrency(acomptes.totalPaye || 0)}</td>
+        </tr>`;
   }
 
   return `<!DOCTYPE html>
@@ -838,40 +855,20 @@ function generateFactureBHTML(invoice: any, client: any, enteteBase64: string): 
       
       <!-- Section totaux et signature sur même ligne -->
       <div class="totals-section">
-        <div class="signature-box" style="display:flex;flex-direction:column;justify-content:flex-end;">
-          <div class="signature-title" style="margin-bottom:0;">Service Comptabilité</div>
+        <div class="signature-box" style="display:flex;flex-direction:column;justify-content:flex-end;margin-right:15mm;">
+          <div class="signature-title" style="margin-bottom:0;font-weight:bold;">Service Comptabilité</div>
           <div style="border-bottom:1px solid #000;width:35%;margin-top:5mm;"></div>
         </div>
         
         <div>
-          <!-- Tableau des totaux -->
-          <table class="totals-table">
-            <tr>
-              <td class="label-cell" style="font-weight:bold;">TOTAL HORS TAXE</td>
-              <td class="value-cell" style="font-weight:bold;">$${formatCurrency(totalHT)}</td>
-            </tr>
-            <tr>
-              <td colspan="2" class="section-header">AUTRES FRAIS</td>
-            </tr>
-            <tr>
-              <td class="label-cell">Management fees ${managementFeeRate}%</td>
-              <td class="value-cell">$${formatCurrency(managementFees)}</td>
-            </tr>
-            <tr>
-              <td class="label-cell">Commission Agence ${commissionRate}%</td>
-              <td class="value-cell">$${formatCurrency(commissionAgence)}</td>
-            </tr>
-            <tr>
-              <td class="label-cell" style="font-weight:bold;">Sous-total</td>
-              <td class="value-cell" style="font-weight:bold;">$${formatCurrency(autresFrais)}</td>
-            </tr>
+          <!-- Tableau des totaux unifié - TOTAL GENERAL + Acomptes collés -->
+          <table class="totals-table" style="border-collapse:collapse;">
             <tr class="total-row">
-              <td>TOTAL GENERAL</td>
-              <td style="text-align:right;font-size:12px;">$${formatCurrency(totalGeneral)}</td>
+              <td style="border:1px solid #000;padding:4px 10px;">TOTAL GENERAL</td>
+              <td style="border:1px solid #000;padding:4px 10px;text-align:right;font-size:12px;">$${formatCurrency(totalHT)}</td>
             </tr>
+            ${acomptesHTML}
           </table>
-          
-          ${acomptesHTML}
         </div>
       </div>
       
@@ -927,8 +924,8 @@ function getAllinoneStyles(enteteBase64: string): string {
     @page { size: A4; margin: 0; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Times New Roman', Times, serif;
-      font-size: 12px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12pt;
       color: #000;
       background: #555;
       padding: 20px;
@@ -962,52 +959,59 @@ function getAllinoneStyles(enteteBase64: string): string {
       width: 210mm;
       min-height: 297mm;
       background: white;
-      ${enteteBase64 ? `background-image: url('${enteteBase64}'); background-size: 210mm auto; background-repeat: no-repeat; background-position: top center;` : ''}
+      ${enteteBase64 ? `background-image: url('${enteteBase64}'); background-size: 210mm 297mm; background-repeat: no-repeat; background-position: top center;` : ''}
       box-shadow: 0 0 30px rgba(0,0,0,0.4);
       position: relative;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     .content {
-      padding: ${enteteBase64 ? '55mm' : '20mm'} 15mm 30mm 15mm;
+      padding: ${enteteBase64 ? '38mm' : '20mm'} 12mm 35mm 12mm;
       min-height: 297mm;
+      box-sizing: border-box;
     }
     .date-header {
       text-align: right;
-      font-size: 12px;
-      margin-bottom: 5mm;
+      font-size: 10pt;
+      margin-bottom: 3mm;
     }
     .admin-title {
       text-align: center;
-      font-size: 16px;
+      font-size: 12pt;
       font-weight: bold;
       text-decoration: underline;
-      margin-bottom: 8mm;
+      margin-bottom: 5mm;
       letter-spacing: 0.5px;
     }
     .invoice-number {
-      font-size: 13px;
+      font-size: 10pt;
       font-weight: bold;
-      margin-bottom: 6mm;
+      margin-bottom: 4mm;
     }
     .service-client-box {
-      border: 1px solid #000;
-      margin-bottom: 5mm;
+      border: 1.5px solid #000;
+      border-bottom: none;
+      margin-bottom: 0;
     }
     .service-client-row {
       display: flex;
     }
     .service-cell, .client-cell {
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 2.5mm 4mm;
+      font-size: 10pt;
       font-weight: bold;
     }
     .service-cell {
       width: 50%;
-      border-right: 1px solid #000;
+      border-right: 1.5px solid #000;
     }
     .client-cell {
       width: 50%;
+    }
+    .black-band {
+      background: #000;
+      height: 4mm;
+      width: 100%;
     }
     .invoice-table {
       width: 100%;
@@ -1021,106 +1025,138 @@ function getAllinoneStyles(enteteBase64: string): string {
     .invoice-table th {
       background: #8B0000;
       color: #fff;
-      padding: 8px 10px;
+      padding: 2mm 3mm;
       text-align: left;
       font-weight: bold;
-      border: 1px solid #8B0000;
-      font-size: 13px;
+      border: 1.5px solid #000;
+      font-size: 9pt;
     }
     .invoice-table td {
-      padding: 6px 10px;
-      border: 1px solid #000;
+      padding: 2mm 3mm;
+      border: 1.5px solid #000;
       vertical-align: middle;
-      font-size: 13px;
+      font-size: 9pt;
     }
-    .invoice-table .col-num { width: 8%; text-align: center; }
-    .invoice-table .col-desc { width: 40%; font-weight: bold; }
+    .invoice-table .col-num { width: 6%; text-align: center; }
+    .invoice-table .col-desc { width: 42%; font-weight: bold; }
     .invoice-table .col-qty { width: 10%; text-align: center; }
-    .invoice-table .col-pu { width: 20%; text-align: right; }
-    .invoice-table .col-pt { width: 22%; text-align: right; }
+    .invoice-table .col-pu { width: 20%; text-align: right; padding-right: 3mm; }
+    .invoice-table .col-pt { width: 22%; text-align: right; padding-right: 3mm; }
+    .invoice-table .currency { display: inline-block; width: 12px; text-align: left; }
+    .invoice-table .amount { display: inline-block; min-width: 45px; text-align: right; }
     .totals-section {
-      border: 1px solid #000;
+      border: 1.5px solid #000;
       border-top: none;
     }
     .total-row {
       display: flex;
-      border-bottom: 1px solid #000;
+      border-bottom: 1.5px solid #000;
     }
     .total-row:last-child {
       border-bottom: none;
     }
+    .total-col-num {
+      width: 6%;
+      border-right: 1.5px solid #000;
+    }
+    .total-col-desc {
+      width: 42%;
+      border-right: 1.5px solid #000;
+    }
+    .total-col-qty {
+      width: 10%;
+      border-right: 1.5px solid #000;
+    }
+    .total-col-pu {
+      width: 20%;
+      border-right: 1.5px solid #000;
+    }
     .total-label {
-      width: 78%;
-      padding: 6px 10px;
-      font-size: 13px;
+      flex: 1;
+      padding: 2mm 3mm;
+      font-size: 9pt;
       font-weight: bold;
-      text-align: right;
-      border-right: 1px solid #000;
+      text-align: left;
+      border-right: 1.5px solid #000;
     }
     .total-value {
       width: 22%;
-      padding: 6px 10px;
-      font-size: 13px;
+      padding: 2mm 3mm;
+      font-size: 9pt;
       font-weight: bold;
       text-align: right;
     }
+    .total-value .currency { display: inline-block; width: 12px; text-align: left; }
+    .total-value .amount { display: inline-block; min-width: 45px; text-align: right; }
     .bank-section {
-      margin-top: 8mm;
-      font-size: 12px;
+      margin-top: 5mm;
+      font-size: 9pt;
     }
     .bank-section h4 {
-      font-size: 13px;
+      font-size: 10pt;
       font-weight: bold;
-      margin-bottom: 3mm;
+      margin-bottom: 2mm;
     }
     .bank-table {
-      width: 100%;
+      width: 92%;
       border-collapse: collapse;
+      margin: 0 auto;
     }
     .bank-table th {
       background: rgba(180, 180, 180, 0.5);
       color: #000;
-      padding: 6px 8px;
-      font-size: 11px;
+      padding: 1.5mm 2mm;
+      font-size: 9pt;
       font-weight: bold;
-      border: 1px solid #999;
+      border: 1.5px solid #000;
       text-align: center;
     }
     .bank-table td {
-      padding: 5px 8px;
-      font-size: 11px;
-      border: 1px solid #999;
+      padding: 1.5mm 2mm;
+      font-size: 9pt;
+      border: 1.5px solid #000;
       text-align: center;
     }
     .bank-table td.compte {
       font-weight: bold;
     }
     .signature-section {
-      margin-top: 8mm;
+      margin-top: 5mm;
       text-align: right;
-      font-size: 13px;
+      font-size: 10pt;
     }
     .payment-info {
-      margin-top: 6mm;
-      font-size: 12px;
-      line-height: 1.6;
+      margin-top: 4mm;
+      font-size: 9pt;
+      line-height: 1.4;
     }
     .payment-info p {
-      margin: 2px 0;
+      margin: 1px 0;
     }
     @media print {
-      body { 
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      html, body { 
         background: white !important; 
         padding: 0 !important;
+        margin: 0 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
       .toolbar { display: none !important; }
       .page { 
         box-shadow: none !important;
+        page-break-after: always;
+        page-break-inside: avoid;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
+      .invoice-table { page-break-inside: auto; }
+      .invoice-table tr { page-break-inside: avoid; page-break-after: auto; }
+      .bank-section { page-break-inside: avoid; }
+      .signature-section { page-break-inside: avoid; }
     }
   `;
 }
@@ -1136,6 +1172,7 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
     'recrutement': 'Recrutement du Personnel',
     'placement': 'Placement du Personnel',
     'transfert': 'Transfert du Personnel',
+    'regularisation_eup': 'Régularisation EUP',
   };
   const serviceName = serviceNames[templateKey] || 'Services';
   
@@ -1157,105 +1194,78 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
     extraFeesLabel = `TVA ${rate}%`;
   }
 
-  // Tableau des comptes bancaires
-  const bankRows = ALLINONE_BANK_ACCOUNTS.map(acc => `
+  // Tableau des comptes bancaires - Regroupé par ville comme sur la vraie facture
+  const kinshasa = ALLINONE_BANK_ACCOUNTS.filter(acc => acc.ville === 'KINSHASA');
+  const lubumbashi = ALLINONE_BANK_ACCOUNTS.filter(acc => acc.ville === 'LUBUMBASHI');
+  
+  const bankRows = `
     <tr>
-      <td>${acc.ville}</td>
-      <td>${acc.banque}</td>
-      <td>${acc.intitule}</td>
-      <td class="compte"><strong>${acc.compte}</strong></td>
-      <td>${acc.devise}</td>
+      <td rowspan="${kinshasa.length}" style="vertical-align: middle;">KINSHASA</td>
+      <td>${kinshasa[0]?.banque || ''}</td>
+      <td rowspan="${kinshasa.length + lubumbashi.length}" style="vertical-align: middle;">ALL IN ONE SAS</td>
+      <td><strong>${kinshasa[0]?.compte || ''}</strong></td>
+      <td rowspan="${kinshasa.length + lubumbashi.length}" style="vertical-align: middle;">USD</td>
     </tr>
-  `).join('');
+    ${kinshasa.slice(1).map(acc => `
+    <tr>
+      <td>${acc.banque}</td>
+      <td><strong>${acc.compte}</strong></td>
+    </tr>
+    `).join('')}
+    <tr>
+      <td rowspan="${lubumbashi.length}" style="vertical-align: middle;">LUBUMBASHI</td>
+      <td>${lubumbashi[0]?.banque || ''}</td>
+      <td><strong>${lubumbashi[0]?.compte || ''}</strong></td>
+    </tr>
+    ${lubumbashi.slice(1).map(acc => `
+    <tr>
+      <td>${acc.banque}</td>
+      <td><strong>${acc.compte}</strong></td>
+    </tr>
+    `).join('')}
+  `;
 
   // ======= TEMPLATE RECRUTEMENT =======
   if (templateKey === 'recrutement') {
-    // Calcul TVA 16% pour recrutement
-    const tvaRate = 16;
-    const tvaAmount = subtotal * (tvaRate / 100);
-    const netAPayer = subtotal + tvaAmount;
-    
-    // Générer les lignes pour recrutement - 5 lignes comme sur le modèle
-    let recrutementLinesHTML = '';
     const invoiceLines = invoice.lines || [];
     
-    for (let i = 1; i <= 5; i++) {
-      const line = invoiceLines[i - 1];
-      if (line) {
-        recrutementLinesHTML += `
-          <tr>
-            <td class="col-num">${i}.</td>
-            <td class="col-poste">${line.description}</td>
-            <td class="col-effectif">${line.quantity || 1}</td>
-            <td class="col-salaire">$ ${formatCurrency(line.unitPrice || 0)}</td>
-          </tr>
-        `;
-      } else {
-        recrutementLinesHTML += `
-          <tr>
-            <td class="col-num">${i}.</td>
-            <td class="col-poste"></td>
-            <td class="col-effectif"></td>
-            <td class="col-salaire"></td>
-          </tr>
-        `;
-      }
-    }
+    // Calculer le subtotal à partir des lignes
+    let recrutementSubtotal = 0;
+    invoiceLines.forEach((line: any) => {
+      recrutementSubtotal += (line.quantity || 1) * (line.unitPrice || 0);
+    });
+    
+    // Si subtotal de l'invoice existe, l'utiliser, sinon utiliser le calcul
+    const finalSubtotal = invoice.subtotal || recrutementSubtotal;
+    
+    // Calcul TVA 16% pour recrutement
+    const tvaRate = 16;
+    const tvaAmount = finalSubtotal * (tvaRate / 100);
+    const netAPayer = finalSubtotal + tvaAmount;
+    
+    // Générer les lignes pour recrutement
+    let recrutementLinesHTML = '';
+    let lineNum = 1;
+    invoiceLines.forEach((line: any) => {
+      const lineTotal = (line.quantity || 1) * (line.unitPrice || 0);
+      recrutementLinesHTML += `
+        <tr>
+          <td style="width: 6%; border: 1.5px solid #000; text-align: center; padding: 2mm 3mm;">${lineNum}</td>
+          <td style="width: 34%; border: 1.5px solid #000; padding: 2mm 3mm;">${line.description}</td>
+          <td style="width: 12%; border: 1.5px solid #000; text-align: center; padding: 2mm 3mm;">${line.quantity || 1}</td>
+          <td style="width: 22%; border: 1.5px solid #000; text-align: right; padding: 2mm 3mm;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(line.unitPrice || 0)}</span></td>
+          <td style="width: 22%; border: 1.5px solid #000; text-align: right; padding: 2mm 3mm;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(lineTotal)}</span></td>
+        </tr>
+      `;
+      lineNum++;
+    });
 
     return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <title>Facture ${invoice.invoiceNumber}</title>
-  <style>
-    @page { 
-      size: A4; 
-      margin: 0mm;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html {
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      font-family: 'Times New Roman', Times, serif;
-      font-size: 10px;
-      color: #000;
-      background: #555;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .toolbar {
-      background: #333;
-      padding: 12px 24px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .toolbar button {
-      background: #667eea;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .toolbar button.secondary { background: #4a5568; }
-    .toolbar .title {
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
-      margin-right: 20px;
-    }
+  <style>${getAllinoneStyles(enteteBase64)}
     .zoom-controls {
       display: flex;
       align-items: center;
@@ -1275,122 +1285,6 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       min-width: 50px;
       text-align: center;
     }
-    .page {
-      width: 210mm;
-      height: 297mm;
-      position: relative;
-      background-color: white;
-      box-shadow: 0 0 30px rgba(0,0,0,0.4);
-      overflow: hidden;
-    }
-    .page-bg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 210mm;
-      height: 297mm;
-      z-index: 0;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .content {
-      position: relative;
-      z-index: 1;
-      padding-top: 38mm;
-      padding-left: 12mm;
-      padding-right: 12mm;
-      padding-bottom: 22mm;
-    }
-    @media print {
-      html, body { 
-        margin: 0 !important;
-        padding: 0 !important;
-        background: white !important;
-        width: 210mm !important;
-        height: 297mm !important;
-      }
-      .toolbar { display: none !important; }
-      .page { 
-        box-shadow: none !important;
-        margin: 0 !important;
-        width: 210mm !important;
-        height: 297mm !important;
-      }
-    }
-    .date-header {
-      text-align: right;
-      font-size: 10pt;
-      margin-bottom: 3mm;
-    }
-    .admin-title {
-      text-align: center;
-      font-size: 12pt;
-      font-weight: bold;
-      text-decoration: underline;
-      margin-bottom: 3mm;
-    }
-    .invoice-number {
-      font-size: 10pt;
-      font-weight: bold;
-      margin-bottom: 2mm;
-    }
-    .rec-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 10pt;
-    }
-    .rec-table td, .rec-table th {
-      border: 1px solid #000;
-      padding: 1.5mm 2mm;
-    }
-    .rec-table .service-row td { padding: 2mm 3mm; font-size: 10pt; }
-    .rec-table .service-cell { width: 55%; }
-    .rec-table .client-cell { width: 45%; }
-    .rec-table .header-np { background: #fff; font-weight: bold; }
-    .rec-table .header-black {
-      background: #8B0000 !important;
-      color: #fff !important;
-      text-align: center;
-      font-weight: bold;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .rec-table .col-num { width: 6%; text-align: left; }
-    .rec-table .col-poste { width: 50%; }
-    .rec-table .col-effectif { width: 17%; text-align: center; }
-    .rec-table .col-salaire { width: 27%; text-align: right; }
-    .rec-table .total-row td { font-weight: bold; }
-    .rec-table .total-label { text-align: right; padding-right: 3mm; }
-    .rec-table .total-value { text-align: right; }
-    .payment-info {
-      margin-top: 3mm;
-      font-size: 9pt;
-      line-height: 1.4;
-    }
-    .bank-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 7pt;
-      margin-top: 2mm;
-    }
-    .bank-table th {
-      background: rgba(180,180,180,0.5) !important;
-      padding: 1mm 1.5mm;
-      font-weight: bold;
-      border: 1px solid #000;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .bank-table td {
-      padding: 0.8mm 1.5mm;
-      border: 1px solid #000;
-      font-size: 6.5pt;
-    }
-    .signature-section {
-      margin-top: 4mm;
-      text-align: right;
-      font-size: 10pt;
-    }
   </style>
 </head>
 <body>
@@ -1407,7 +1301,6 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
 
   <script>
     let currentZoom = 100;
-    const page = document.querySelector('.page');
     function updateZoom() {
       document.getElementById('zoomLevel').textContent = currentZoom + '%';
       document.querySelector('.page').style.transform = 'scale(' + (currentZoom / 100) + ')';
@@ -1422,73 +1315,89 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
   </script>
 
   <div class="page">
-    <img src="${enteteBase64}" class="page-bg" />
     <div class="content">
       <div class="date-header">Kinshasa, le ${formatDate(invoice.issueDate)}</div>
       <div class="admin-title">ADMINISTRATION ET FINANCES</div>
       <div class="invoice-number">Facture: ${invoice.invoiceNumber}</div>
       
-      <!-- TABLEAU COMPLET RECRUTEMENT -->
-      <table class="rec-table">
+      <!-- Tableau Recrutement - Même style que Régularisation EUP -->
+      <table style="width: 85%; border-collapse: collapse; font-size: 12pt; margin: 0 auto;">
         <!-- Ligne Service / Client -->
-        <tr class="service-row">
-          <td colspan="2" class="service-cell">Service : ${serviceName}</td>
-          <td colspan="2" class="client-cell">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
+        <tr>
+          <td colspan="2" style="width: 40%; border: 1.5px solid #000; padding: 2mm 3mm; background: #fff; font-weight: bold; white-space: nowrap;">Service : ${serviceName}</td>
+          <td colspan="3" style="width: 60%; border: 1.5px solid #000; padding: 2mm 3mm; background: #fff; font-weight: bold;">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
         </tr>
-        
-        <!-- En-tête avec bande noire -->
-        <tr class="header-row">
-          <td class="header-np col-num">N°</td>
-          <td class="header-np col-poste">Postes</td>
-          <td class="header-black col-effectif">Effectif</td>
-          <td class="header-black col-salaire">Salaire net</td>
+        <!-- Bande noire (même épaisseur que la bande rouge) -->
+        <tr>
+          <td colspan="2" style="background: #000; border-left: 1.5px solid #000; border-right: 1.5px solid #000; padding: 3mm 3mm; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td colspan="3" style="background: #000; border-right: 1.5px solid #000; padding: 3mm 3mm; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
         </tr>
-        
+        <!-- Ligne N° / Description seule -->
+        <tr>
+          <td style="width: 6%; border: 1.5px solid #000; border-top: none; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">N°</td>
+          <td style="width: 34%; border: 1.5px solid #000; border-top: none; font-weight: bold; padding: 2mm 3mm; background: #fff;">Description</td>
+          <td colspan="3" style="border: 1.5px solid #000; border-top: none; background: #c00; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+        </tr>
+        <!-- Ligne Qté / P.U / P.T -->
+        <tr>
+          <td style="width: 6%; border: 1.5px solid #000; border-top: none;"></td>
+          <td style="width: 34%; border: 1.5px solid #000; border-top: none;"></td>
+          <td style="width: 12%; border: 1.5px solid #000; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">Qté</td>
+          <td style="width: 22%; border: 1.5px solid #000; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">P.U</td>
+          <td style="width: 22%; border: 1.5px solid #000; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">P.T</td>
+        </tr>
         <!-- Lignes de données -->
         ${recrutementLinesHTML}
-        
         <!-- TOTAL -->
-        <tr class="total-row">
-          <td colspan="2" class="total-label">TOTAL</td>
-          <td class="col-effectif">1</td>
-          <td class="total-value">$ ${formatCurrency(subtotal)}</td>
+        <tr>
+          <td style="border: 1.5px solid #000;"></td>
+          <td style="border: 1.5px solid #000; font-weight: bold; padding: 2mm 3mm;">TOTAL</td>
+          <td style="border: 1.5px solid #000; background: #555; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(finalSubtotal)}</span></td>
         </tr>
-        
         <!-- TVA 16% -->
-        <tr class="total-row">
-          <td colspan="3" class="total-label">TVA 16%</td>
-          <td class="total-value">$ ${formatCurrency(tvaAmount)}</td>
+        <tr>
+          <td style="border-left: 1.5px solid #000; border-top: 1.5px solid #000; border-right: 1.5px solid #000;"></td>
+          <td colspan="2" style="border: 1.5px solid #000; font-weight: bold; padding: 2mm 3mm; font-style: italic;">TVA ${tvaRate}%</td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(tvaAmount)}</span></td>
         </tr>
-        
         <!-- NET A PAYER -->
-        <tr class="total-row">
-          <td colspan="3" class="total-label">NET A PAYER</td>
-          <td class="total-value">$ ${formatCurrency(netAPayer)}</td>
+        <tr>
+          <td style="border-left: 1.5px solid #000; border-bottom: 1.5px solid #000; border-right: 1.5px solid #000;"></td>
+          <td colspan="2" style="border: 1.5px solid #000; font-weight: bold; padding: 2mm 3mm;">NET A PAYER</td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(netAPayer)}</span></td>
         </tr>
       </table>
       
+      <!-- Texte montant en lettres et mode paiement -->
       <div class="payment-info">
-        <p><strong>Nous disons Dollars américains</strong> ${numberToWords(netAPayer)}.</p>
+        <p>Nous disons Dollars américains <strong>${numberToWords(netAPayer)}</strong>.</p>
         <p><strong>Paiement via:</strong></p>
-        <p>☑ Virement bancaire au crédit du compte</p>
+        <p style="margin-left: 10px;">☑ Virement bancaire au crédit du compte</p>
       </div>
       
-      <table class="bank-table">
-        <thead>
-          <tr>
-            <th>VILLE</th>
-            <th>BANQUE/IMF</th>
-            <th>INTITULE</th>
-            <th>N°COMPTE</th>
-            <th>DEVISE</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${bankRows}
-        </tbody>
-      </table>
+      <!-- Tableau des comptes bancaires -->
+      <div class="bank-section">
+        <table class="bank-table">
+          <thead>
+            <tr>
+              <th>VILLE</th>
+              <th>BANQUE/IMF</th>
+              <th>INTITULE</th>
+              <th>N°COMPTE</th>
+              <th>DEVISE</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bankRows}
+          </tbody>
+        </table>
+      </div>
       
-      <div class="signature-section">Service Comptabilité</div>
+      <div class="signature-section" style="margin-right: 15mm; font-weight: bold;">Service Comptabilité</div>
     </div>
   </div>
 </body>
@@ -1500,6 +1409,11 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
     const invoiceLines = invoice.lines || [];
     const placementTVAEnabled = invoice.placementTVAEnabled || false;
     const chargesTTCMode = invoice.chargesTTCMode !== false;
+    const placementDeduction = invoice.placementDeduction || 0;
+    const enablePlacementDeduction = invoice.enablePlacementDeduction === true;
+    
+    // Debug log
+    console.log('PLACEMENT DEBUG:', { enablePlacementDeduction, placementDeduction, raw: invoice.enablePlacementDeduction });
     
     // Calculer les totaux
     let totalSalairesNets = 0;
@@ -1519,18 +1433,19 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       
       placementLinesHTML += `
         <tr>
-          <td style="text-align: center; padding: 1.5mm 2mm; border: 1px solid #000;">${effectif}</td>
-          <td style="text-align: center; padding: 1.5mm 2mm; border: 1px solid #000;">${nbJours}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(salairesNets)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(charges)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(remunerations)}</td>
+          <td style="text-align: center; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">${effectif}</td>
+          <td style="text-align: center; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">${nbJours}</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(salairesNets)}</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(charges)}</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(remunerations)}</td>
         </tr>
       `;
     });
 
-    const tvaOnCharges = placementTVAEnabled ? totalCharges * 0.16 : 0;
     const sommeRemunerations = totalSalairesNets + totalCharges;
-    const totalGeneral = sommeRemunerations + tvaOnCharges;
+    const tvaOnRemunerations = placementTVAEnabled ? sommeRemunerations * 0.16 : 0; // TVA sur rémunérations brutes
+    const totalGeneral = sommeRemunerations + tvaOnRemunerations;
+    const netAPayer = totalGeneral - placementDeduction;
     const chargesLabel = chargesTTCMode ? 'Charges TTC' : 'Charges';
 
     return `<!DOCTYPE html>
@@ -1600,32 +1515,35 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       .toolbar { display: none !important; }
       .page { box-shadow: none !important; margin: 0 !important; }
     }
-    .date-header { text-align: right; font-size: 10pt; margin-bottom: 3mm; }
-    .admin-title { text-align: center; font-size: 12pt; font-weight: bold; text-decoration: underline; margin-bottom: 3mm; }
-    .invoice-number { font-size: 10pt; font-weight: bold; margin-bottom: 2mm; }
+    .date-header { text-align: right; font-size: 12pt; margin-bottom: 3mm; }
+    .admin-title { text-align: center; font-size: 14pt; font-weight: bold; text-decoration: underline; margin-bottom: 3mm; }
+    .invoice-number { font-size: 12pt; font-weight: bold; margin-bottom: 2mm; }
     
-    /* TABLEAU PLACEMENT */
+    /* TABLEAU PLACEMENT - Style amélioré */
     .placement-table {
-      width: 100%;
+      width: 95%;
+      margin: 0 auto;
       border-collapse: collapse;
-      font-size: 9pt;
-      border: 1px solid #000;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10pt;
+      border: 1.5px solid #000;
     }
     .placement-table td, .placement-table th {
-      border: 1px solid #000;
-      padding: 1.5mm 2mm;
+      border: 1.5px solid #000;
+      padding: 2mm 3mm;
       vertical-align: middle;
     }
-    .payment-info { margin-top: 3mm; font-size: 9pt; line-height: 1.4; }
-    .bank-table { width: 100%; border-collapse: collapse; font-size: 7pt; margin-top: 2mm; }
+    .payment-info { margin-top: 4mm; font-size: 10pt; line-height: 1.5; font-family: Arial, Helvetica, sans-serif; }
+    .bank-table { width: 95%; margin: 0 auto; border-collapse: collapse; font-size: 8pt; margin-top: 3mm; font-family: Arial, Helvetica, sans-serif; }
     .bank-table th {
       background: rgba(180,180,180,0.5) !important;
-      padding: 1mm 1.5mm;
+      padding: 1.5mm 2mm;
       font-weight: bold;
-      border: 1px solid #000;
+      border: 1.5px solid #000;
+      font-size: 8pt;
     }
-    .bank-table td { padding: 0.8mm 1.5mm; border: 1px solid #000; font-size: 6.5pt; }
-    .signature-section { margin-top: 4mm; text-align: right; font-size: 10pt; }
+    .bank-table td { padding: 1.5mm 2mm; border: 1.5px solid #000; font-size: 8pt; }
+    .signature-section { margin-top: 5mm; text-align: right; font-size: 11pt; font-family: Arial, Helvetica, sans-serif; }
   </style>
 </head>
 <body>
@@ -1662,28 +1580,28 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       <table class="placement-table">
         <!-- Ligne 1: Service / Client - fond blanc, police grande et gras -->
         <tr>
-          <td colspan="2" style="padding: 3mm 4mm; font-size: 11pt; font-weight: bold; border: 1px solid #000;">Service : ${serviceName}</td>
-          <td colspan="3" style="padding: 3mm 4mm; font-size: 11pt; font-weight: bold; border: 1px solid #000;">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
+          <td colspan="2" style="padding: 2.5mm 4mm; font-size: 10pt; font-weight: bold; border: 1.5px solid #000; white-space: nowrap;">Service : ${serviceName}</td>
+          <td colspan="3" style="padding: 2.5mm 4mm; font-size: 10pt; font-weight: bold; border: 1.5px solid #000;">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
         </tr>
         
         <!-- Ligne 2: Bande tout en NOIR -->
         <tr style="height: 4mm;">
-          <td colspan="5" style="background: #000 !important; border: 1px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td colspan="5" style="background: #000 !important; border: 1.5px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
         </tr>
         
         <!-- Ligne 3: Bande GRIS + ROUGE (sans noir au milieu) -->
         <tr style="height: 4mm;">
-          <td colspan="2" style="background: #808080 !important; border: 1px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
-          <td colspan="3" style="background: #c04000 !important; border: 1px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td colspan="2" style="background: #808080 !important; border: 1.5px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td colspan="3" style="background: #c04000 !important; border: 1.5px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
         </tr>
         
-        <!-- Ligne 4: En-têtes des colonnes sur fond blanc -->
+        <!-- Ligne 4: En-têtes des colonnes sur fond blanc - tout sur une ligne -->
         <tr>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 10%; border: 1px solid #000; padding: 2mm;">Effectif</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 22%; border: 1px solid #000; padding: 2mm;">Nbre de Jrs Prestés</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 18%; border: 1px solid #000; padding: 2mm;">Salaires Nets</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 18%; border: 1px solid #000; padding: 2mm;">${chargesLabel}</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 22%; border: 1px solid #000; padding: 2mm;">Rémunérations<br/>brutes</td>
+          <td style="text-align: center; font-weight: bold; font-size: 9pt; width: 10%; border: 1.5px solid #000; padding: 2mm;">Effectif</td>
+          <td style="text-align: center; font-weight: bold; font-size: 9pt; width: 22%; border: 1.5px solid #000; padding: 2mm; white-space: nowrap;">Nbre de Jrs Prestés</td>
+          <td style="text-align: center; font-weight: bold; font-size: 9pt; width: 18%; border: 1.5px solid #000; padding: 2mm; white-space: nowrap;">Salaires Nets</td>
+          <td style="text-align: center; font-weight: bold; font-size: 9pt; width: 18%; border: 1.5px solid #000; padding: 2mm;">${chargesLabel}</td>
+          <td style="text-align: center; font-weight: bold; font-size: 9pt; width: 22%; border: 1.5px solid #000; padding: 2mm; white-space: nowrap;">Rémunérations brutes</td>
         </tr>
         
         <!-- Lignes de données -->
@@ -1692,44 +1610,61 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
         <!-- SOMME -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border: 1px solid #000;">SOMME</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(totalSalairesNets)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(totalCharges)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(sommeRemunerations)}</td>
+          <td style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">SOMME</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(totalSalairesNets)}</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(totalCharges)}</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(sommeRemunerations)}</td>
         </tr>
         
         ${placementTVAEnabled ? `
         <!-- TVA 16% -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border: 1px solid #000;">TVA 16%</td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(tvaOnCharges)}</td>
+          <td colspan="3" style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">TVA 16%</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(tvaOnRemunerations)}</td>
         </tr>
         ` : ''}
         
+        ${enablePlacementDeduction ? `
         <!-- TOTAL GENERAL -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: none;">TOTAL GENERAL</td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="text-align: right; padding: 1.5mm 2mm; font-weight: bold; border: 1px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
+          <td colspan="3" style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">TOTAL GENERAL</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
+        </tr>
+        
+        <!-- DEDUCTION POUR ABSENCES & RETARDS -->
+        <tr>
+          <td style="border: none;"></td>
+          <td colspan="3" style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000; white-space: nowrap;">DEDUCTION POUR ABSENCES & RETARDS</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-size: 10pt; border: 1.5px solid #000;">$ ${placementDeduction > 0 ? '-' + formatCurrency(placementDeduction) : '-'}</td>
         </tr>
         
         <!-- NET A PAYER -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: none;">NET A PAYER</td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="text-align: right; padding: 1.5mm 2mm; font-weight: bold; border: 1px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
+          <td colspan="3" style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">NET A PAYER</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(netAPayer)}</td>
         </tr>
+        ` : `
+        <!-- TOTAL GENERAL (sans déduction) -->
+        <tr>
+          <td style="border: none;"></td>
+          <td colspan="3" style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">TOTAL GENERAL</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
+        </tr>
+        
+        <!-- NET A PAYER (sans déduction = même montant que TOTAL GENERAL) -->
+        <tr>
+          <td style="border: none;"></td>
+          <td colspan="3" style="padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">NET A PAYER</td>
+          <td style="text-align: right; padding: 2mm 3mm; font-weight: bold; font-size: 10pt; border: 1.5px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
+        </tr>
+        `}
       </table>
       
       <div class="payment-info">
-        <p><strong>Nous disons Dollars américains</strong> ${numberToWords(totalGeneral)}.</p>
+        <p>Nous disons Dollars américains <strong>${numberToWords(enablePlacementDeduction ? netAPayer : totalGeneral)}</strong>.</p>
         <p><strong>Paiement via:</strong></p>
         <p>☑ Virement bancaire au crédit du compte</p>
       </div>
@@ -1749,7 +1684,7 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
         </tbody>
       </table>
       
-      <div class="signature-section">Service Comptabilité</div>
+      <div class="signature-section" style="margin-right: 15mm; font-weight: bold;">Service Comptabilité</div>
     </div>
   </div>
 </body>
@@ -1760,6 +1695,7 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
   if (templateKey === 'transfert') {
     const invoiceLines = invoice.lines || [];
     const transfertDeduction = invoice.transfertDeduction || 0;
+    const enableTransfertDeduction = invoice.enableTransfertDeduction || false;
     
     // Calculer les totaux
     let totalSalairesNets = 0;
@@ -1773,25 +1709,25 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       const salairesNets = line.unitPrice || 0;
       const charges = line.chargesTTC || 0;
       const remunerations = salairesNets + charges;
-      const tvaLigne = charges * 0.16;
+      const tvaLigne = remunerations * 0.16; // TVA sur rémunérations brutes, pas sur charges
       
       totalSalairesNets += salairesNets;
       totalCharges += charges;
       
       transfertLinesHTML += `
         <tr>
-          <td style="text-align: center; padding: 1.5mm 2mm; border: 1px solid #000;">${effectif}</td>
-          <td style="text-align: center; padding: 1.5mm 2mm; border: 1px solid #000;">${nbJours}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(salairesNets)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(charges)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(remunerations)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(tvaLigne)}</td>
+          <td style="text-align: center; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">${effectif}</td>
+          <td style="text-align: center; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">${nbJours}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(salairesNets)}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(charges)}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(remunerations)}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(tvaLigne)}</td>
         </tr>
       `;
     });
 
     const sommeRemunerations = totalSalairesNets + totalCharges;
-    const totalTVA = totalCharges * 0.16;
+    const totalTVA = sommeRemunerations * 0.16; // TVA sur rémunérations brutes
     const totalGeneral = sommeRemunerations + totalTVA;
     const netAPayer = totalGeneral - transfertDeduction;
 
@@ -1862,32 +1798,34 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       .toolbar { display: none !important; }
       .page { box-shadow: none !important; margin: 0 !important; }
     }
-    .date-header { text-align: right; font-size: 10pt; margin-bottom: 3mm; }
-    .admin-title { text-align: center; font-size: 12pt; font-weight: bold; text-decoration: underline; margin-bottom: 3mm; }
-    .invoice-number { font-size: 10pt; font-weight: bold; margin-bottom: 2mm; }
+    .date-header { text-align: right; font-size: 12pt; margin-bottom: 3mm; }
+    .admin-title { text-align: center; font-size: 14pt; font-weight: bold; text-decoration: underline; margin-bottom: 3mm; }
+    .invoice-number { font-size: 12pt; font-weight: bold; margin-bottom: 2mm; }
     
-    /* TABLEAU TRANSFERT */
+    /* TABLEAU TRANSFERT - Style amélioré */
     .transfert-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 9pt;
-      border: 1px solid #000;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 11pt;
+      border: 2px solid #000;
     }
     .transfert-table td, .transfert-table th {
-      border: 1px solid #000;
-      padding: 1.5mm 2mm;
+      border: 2px solid #000;
+      padding: 3mm 4mm;
       vertical-align: middle;
     }
-    .payment-info { margin-top: 3mm; font-size: 9pt; line-height: 1.4; }
-    .bank-table { width: 100%; border-collapse: collapse; font-size: 7pt; margin-top: 2mm; }
+    .payment-info { margin-top: 4mm; font-size: 11pt; line-height: 1.5; font-family: Arial, Helvetica, sans-serif; }
+    .bank-table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 3mm; font-family: Arial, Helvetica, sans-serif; }
     .bank-table th {
       background: rgba(180,180,180,0.5) !important;
-      padding: 1mm 1.5mm;
+      padding: 2mm 3mm;
       font-weight: bold;
-      border: 1px solid #000;
+      border: 2px solid #000;
+      font-size: 9pt;
     }
-    .bank-table td { padding: 0.8mm 1.5mm; border: 1px solid #000; font-size: 6.5pt; }
-    .signature-section { margin-top: 4mm; text-align: right; font-size: 10pt; }
+    .bank-table td { padding: 2mm 3mm; border: 2px solid #000; font-size: 9pt; }
+    .signature-section { margin-top: 5mm; text-align: right; font-size: 12pt; font-family: Arial, Helvetica, sans-serif; }
   </style>
 </head>
 <body>
@@ -1924,29 +1862,29 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       <table class="transfert-table">
         <!-- Ligne 1: Service / Client - fond blanc, police grande et gras -->
         <tr>
-          <td colspan="2" style="padding: 3mm 4mm; font-size: 11pt; font-weight: bold; border: 1px solid #000;">Service : Transfert du Personnel</td>
-          <td colspan="4" style="padding: 3mm 4mm; font-size: 11pt; font-weight: bold; border: 1px solid #000;">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
+          <td colspan="2" style="padding: 4mm 5mm; font-size: 12pt; font-weight: bold; border: 2px solid #000; white-space: nowrap;">Service : Transfert du Personnel</td>
+          <td colspan="4" style="padding: 4mm 5mm; font-size: 12pt; font-weight: bold; border: 2px solid #000;">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
         </tr>
         
         <!-- Ligne 2: Bande tout en NOIR -->
-        <tr style="height: 4mm;">
-          <td colspan="6" style="background: #000 !important; border: 1px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+        <tr style="height: 5mm;">
+          <td colspan="6" style="background: #000 !important; border: 2px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
         </tr>
         
         <!-- Ligne 3: Bande GRIS + ROUGE -->
-        <tr style="height: 4mm;">
-          <td colspan="2" style="background: #808080 !important; border: 1px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
-          <td colspan="4" style="background: #c04000 !important; border: 1px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+        <tr style="height: 5mm;">
+          <td colspan="2" style="background: #808080 !important; border: 2px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td colspan="4" style="background: #c04000 !important; border: 2px solid #000; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
         </tr>
         
-        <!-- Ligne 4: En-têtes des colonnes sur fond blanc -->
+        <!-- Ligne 4: En-têtes des colonnes sur fond blanc - tout sur une ligne -->
         <tr>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 8%; border: 1px solid #000; padding: 2mm;">Effectif</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 18%; border: 1px solid #000; padding: 2mm;">Nbre de Jrs Prestés</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 16%; border: 1px solid #000; padding: 2mm;">Salaires Nets</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 16%; border: 1px solid #000; padding: 2mm;">Charges</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 20%; border: 1px solid #000; padding: 2mm;">Rémunérations<br/>brutes</td>
-          <td style="text-align: center; font-weight: bold; font-size: 8pt; width: 14%; border: 1px solid #000; padding: 2mm;">TVA (16%)</td>
+          <td style="text-align: center; font-weight: bold; font-size: 10pt; width: 8%; border: 2px solid #000; padding: 3mm;">Effectif</td>
+          <td style="text-align: center; font-weight: bold; font-size: 10pt; width: 18%; border: 2px solid #000; padding: 3mm; white-space: nowrap;">Nbre de Jrs Prestés</td>
+          <td style="text-align: center; font-weight: bold; font-size: 10pt; width: 16%; border: 2px solid #000; padding: 3mm; white-space: nowrap;">Salaires Nets</td>
+          <td style="text-align: center; font-weight: bold; font-size: 10pt; width: 16%; border: 2px solid #000; padding: 3mm;">Charges</td>
+          <td style="text-align: center; font-weight: bold; font-size: 10pt; width: 20%; border: 2px solid #000; padding: 3mm; white-space: nowrap;">Rémunérations brutes</td>
+          <td style="text-align: center; font-weight: bold; font-size: 10pt; width: 14%; border: 2px solid #000; padding: 3mm;">TVA (16%)</td>
         </tr>
         
         <!-- Lignes de données -->
@@ -1955,44 +1893,46 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
         <!-- SOMME -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border: 1px solid #000;">SOMME</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(totalSalairesNets)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(totalCharges)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(sommeRemunerations)}</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">$ ${formatCurrency(totalTVA)}</td>
+          <td style="padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border: 2px solid #000;">SOMME</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(totalSalairesNets)}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(totalCharges)}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(sommeRemunerations)}</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(totalTVA)}</td>
         </tr>
         
         <!-- TOTAL GENERAL -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: none;">TOTAL GENERAL</td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;">$</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; font-weight: bold; border: 1px solid #000;">${formatCurrency(totalGeneral)}</td>
+          <td colspan="4" style="padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000;">TOTAL GENERAL</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
         </tr>
         
+        ${enableTransfertDeduction ? `
         <!-- DEDUCTION POUR ABSENCES & RETARDS -->
         <tr>
           <td style="border: none;"></td>
-          <td colspan="3" style="padding: 1.5mm 3mm; font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: none;">DEDUCTION POUR ABSENCES & RETARDS</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;">$</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border: 1px solid #000;">${transfertDeduction > 0 ? '-' : ''}</td>
+          <td colspan="4" style="padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000; white-space: nowrap;">DEDUCTION POUR ABSENCES & RETARDS</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-size: 11pt; border: 2px solid #000;">$ ${transfertDeduction > 0 ? '-' + formatCurrency(transfertDeduction) : '-'}</td>
         </tr>
         
         <!-- NET A PAYER -->
         <tr>
           <td style="border: none;"></td>
-          <td style="padding: 1.5mm 3mm; font-weight: bold; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: 1px solid #000; border-right: none;">NET A PAYER</td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;"></td>
-          <td style="text-align: right; padding: 1.5mm 2mm; border-top: 1px solid #000; border-bottom: 1px solid #000; border-left: none; border-right: none;">$</td>
-          <td style="text-align: right; padding: 1.5mm 2mm; font-weight: bold; border: 1px solid #000;">${formatCurrency(netAPayer)}</td>
+          <td colspan="4" style="padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000;">NET A PAYER</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(netAPayer)}</td>
         </tr>
+        ` : `
+        <!-- NET A PAYER (sans déduction = même montant que TOTAL GENERAL) -->
+        <tr>
+          <td style="border: none;"></td>
+          <td colspan="4" style="padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border-top: 2px solid #000; border-bottom: 2px solid #000; border-left: 2px solid #000; border-right: 2px solid #000;">NET A PAYER</td>
+          <td style="text-align: right; padding: 3mm 4mm; font-weight: bold; font-size: 11pt; border: 2px solid #000;">$ ${formatCurrency(totalGeneral)}</td>
+        </tr>
+        `}
       </table>
       
       <div class="payment-info">
-        <p><strong>Nous disons Dollars américains</strong> ${numberToWords(netAPayer)}.</p>
+        <p>Nous disons Dollars américains <strong>${numberToWords(enableTransfertDeduction ? netAPayer : totalGeneral)}</strong>.</p>
         <p><strong>Paiement via:</strong></p>
         <p>☑ Virement bancaire au crédit du compte</p>
       </div>
@@ -2012,7 +1952,225 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
         </tbody>
       </table>
       
-      <div class="signature-section">Service Comptabilité</div>
+      <div class="signature-section" style="margin-right: 15mm; font-weight: bold;">Service Comptabilité</div>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  // ======= TEMPLATE RÉGULARISATION EUP =======
+  if (templateKey === 'regularisation_eup') {
+    const invoiceLines = invoice.lines || [];
+    
+    // Calculer le subtotal à partir des lignes
+    let eupSubtotal = 0;
+    invoiceLines.forEach((line: any) => {
+      eupSubtotal += (line.quantity || 1) * (line.unitPrice || 0);
+    });
+    const finalSubtotal = invoice.subtotal || eupSubtotal;
+    
+    // Management Fees 10%
+    const mgmtFeeRate = invoice.managementFeeRate || 10;
+    const mgmtFees = finalSubtotal * (mgmtFeeRate / 100);
+    const totalGeneral = finalSubtotal + mgmtFees;
+    
+    // Générer les lignes
+    let eupLinesHTML = '';
+    let lineNum = 1;
+    invoiceLines.forEach((line: any) => {
+      const lineTotal = (line.quantity || 1) * (line.unitPrice || 0);
+      eupLinesHTML += `
+        <tr>
+          <td style="width: 6%; border: 1.5px solid #000; text-align: center; padding: 2mm 3mm;">${lineNum}</td>
+          <td style="width: 34%; border: 1.5px solid #000; padding: 2mm 3mm;">${line.description}</td>
+          <td style="width: 12%; border: 1.5px solid #000; text-align: center; padding: 2mm 3mm;">${line.quantity || 1}</td>
+          <td style="width: 22%; border: 1.5px solid #000; text-align: right; padding: 2mm 3mm;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(line.unitPrice || 0)}</span></td>
+          <td style="width: 22%; border: 1.5px solid #000; text-align: right; padding: 2mm 3mm;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(lineTotal)}</span></td>
+        </tr>
+      `;
+      lineNum++;
+    });
+
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Facture ${invoice.invoiceNumber}</title>
+  <style>${getAllinoneStyles(enteteBase64)}
+    .zoom-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 15px;
+    }
+    .zoom-controls button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .zoom-controls span {
+      color: white;
+      font-size: 13px;
+      min-width: 50px;
+      text-align: center;
+    }
+    /* Styles spécifiques pour Régularisation EUP - bande noire dans le header */
+    .eup-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 0;
+    }
+    .eup-table th, .eup-table td {
+      border: 1.5px solid #000;
+      padding: 2mm 3mm;
+      font-size: 10pt;
+    }
+    .eup-table .header-white {
+      background: #fff;
+      font-weight: bold;
+    }
+    .eup-table .header-black {
+      background: #000 !important;
+      color: #fff !important;
+      font-weight: bold;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .eup-table .col-num { width: 6%; text-align: center; }
+    .eup-table .col-desc { width: 42%; font-weight: bold; }
+    .eup-table .col-qty { width: 10%; text-align: center; }
+    .eup-table .col-pu { width: 20%; text-align: right; }
+    .eup-table .col-pt { width: 22%; text-align: right; }
+    .eup-table .currency { display: inline-block; width: 12px; text-align: left; }
+    .eup-table .amount { display: inline-block; min-width: 45px; text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <span class="title">Facture ${invoice.invoiceNumber} - ALL IN ONE (Régularisation EUP)</span>
+    <div class="zoom-controls">
+      <button onclick="zoomOut()">−</button>
+      <span id="zoomLevel">100%</span>
+      <button onclick="zoomIn()">+</button>
+    </div>
+    <button onclick="window.print()">Imprimer / PDF</button>
+    <button class="secondary" onclick="window.close()">Fermer</button>
+  </div>
+
+  <script>
+    let currentZoom = 100;
+    function updateZoom() {
+      document.getElementById('zoomLevel').textContent = currentZoom + '%';
+      document.querySelector('.page').style.transform = 'scale(' + (currentZoom / 100) + ')';
+      document.querySelector('.page').style.transformOrigin = 'top center';
+    }
+    function zoomIn() {
+      if (currentZoom < 150) { currentZoom += 10; updateZoom(); }
+    }
+    function zoomOut() {
+      if (currentZoom > 50) { currentZoom -= 10; updateZoom(); }
+    }
+  </script>
+
+  <div class="page">
+    <div class="content">
+      <!-- Date en haut à droite -->
+      <div class="date-header">
+        Kinshasa, le ${formatDate(invoice.issueDate)}
+      </div>
+      
+      <!-- Titre ADMINISTRATION ET FINANCES -->
+      <div class="admin-title">ADMINISTRATION ET FINANCES</div>
+      
+      <!-- Numéro de facture -->
+      <div class="invoice-number">
+        Facture: ${invoice.invoiceNumber}
+      </div>
+      
+      <!-- Tableau Régularisation EUP - Tout intégré avec ligne verticale continue -->
+      <table style="width: 85%; border-collapse: collapse; font-size: 12pt; margin: 0 auto;">
+        <!-- Ligne Service / Client -->
+        <tr>
+          <td colspan="2" style="width: 40%; border: 1.5px solid #000; padding: 2mm 3mm; background: #fff; font-weight: bold; white-space: nowrap;">Service : ${serviceName}</td>
+          <td colspan="3" style="width: 60%; border: 1.5px solid #000; padding: 2mm 3mm; background: #fff; font-weight: bold;">Client: ${client?.companyName || client?.contactName || 'N/A'}</td>
+        </tr>
+        <!-- Bande noire de bout en bout (même épaisseur que la bande rouge) -->
+        <tr>
+          <td colspan="2" style="background: #000; border-left: 1.5px solid #000; border-right: 1.5px solid #000; padding: 3mm 3mm; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td colspan="3" style="background: #000; border-right: 1.5px solid #000; padding: 3mm 3mm; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+        </tr>
+        <!-- Ligne N° / Description seule -->
+        <tr>
+          <td style="width: 6%; border: 1.5px solid #000; border-top: none; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">N°</td>
+          <td style="width: 34%; border: 1.5px solid #000; border-top: none; font-weight: bold; padding: 2mm 3mm; background: #fff;">Description</td>
+          <td colspan="3" style="border: 1.5px solid #000; border-top: none; background: #c00; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+        </tr>
+        <!-- Ligne Qté / P.U / P.T -->
+        <tr>
+          <td style="width: 6%; border: 1.5px solid #000; border-top: none;"></td>
+          <td style="width: 34%; border: 1.5px solid #000; border-top: none;"></td>
+          <td style="width: 12%; border: 1.5px solid #000; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">Qté</td>
+          <td style="width: 22%; border: 1.5px solid #000; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">P.U</td>
+          <td style="width: 22%; border: 1.5px solid #000; font-weight: bold; text-align: center; padding: 2mm 3mm; background: #fff;">P.T</td>
+        </tr>
+        <!-- Lignes de données -->
+        ${eupLinesHTML}
+        <!-- TOTAL -->
+        <tr>
+          <td style="border: 1.5px solid #000;"></td>
+          <td style="border: 1.5px solid #000; font-weight: bold; padding: 2mm 3mm;">TOTAL</td>
+          <td style="border: 1.5px solid #000; background: #555; -webkit-print-color-adjust: exact; print-color-adjust: exact;"></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(finalSubtotal)}</span></td>
+        </tr>
+        <!-- MANAGEMENT FEES - pas de ligne verticale entre Description et Qté -->
+        <tr>
+          <td style="border-left: 1.5px solid #000; border-top: 1.5px solid #000; border-right: 1.5px solid #000;"></td>
+          <td colspan="2" style="border: 1.5px solid #000; font-weight: bold; padding: 2mm 3mm; font-style: italic;">MANAGEMENT FEES ${mgmtFeeRate}%</td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(mgmtFees)}</span></td>
+        </tr>
+        <!-- TOTAL GENERAL - pas de ligne verticale entre Description et Qté -->
+        <tr>
+          <td style="border-left: 1.5px solid #000; border-bottom: 1.5px solid #000; border-right: 1.5px solid #000;"></td>
+          <td colspan="2" style="border: 1.5px solid #000; font-weight: bold; padding: 2mm 3mm;">TOTAL GENERAL</td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span></td>
+          <td style="border: 1.5px solid #000; text-align: right; padding: 2mm 3mm; font-weight: bold;"><span style="float: left;">$</span><span style="float: right;">${formatCurrency(totalGeneral)}</span></td>
+        </tr>
+      </table>
+      
+      <!-- Texte montant en lettres et mode paiement -->
+      <div class="payment-info">
+        <p>Nous disons Dollars américains <strong>${numberToWords(totalGeneral)}</strong>.</p>
+        <p><strong>Paiement via:</strong></p>
+        <p style="margin-left: 10px;">☑ Virement bancaire au crédit du compte</p>
+      </div>
+      
+      <!-- Tableau des comptes bancaires -->
+      <div class="bank-section">
+        <table class="bank-table">
+          <thead>
+            <tr>
+              <th>VILLE</th>
+              <th>BANQUE/IMF</th>
+              <th>INTITULE</th>
+              <th>N°COMPTE</th>
+              <th>DEVISE</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bankRows}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Signature -->
+      <div class="signature-section">
+        <div style="text-align: right; margin-right: 15mm; font-weight: bold;">Service Comptabilité</div>
+      </div>
     </div>
   </div>
 </body>
@@ -2031,8 +2189,8 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
         <td class="col-num">${lineNum}.</td>
         <td class="col-desc">${line.description}</td>
         <td class="col-qty">${line.quantity || 1}</td>
-        <td class="col-pu">$&nbsp;&nbsp;&nbsp;&nbsp;${formatCurrency(line.unitPrice || 0)}</td>
-        <td class="col-pt">$&nbsp;&nbsp;&nbsp;&nbsp;${formatCurrency(lineTotal)}</td>
+        <td class="col-pu"><span class="currency">$</span><span class="amount">${formatCurrency(line.unitPrice || 0)}</span></td>
+        <td class="col-pt"><span class="currency">$</span><span class="amount">${formatCurrency(lineTotal)}</span></td>
       </tr>
     `;
     lineNum++;
@@ -2042,24 +2200,27 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
   let totalsHTML = `
     <div class="totals-section">
       <div class="total-row">
-        <div class="total-label">TOTAL</div>
-        <div class="total-value">$&nbsp;&nbsp;&nbsp;&nbsp;${formatCurrency(subtotal)}</div>
+        <div class="total-col-num"></div>
+        <div class="total-label" style="width: 72%; border-right: 1.5px solid #000;">TOTAL</div>
+        <div class="total-value"><span class="currency">$</span><span class="amount">${formatCurrency(subtotal)}</span></div>
       </div>
   `;
   
   if (extraFeesLabel && extraFees > 0) {
     totalsHTML += `
       <div class="total-row">
-        <div class="total-label">${extraFeesLabel}</div>
-        <div class="total-value">$&nbsp;&nbsp;&nbsp;&nbsp;${formatCurrency(extraFees)}</div>
+        <div class="total-col-num"></div>
+        <div class="total-label" style="width: 72%; border-right: 1.5px solid #000;">${extraFeesLabel}</div>
+        <div class="total-value"><span class="currency">$</span><span class="amount">${formatCurrency(extraFees)}</span></div>
       </div>
     `;
   }
   
   totalsHTML += `
       <div class="total-row">
-        <div class="total-label">TOTAL GENERAL</div>
-        <div class="total-value">$&nbsp;&nbsp;&nbsp;&nbsp;${formatCurrency(total)}</div>
+        <div class="total-col-num"></div>
+        <div class="total-label" style="width: 72%; border-right: 1.5px solid #000;">TOTAL GENERAL</div>
+        <div class="total-value"><span class="currency">$</span><span class="amount">${formatCurrency(total)}</span></div>
       </div>
     </div>
   `;
@@ -2141,6 +2302,9 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
         </div>
       </div>
       
+      <!-- Bande noire -->
+      <div class="black-band"></div>
+      
       <!-- Tableau des prestations -->
       <table class="invoice-table">
         <thead>
@@ -2162,7 +2326,7 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       
       <!-- Texte montant en lettres et mode paiement -->
       <div class="payment-info">
-        <p><strong>Nous disons Dollars américains</strong> ${numberToWords(total)}.</p>
+        <p>Nous disons Dollars américains <strong>${numberToWords(total)}</strong>.</p>
         <p><strong>Paiement via:</strong></p>
         <p style="margin-left: 10px;">☑ Virement bancaire au crédit du compte</p>
       </div>
@@ -2187,8 +2351,7 @@ function generateAllinoneHTML(invoice: any, client: any, enteteBase64: string): 
       
       <!-- Signature -->
       <div class="signature-section">
-        <div style="text-align: right;">Service Comptabilité</div>
-        <div style="margin-top:15mm; text-align: right;">_____________________________</div>
+        <div style="text-align: right; margin-right: 15mm; font-weight: bold;">Service Comptabilité</div>
       </div>
     </div>
   </div>

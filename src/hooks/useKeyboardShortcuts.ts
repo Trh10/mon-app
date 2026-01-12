@@ -67,6 +67,9 @@ export const useKeyboardShortcuts = () => {
   ];
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Vérifier que event.key existe
+    if (!event.key) return;
+    
     // Ne pas intercepter si on est dans un champ de texte (sauf pour certains raccourcis)
     const target = event.target as HTMLElement;
     const isEditing = target.tagName === 'INPUT' || 
@@ -74,6 +77,9 @@ export const useKeyboardShortcuts = () => {
                       target.isContentEditable;
     
     for (const shortcut of shortcuts) {
+      // Vérifier que shortcut.key existe
+      if (!shortcut.key) continue;
+      
       const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase() ||
                        event.key === shortcut.key;
       const ctrlMatch = shortcut.ctrl ? (event.ctrlKey || event.metaKey) : !event.ctrlKey && !event.metaKey;
