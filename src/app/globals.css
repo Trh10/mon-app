@@ -2,19 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FIX: Inputs sur fond blanc - texte visible */
-.bg-white input,
-.bg-white textarea,
-.bg-white select,
-input.!bg-white,
-input[style*="background-color: white"],
-input[style*="backgroundColor"] {
-  color: #111827 !important;
-  background-color: white !important;
+/* FIX GLOBAL: Tous les inputs avec fond blanc = texte NOIR */
+input,
+textarea,
+select {
+  color: #000000 !important;
 }
 
-input::placeholder {
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+textarea {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
   color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af !important;
 }
 
 /* Animation pour les notifications */
