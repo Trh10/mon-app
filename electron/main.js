@@ -1,299 +1,325 @@
 const { app, BrowserWindow, Menu, dialog, shell } = require('electron');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
-const fs = require('fs');
 
-let mainWindow;
-let serverProcess;
-let splashWindow;
+// Empêcher les instances multiples
+const gotTheLock = app.requestSingleInstanceLock();
 
-// Configuration
-const PORT = 3000;
-const APP_NAME = 'ICONES Gestion';
+if (!gotTheLock) {
+  app.quit();
+} else {
+  let mainWindow = null;
+  let splashWindow = null;
 
-// Chemin vers la base de données locale
-const userDataPath = app.getPath('userData');
-const localDbPath = path.join(userDataPath, 'local-data.db');
+  // Configuration
+  const APP_NAME = 'ICONES Gestion';
+  const ONLINE_URL = 'https://mon-app1.vercel.app';
 
-// Définir les variables d'environnement pour le mode offline
-process.env.OFFLINE_MODE = 'true';
-process.env.DATABASE_URL_LOCAL = `file:${localDbPath}`;
-process.env.NEXT_PUBLIC_SERVER_URL = 'https://mon-app1.vercel.app';
-
-// Créer une fenêtre splash pendant le chargement
-function createSplashWindow() {
-  splashWindow = new BrowserWindow({
-    width: 400,
-    height: 300,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    webPreferences: {
-      nodeIntegration: true
-    }
-  });
-
-  splashWindow.loadURL(`data:text/html,
-    <html>
-      <head>
-        <style>
-          body {
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: white;
-          }
-          .container {
-            text-align: center;
-          }
-          .logo {
-            width: 80px;
-            height: 80px;
-            background: white;
-            border-radius: 20px;
-            margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 32px;
-            font-weight: bold;
-            color: #764ba2;
-          }
-          h1 {
-            margin: 0 0 10px;
-            font-size: 24px;
-          }
-          p {
-            margin: 0;
-            opacity: 0.8;
-          }
-          .loader {
-            margin-top: 30px;
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-left: auto;
-            margin-right: auto;
-          }
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="logo">IC</div>
-          <h1>${APP_NAME}</h1>
-          <p>Chargement en cours...</p>
-          <div class="loader"></div>
-        </div>
-      </body>
-    </html>
-  `);
-}
-
-// Initialiser la base de données SQLite locale
-async function initLocalDatabase() {
-  try {
-    // Vérifier si la base existe
-    if (!fs.existsSync(localDbPath)) {
-      console.log('Création de la base de données locale...');
-      // Exécuter prisma migrate pour créer la base
-      const prismaPath = app.isPackaged 
-        ? path.join(process.resourcesPath, 'node_modules/.bin/prisma')
-        : path.join(__dirname, '..', 'node_modules/.bin/prisma');
-      
-      execSync(`"${prismaPath}" db push --schema=prisma/schema-sqlite.prisma`, {
-        cwd: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..'),
-        env: { ...process.env, DATABASE_URL: `file:${localDbPath}` }
-      });
-    }
-    return true;
-  } catch (error) {
-    console.error('Erreur init base locale:', error);
-    return false;
-  }
-}
-
-// Démarrer le serveur Next.js
-function startServer() {
-  const isProd = app.isPackaged;
-  
-  if (isProd) {
-    const serverPath = path.join(process.resourcesPath, 'server.js');
-    serverProcess = spawn('node', [serverPath], {
-      cwd: process.resourcesPath,
-      env: { 
-        ...process.env, 
-        PORT: String(PORT),
-        NODE_ENV: 'production'
+  // Créer le splash screen
+  function createSplashWindow() {
+    const iconPath = path.join(__dirname, 'icon.png');
+    
+    splashWindow = new BrowserWindow({
+      width: 450,
+      height: 380,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      webPreferences: {
+        nodeIntegration: false
       }
     });
-  } else {
-    serverProcess = spawn('npm', ['run', 'dev'], {
-      cwd: path.join(__dirname, '..'),
-      shell: true,
-      env: { 
-        ...process.env, 
-        PORT: String(PORT)
-      }
-    });
+
+    const splashHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              color: white;
+              border-radius: 20px;
+              border: 1px solid rgba(255,255,255,0.1);
+            }
+            .container { text-align: center; padding: 30px; }
+            .logo-container {
+              width: 120px;
+              height: 120px;
+              background: white;
+              border-radius: 30px;
+              margin: 0 auto 25px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+              overflow: hidden;
+            }
+            .logo-container img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+            }
+            .logo-text {
+              font-size: 48px;
+              font-weight: bold;
+              color: #667eea;
+            }
+            h1 { font-size: 26px; margin-bottom: 8px; font-weight: 600; }
+            .subtitle { opacity: 0.7; font-size: 13px; margin-bottom: 30px; }
+            .status { 
+              opacity: 0.9; 
+              font-size: 14px; 
+              margin-bottom: 20px;
+              color: #a0aec0;
+            }
+            .loader {
+              width: 45px;
+              height: 45px;
+              border: 3px solid rgba(255,255,255,0.1);
+              border-top-color: #667eea;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+              margin: 0 auto;
+            }
+            @keyframes spin { to { transform: rotate(360deg); } }
+            .dots::after {
+              content: '';
+              animation: dots 1.5s steps(4, end) infinite;
+            }
+            @keyframes dots {
+              0% { content: ''; }
+              25% { content: '.'; }
+              50% { content: '..'; }
+              75% { content: '...'; }
+              100% { content: ''; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="logo-container">
+              <span class="logo-text">IC</span>
+            </div>
+            <h1>${APP_NAME}</h1>
+            <p class="subtitle">Application de gestion</p>
+            <p class="status">Connexion en cours<span class="dots"></span></p>
+            <div class="loader"></div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    splashWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(splashHTML));
   }
 
-  serverProcess.stdout?.on('data', (data) => {
-    console.log(`Server: ${data}`);
-  });
+  // Créer la fenêtre principale
+  function createMainWindow() {
+    const iconPath = path.join(__dirname, 'icon.png');
 
-  serverProcess.stderr?.on('data', (data) => {
-    console.error(`Server Error: ${data}`);
-  });
-}
+    mainWindow = new BrowserWindow({
+      width: 1400,
+      height: 900,
+      minWidth: 900,
+      minHeight: 600,
+      icon: iconPath,
+      show: false,
+      backgroundColor: '#1a1a2e',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        webSecurity: true,
+      },
+      titleBarStyle: 'default',
+    });
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 800,
-    minHeight: 600,
-    icon: path.join(__dirname, 'icon.ico'),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-    titleBarStyle: 'default',
-    show: false,
-  });
-
-  // Menu personnalisé
-  const menuTemplate = [
-    {
-      label: 'Fichier',
-      submenu: [
-        { label: 'Actualiser', accelerator: 'CmdOrCtrl+R', click: () => mainWindow.reload() },
-        { type: 'separator' },
-        { 
-          label: 'Exporter les données...', 
-          click: async () => {
-            const { filePath } = await dialog.showSaveDialog({
-              title: 'Exporter les données',
-              defaultPath: `icones-backup-${new Date().toISOString().split('T')[0]}.json`,
-              filters: [{ name: 'JSON', extensions: ['json'] }]
-            });
-            if (filePath) {
-              // Exporter la base de données
-              mainWindow.webContents.send('export-data', filePath);
+    // Menu
+    const menuTemplate = [
+      {
+        label: 'Fichier',
+        submenu: [
+          { label: 'Actualiser', accelerator: 'CmdOrCtrl+R', click: () => mainWindow.reload() },
+          { label: 'Actualiser (vider cache)', accelerator: 'CmdOrCtrl+Shift+R', click: () => mainWindow.webContents.reloadIgnoringCache() },
+          { type: 'separator' },
+          { label: 'Quitter', accelerator: 'Alt+F4', click: () => app.quit() }
+        ]
+      },
+      {
+        label: 'Affichage',
+        submenu: [
+          { label: 'Zoom avant', accelerator: 'CmdOrCtrl+Plus', click: () => mainWindow.webContents.setZoomFactor(mainWindow.webContents.getZoomFactor() + 0.1) },
+          { label: 'Zoom arrière', accelerator: 'CmdOrCtrl+-', click: () => mainWindow.webContents.setZoomFactor(mainWindow.webContents.getZoomFactor() - 0.1) },
+          { label: 'Taille normale', accelerator: 'CmdOrCtrl+0', click: () => mainWindow.webContents.setZoomFactor(1) },
+          { type: 'separator' },
+          { label: 'Plein écran', accelerator: 'F11', click: () => mainWindow.setFullScreen(!mainWindow.isFullScreen()) },
+          { type: 'separator' },
+          { label: 'Outils développeur', accelerator: 'F12', click: () => mainWindow.webContents.toggleDevTools() }
+        ]
+      },
+      {
+        label: 'Navigation',
+        submenu: [
+          { label: 'Accueil', accelerator: 'Alt+Home', click: () => mainWindow.loadURL(ONLINE_URL) },
+          { label: 'Page précédente', accelerator: 'Alt+Left', click: () => mainWindow.webContents.goBack() },
+          { label: 'Page suivante', accelerator: 'Alt+Right', click: () => mainWindow.webContents.goForward() }
+        ]
+      },
+      {
+        label: 'Aide',
+        submenu: [
+          { label: 'Ouvrir dans le navigateur', click: () => shell.openExternal(ONLINE_URL) },
+          { type: 'separator' },
+          {
+            label: 'À propos',
+            click: () => {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'À propos',
+                message: APP_NAME,
+                detail: 'Version 1.0.0\n\nApplication de gestion ICONES & ALL IN ONE\n\n© 2024-2026',
+                icon: iconPath
+              });
             }
           }
-        },
-        { type: 'separator' },
-        { label: 'Quitter', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
-      ]
-    },
-    {
-      label: 'Affichage',
-      submenu: [
-        { label: 'Zoom +', accelerator: 'CmdOrCtrl+Plus', click: () => mainWindow.webContents.setZoomLevel(mainWindow.webContents.getZoomLevel() + 0.5) },
-        { label: 'Zoom -', accelerator: 'CmdOrCtrl+-', click: () => mainWindow.webContents.setZoomLevel(mainWindow.webContents.getZoomLevel() - 0.5) },
-        { label: 'Réinitialiser Zoom', accelerator: 'CmdOrCtrl+0', click: () => mainWindow.webContents.setZoomLevel(0) },
-        { type: 'separator' },
-        { label: 'Plein écran', accelerator: 'F11', click: () => mainWindow.setFullScreen(!mainWindow.isFullScreen()) }
-      ]
-    },
-    {
-      label: 'Synchronisation',
-      submenu: [
-        { 
-          label: 'Synchroniser maintenant', 
-          accelerator: 'CmdOrCtrl+S',
-          click: () => mainWindow.webContents.send('trigger-sync')
-        },
-        { type: 'separator' },
-        { 
-          label: 'Ouvrir le dossier de données', 
-          click: () => shell.openPath(userDataPath)
-        }
-      ]
-    },
-    {
-      label: 'Aide',
-      submenu: [
-        { 
-          label: 'À propos', 
-          click: () => {
-            dialog.showMessageBox({
-              type: 'info',
-              title: 'À propos',
-              message: APP_NAME,
-              detail: `Version 1.0.0\n\nApplication de gestion pour ICONES & ALL IN ONE.\n\nBase de données: ${localDbPath}`
-            });
-          }
-        },
-        { label: 'DevTools', accelerator: 'F12', click: () => mainWindow.webContents.toggleDevTools() }
-      ]
-    }
-  ];
+        ]
+      }
+    ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
+    Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate));
 
-  // Attendre que le serveur soit prêt
-  const checkServer = setInterval(() => {
-    fetch(`http://localhost:${PORT}`)
-      .then(() => {
-        clearInterval(checkServer);
-        mainWindow.loadURL(`http://localhost:${PORT}`);
-        mainWindow.show();
-        if (splashWindow) {
+    // Charger l'application
+    console.log('Chargement de:', ONLINE_URL);
+    mainWindow.loadURL(ONLINE_URL);
+
+    // Quand la page est prête
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('Page chargée !');
+      setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
           splashWindow.close();
           splashWindow = null;
         }
-      })
-      .catch(() => {
-        console.log('Attente du serveur...');
-      });
-  }, 1000);
+        mainWindow.show();
+        mainWindow.focus();
+      }, 500);
+    });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+    // Erreur de chargement
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('Erreur:', errorCode, errorDescription);
+      
+      const errorHTML = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                color: white;
+              }
+              .container { text-align: center; padding: 40px; max-width: 500px; }
+              .icon { font-size: 72px; margin-bottom: 25px; }
+              h1 { font-size: 28px; margin-bottom: 15px; }
+              p { opacity: 0.8; line-height: 1.6; margin-bottom: 30px; }
+              button {
+                padding: 14px 35px;
+                font-size: 16px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+              }
+              button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+              }
+              .error-code { 
+                margin-top: 25px; 
+                font-size: 12px; 
+                opacity: 0.4;
+                font-family: monospace;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="icon">📡</div>
+              <h1>Connexion impossible</h1>
+              <p>Impossible de se connecter au serveur ICONES.<br>Vérifiez votre connexion internet et réessayez.</p>
+              <button onclick="location.reload()">🔄 Réessayer</button>
+              <div class="error-code">Erreur: ${errorDescription} (${errorCode})</div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errorHTML));
+      
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close();
+        splashWindow = null;
+      }
+      mainWindow.show();
+    });
+
+    // Ouvrir les liens externes dans le navigateur
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (!url.includes('mon-app1.vercel.app') && !url.includes('localhost')) {
+        shell.openExternal(url);
+        return { action: 'deny' };
+      }
+      return { action: 'allow' };
+    });
+
+    mainWindow.on('closed', () => {
+      mainWindow = null;
+    });
+  }
+
+  // Quand une deuxième instance essaie de s'ouvrir
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  // Démarrage de l'application
+  app.whenReady().then(() => {
+    console.log('=== ICONES Gestion - Démarrage ===');
+    createSplashWindow();
+    createMainWindow();
+  });
+
+  // Fermer proprement
+  app.on('window-all-closed', () => {
+    app.quit();
+  });
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createMainWindow();
+    }
+  });
+
+  // Gérer les erreurs
+  process.on('uncaughtException', (error) => {
+    console.error('Erreur:', error);
   });
 }
-
-app.whenReady().then(async () => {
-  createSplashWindow();
-  
-  // Initialiser la base locale
-  await initLocalDatabase();
-  
-  // Démarrer le serveur
-  startServer();
-  
-  // Créer la fenêtre principale
-  createWindow();
-});
-
-app.on('window-all-closed', () => {
-  if (serverProcess) {
-    serverProcess.kill();
-  }
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (mainWindow === null) {
-    createWindow();
-  }
-});
-
-app.on('before-quit', () => {
-  if (serverProcess) {
-    serverProcess.kill();
-  }
-});

@@ -2,6 +2,7 @@
   "name": "icones-box",
   "version": "1.0.0",
   "description": "Application de gestion ICONES & ALL IN ONE",
+  "author": "ICONES",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -16,45 +17,37 @@
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "electron:build:win": "npm run build && electron-builder --win",
-    "electron:build:portable": "npm run build && electron-builder --win portable"
+    "electron:build:portable": "npm run build && electron-builder --win portable",
+    "electron:full-build": "npm run build && node scripts/prepare-electron.js && electron-builder --win"
   },
   "build": {
     "appId": "com.icones.gestion",
     "productName": "ICONES Gestion",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "electron"
     },
     "files": [
       "electron/**/*",
-      ".next/**/*",
-      "public/**/*",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": ".next/standalone",
-        "to": ".",
-        "filter": ["**/*"]
-      },
-      {
-        "from": ".next/static",
-        "to": ".next/static"
-      },
-      {
-        "from": "public",
-        "to": "public"
-      }
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
       ],
-      "icon": "electron/icon.ico"
+      "icon": "electron/icon.png",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
-      "perMachine": true,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,

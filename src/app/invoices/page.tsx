@@ -348,7 +348,8 @@ export default function InvoicesPage() {
                 value={loginFirstName}
                 onChange={(e) => setLoginFirstName(e.target.value)}
                 placeholder="Votre prénom"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-gray-900 placeholder-gray-400"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                style={{ backgroundColor: 'white', color: '#111827' }}
                 onKeyPress={(e) => e.key === 'Enter' && handleBillingLogin()}
               />
             </div>
@@ -359,7 +360,8 @@ export default function InvoicesPage() {
                 value={loginLastName}
                 onChange={(e) => setLoginLastName(e.target.value)}
                 placeholder="Votre nom"
-                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white text-gray-900 placeholder-gray-400"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                style={{ backgroundColor: 'white', color: '#111827' }}
                 onKeyPress={(e) => e.key === 'Enter' && handleBillingLogin()}
               />
             </div>

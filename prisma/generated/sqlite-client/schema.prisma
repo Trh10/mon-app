@@ -1,0 +1,479 @@
+// Prisma schema for SQLite (Offline/Desktop Mode)
+// This schema is compatible with the PostgreSQL schema but uses SQLite-specific features
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/sqlite-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL_LOCAL")
+}
+
+model Organization {
+  id              Int                    @id @default(autoincrement())
+  name            String
+  slug            String                 @unique
+  users           User[]
+  messages        Message[]
+  tasks           Task[]
+  activityLogs    ActivityLog[]
+  requisitions    Requisition[]
+  needs           Need[]
+  meetings        Meeting[]
+  emailAccounts   EmailAccount[]
+  emailSelections EmailActiveSelection[]
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  syncId          String?                @unique // Pour la synchronisation
+  lastSynced      DateTime?
+}
+
+model User {
+  id                        Int                    @id @default(autoincrement())
+  organization              Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId            Int
+  externalId                String?                @unique
+  email                     String?                @unique
+  displayName               String?
+  name                      String?
+  pinHash                   String?
+  role                      String
+  messages                  Message[]
+  tasks                     Task[]
+  activityLogs              ActivityLog[]
+  requisitionsRequested     Requisition[]          @relation("UserRequestedRequisitions")
+  workflowStepsReviewed     WorkflowStep[]         @relation("UserReviewedSteps")
+  needsRequested            Need[]                 @relation("UserRequestedNeeds")
+  needWorkflowStepsReviewed NeedWorkflowStep[]     @relation("UserReviewedNeedSteps")
+  meetingsCreated           Meeting[]
+  emailAccounts             EmailAccount[]
+  emailSelections           EmailActiveSelection[]
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
+  syncId                    String?                @unique
+  lastSynced                DateTime?
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  kind           String       @default("system")
+  channel        String?      @default("app")
+  content        String
+  metadata       String? // JSON stocké comme String en SQLite
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  syncId         String?      @unique
+  lastSynced     DateTime?
+  needsSync      Boolean      @default(true)
+}
+
+model Task {
+  id             Int          @id @default(autoincrement())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  title          String
+  description    String?
+  status         String       @default("pending")
+  dueAt          DateTime?
+  metadata       String?
+  runs           TaskRun[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  syncId         String?      @unique
+  lastSynced     DateTime?
+  needsSync      Boolean      @default(true)
+}
+
+model TaskRun {
+  id        Int      @id @default(autoincrement())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    Int
+  runType   String   @default("manual")
+  result    String   @default("ok")
+  message   String?
+  createdAt DateTime @default(now())
+  syncId    String?  @unique
+  needsSync Boolean  @default(true)
+}
+
+model ActivityLog {
+  id             Int          @id @default(autoincrement())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  subjectType    String
+  subjectId      Int?
+  action         String
+  detail         String?
+  createdAt      DateTime     @default(now())
+  syncId         String?      @unique
+  needsSync      Boolean      @default(true)
+}
+
+model Requisition {
+  id             String         @id @default(uuid())
+  title          String
+  description    String
+  category       String
+  priority       String
+  budget         Float
+  justification  String
+  status         String         @default("soumis")
+  requester      User?          @relation(name: "UserRequestedRequisitions", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterId    Int?
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  workflow       WorkflowStep[]
+  approvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  syncId         String?        @unique
+  lastSynced     DateTime?
+  needsSync      Boolean        @default(true)
+}
+
+model WorkflowStep {
+  id            String      @id @default(uuid())
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  requisitionId String
+  reviewer      User?       @relation(name: "UserReviewedSteps", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerId    Int?
+  reviewerName  String
+  reviewerLevel Int
+  action        String      @default("pending")
+  isRequired    Boolean     @default(true)
+  isCompleted   Boolean     @default(false)
+  comment       String?
+  createdAt     DateTime    @default(now())
+  completedAt   DateTime?
+  syncId        String?     @unique
+  needsSync     Boolean     @default(true)
+}
+
+model Meeting {
+  id               String       @id @default(uuid())
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId   Int
+  creator          User?        @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId        Int?
+  title            String
+  notes            String       @default("")
+  participants     String? // JSON en String
+  status           String       @default("draft")
+  extractedActions String?
+  tasksCreated     String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  syncId           String?      @unique
+  lastSynced       DateTime?
+  needsSync        Boolean      @default(true)
+}
+
+model EmailAccount {
+  id             String                 @id @default(uuid())
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  owner          User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         Int?
+  email          String
+  providerId     String
+  providerName   String?
+  provider       String? // JSON en String
+  credentials    String? // JSON en String
+  isConnected    Boolean                @default(true)
+  unreadCount    Int                    @default(0)
+  connectedAt    DateTime?
+  lastSync       DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  selections     EmailActiveSelection[]
+  syncId         String?                @unique
+  needsSync      Boolean                @default(true)
+}
+
+model EmailActiveSelection {
+  id             Int          @id @default(autoincrement())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int
+  account        EmailAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId      String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, userId])
+}
+
+model Need {
+  id             String             @id @default(uuid())
+  title          String
+  description    String
+  category       String
+  priority       String
+  budget         Float              @default(0)
+  justification  String?
+  status         String             @default("soumis")
+  requester      User?              @relation(name: "UserRequestedNeeds", fields: [requesterId], references: [id], onDelete: SetNull)
+  requesterId    Int?
+  requesterName  String?
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId Int
+  workflow       NeedWorkflowStep[]
+  attachments    NeedAttachment[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  syncId         String?            @unique
+  lastSynced     DateTime?
+  needsSync      Boolean            @default(true)
+}
+
+model NeedWorkflowStep {
+  id            String    @id @default(uuid())
+  need          Need      @relation(fields: [needId], references: [id], onDelete: Cascade)
+  needId        String
+  reviewer      User?     @relation(name: "UserReviewedNeedSteps", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerId    Int?
+  reviewerName  String
+  reviewerLevel Int
+  action        String    @default("pending")
+  isRequired    Boolean   @default(true)
+  isCompleted   Boolean   @default(false)
+  comment       String?
+  createdAt     DateTime  @default(now())
+  completedAt   DateTime?
+  syncId        String?   @unique
+  needsSync     Boolean   @default(true)
+}
+
+model NeedAttachment {
+  id         String   @id @default(uuid())
+  need       Need     @relation(fields: [needId], references: [id], onDelete: Cascade)
+  needId     String
+  fileName   String
+  fileSize   Int
+  fileType   String
+  uploadedBy String
+  url        String
+  localPath  String? // Chemin local pour le mode offline
+  createdAt  DateTime @default(now())
+  syncId     String?  @unique
+  needsSync  Boolean  @default(true)
+}
+
+// FACTURATION
+model InvoiceClient {
+  id          String    @id @default(uuid())
+  company     String
+  companyName String
+  contactName String
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  country     String?
+  taxNumber   String?
+  notes       String?
+  invoices    Invoice[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  syncId      String?   @unique
+  lastSynced  DateTime?
+  needsSync   Boolean   @default(true)
+}
+
+model Invoice {
+  id                       String           @id @default(uuid())
+  invoiceNumber            String           @unique
+  template                 String
+  company                  String
+  client                   InvoiceClient    @relation(fields: [clientId], references: [id])
+  clientId                 String
+  clientSnapshot           String?
+  issueDate                DateTime
+  dueDate                  DateTime
+  lines                    InvoiceLine[]
+  sections                 InvoiceSection[]
+  subtotal                 Float            @default(0)
+  taxRate                  Float            @default(0)
+  taxAmount                Float            @default(0)
+  total                    Float            @default(0)
+  serviceType              String?
+  templateCode             String?
+  placementTVAEnabled      Boolean          @default(false)
+  chargesTTCMode           Boolean          @default(true)
+  placementDeduction       Float            @default(0)
+  enablePlacementDeduction Boolean          @default(false)
+  transfertDeduction       Float            @default(0)
+  enableTransfertDeduction Boolean          @default(false)
+  projectDescription       String?
+  projectName              String?
+  managementFeeRate        Float?
+  commissionRate           Float?
+  acomptes                 String?
+  status                   String           @default("draft")
+  paymentTerms             String?
+  paymentMethod            String?
+  paidAt                   DateTime?
+  paidAmount               Float            @default(0)
+  payments                 InvoicePayment[]
+  notes                    String?
+  publicNotes              String?
+  createdBy                String
+  createdByInitials        String?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  syncId                   String?          @unique
+  lastSynced               DateTime?
+  needsSync                Boolean          @default(true)
+}
+
+model InvoiceLine {
+  id           String   @id @default(uuid())
+  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId    String
+  description  String
+  quantity     Float    @default(1)
+  unitPrice    Float    @default(0)
+  total        Float    @default(0)
+  chargesTTC   Float?
+  squareMeters Float?
+  days         Float?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  syncId       String?  @unique
+  needsSync    Boolean  @default(true)
+}
+
+model InvoiceSection {
+  id        String               @id @default(uuid())
+  invoice   Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+  title     String
+  subtotal  Float                @default(0)
+  sortOrder Int                  @default(0)
+  lines     InvoiceSectionLine[]
+  createdAt DateTime             @default(now())
+  syncId    String?              @unique
+  needsSync Boolean              @default(true)
+}
+
+model InvoiceSectionLine {
+  id              String         @id @default(uuid())
+  section         InvoiceSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  sectionId       String
+  description     String
+  quantity        Float          @default(1)
+  squareMeters    Float?
+  days            Float?
+  unitPrice       Float          @default(0)
+  total           Float          @default(0)
+  daysImpactPrice Boolean        @default(true)
+  sortOrder       Int            @default(0)
+  createdAt       DateTime       @default(now())
+  syncId          String?        @unique
+  needsSync       Boolean        @default(true)
+}
+
+model InvoicePayment {
+  id            String   @id @default(uuid())
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId     String
+  amount        Float
+  paymentDate   DateTime
+  paymentMethod String?
+  reference     String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  syncId        String?  @unique
+  needsSync     Boolean  @default(true)
+}
+
+model ExpenseCategory {
+  id         String    @id @default(uuid())
+  company    String
+  name       String
+  color      String?
+  icon       String?
+  isActive   Boolean   @default(true)
+  sortOrder  Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  expenses   Expense[]
+  syncId     String?   @unique
+  lastSynced DateTime?
+  needsSync  Boolean   @default(true)
+
+  @@unique([company, name])
+}
+
+model Expense {
+  id               String           @id @default(uuid())
+  company          String
+  category         ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  categoryId       String?
+  description      String
+  amount           Float
+  expenseDate      DateTime
+  paymentMethod    String?
+  reference        String?
+  vendor           String?
+  receiptUrl       String?
+  localReceiptPath String? // Chemin local du reçu
+  notes            String?
+  createdBy        String?
+  createdByName    String?
+  isRecurring      Boolean          @default(false)
+  recurringType    String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  syncId           String?          @unique
+  lastSynced       DateTime?
+  needsSync        Boolean          @default(true)
+}
+
+model TreasuryMonth {
+  id                 String   @id @default(uuid())
+  company            String
+  year               Int
+  month              Int
+  totalIncome        Float    @default(0)
+  totalExpenses      Float    @default(0)
+  balance            Float    @default(0)
+  expensesByCategory String?
+  lastUpdated        DateTime @default(now())
+  syncId             String?  @unique
+  needsSync          Boolean  @default(true)
+
+  @@unique([company, year, month])
+}
+
+// Table de synchronisation
+model SyncQueue {
+  id        Int       @id @default(autoincrement())
+  tableName String
+  recordId  String
+  action    String // 'create' | 'update' | 'delete'
+  data      String // JSON des données
+  createdAt DateTime  @default(now())
+  syncedAt  DateTime?
+  error     String?
+  retries   Int       @default(0)
+}
+
+model SyncStatus {
+  id              Int       @id @default(autoincrement())
+  lastSyncAt      DateTime?
+  lastSyncSuccess Boolean   @default(false)
+  pendingChanges  Int       @default(0)
+  serverUrl       String?
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 
 // Tables à synchroniser (dans l'ordre pour respecter les foreign keys)
 const SYNC_TABLES = [

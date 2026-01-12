@@ -8,9 +8,9 @@ import { PrismaClient } from '@prisma/client';
 // Détecter le mode d'exécution
 const isElectron = typeof process !== 'undefined' && 
                    process.versions && 
-                   process.versions.electron;
+                   !!(process.versions as any).electron;
 
-const isOfflineMode = process.env.OFFLINE_MODE === 'true' || isElectron;
+const isOfflineMode: boolean = process.env.OFFLINE_MODE === 'true' || !!isElectron;
 
 // Client PostgreSQL (mode web)
 let postgresClient: PrismaClient | null = null;
