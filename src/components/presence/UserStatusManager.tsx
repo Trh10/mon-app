@@ -28,7 +28,7 @@ export default function UserStatusManager(props: NewProps | LegacyProps) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm">Statut:</span>
-      <select className="border rounded px-2 py-1" value={status} onChange={(e)=>update(e.target.value as any)}>
+      <select className="border rounded px-2 py-1 bg-white text-gray-900" value={status} onChange={(e)=>update(e.target.value as any)}>
         <option value="online">En ligne</option>
         <option value="away">Absent</option>
         <option value="busy">Occupé</option>

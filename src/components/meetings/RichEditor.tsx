@@ -65,6 +65,6 @@ export default function RichEditor({ value, onChange, readOnly }: { value: strin
 
   // Fallback textarea visible if CDN fails
   return (
-    <textarea id={editorId} ref={textareaRef} defaultValue={value} className="w-full h-[520px] border rounded p-2 bg-white" />
+    <textarea id={editorId} ref={textareaRef} defaultValue={value} className="w-full h-[520px] border rounded p-2 bg-white text-gray-900" />
   );
 }

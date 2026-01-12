@@ -248,7 +248,7 @@ export default function EmailReaderModal({ email, onClose, onReply, userInfo }: 
                     type="text"
                     value={replySubject}
                     onChange={(e) => setReplySubject(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                   />
                 </div>
 
@@ -281,7 +281,7 @@ export default function EmailReaderModal({ email, onClose, onReply, userInfo }: 
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     rows={12}
-                    className="w-full px-3 py-2 border border-gray-300 border-t-0 rounded-b-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full px-3 py-2 border border-gray-300 border-t-0 rounded-b-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white text-gray-900 placeholder-gray-400"
                     placeholder="Tapez votre message..."
                   />
                 </div>

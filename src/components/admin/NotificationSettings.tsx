@@ -289,7 +289,7 @@ export default function NotificationSettings() {
                       setSettings(prev => ({ ...prev, smtpHost: e.target.value }))
                     }
                     placeholder="smtp.gmail.com"
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
@@ -300,7 +300,7 @@ export default function NotificationSettings() {
                     onChange={(e) => 
                       setSettings(prev => ({ ...prev, smtpPort: parseInt(e.target.value) || 587 }))
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900"
                   />
                 </div>
               </div>
@@ -328,7 +328,7 @@ export default function NotificationSettings() {
                       setSettings(prev => ({ ...prev, smtpUser: e.target.value }))
                     }
                     placeholder="user@domain.com"
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                   />
                 </div>
                 <div>
@@ -340,7 +340,7 @@ export default function NotificationSettings() {
                       setSettings(prev => ({ ...prev, smtpPassword: e.target.value }))
                     }
                     placeholder="Mot de passe SMTP"
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                   />
                 </div>
               </div>
@@ -354,7 +354,7 @@ export default function NotificationSettings() {
                     onChange={(e) => 
                       setSettings(prev => ({ ...prev, fromEmail: e.target.value }))
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900"
                   />
                 </div>
                 <div>
@@ -365,7 +365,7 @@ export default function NotificationSettings() {
                     onChange={(e) => 
                       setSettings(prev => ({ ...prev, fromName: e.target.value }))
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900"
                   />
                 </div>
               </div>
@@ -381,7 +381,7 @@ export default function NotificationSettings() {
                     onChange={(e) => 
                       setSettings(prev => ({ ...prev, maxRetries: parseInt(e.target.value) || 3 }))
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900"
                   />
                 </div>
                 <div>
@@ -394,7 +394,7 @@ export default function NotificationSettings() {
                     onChange={(e) => 
                       setSettings(prev => ({ ...prev, retryDelay: parseInt(e.target.value) || 5 }))
                     }
-                    className="w-full p-2 border rounded"
+                    className="w-full p-2 border rounded bg-white text-gray-900"
                   />
                 </div>
               </div>

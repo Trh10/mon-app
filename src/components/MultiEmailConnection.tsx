@@ -383,7 +383,7 @@ export default function MultiEmailConnection() {
                         value={connectionForm.email}
                         onChange={(e) => setConnectionForm(prev => ({ ...prev, email: e.target.value }))}
                         placeholder="votre@email.com"
-                        className="w-full p-2 border rounded"
+                        className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                       />
                     </div>
 
@@ -394,7 +394,7 @@ export default function MultiEmailConnection() {
                         value={connectionForm.password}
                         onChange={(e) => setConnectionForm(prev => ({ ...prev, password: e.target.value }))}
                         placeholder="Votre mot de passe"
-                        className="w-full p-2 border rounded"
+                        className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                       />
                     </div>
 
@@ -408,7 +408,7 @@ export default function MultiEmailConnection() {
                               value={connectionForm.imapServer}
                               onChange={(e) => setConnectionForm(prev => ({ ...prev, imapServer: e.target.value }))}
                               placeholder="imap.example.com"
-                              className="w-full p-2 border rounded"
+                              className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                             />
                           </div>
                           <div>
@@ -417,7 +417,7 @@ export default function MultiEmailConnection() {
                               type="text"
                               value={connectionForm.imapPort}
                               onChange={(e) => setConnectionForm(prev => ({ ...prev, imapPort: e.target.value }))}
-                              className="w-full p-2 border rounded"
+                              className="w-full p-2 border rounded bg-white text-gray-900"
                             />
                           </div>
                         </div>
@@ -430,7 +430,7 @@ export default function MultiEmailConnection() {
                               value={connectionForm.smtpServer}
                               onChange={(e) => setConnectionForm(prev => ({ ...prev, smtpServer: e.target.value }))}
                               placeholder="smtp.example.com"
-                              className="w-full p-2 border rounded"
+                              className="w-full p-2 border rounded bg-white text-gray-900 placeholder-gray-400"
                             />
                           </div>
                           <div>
@@ -439,7 +439,7 @@ export default function MultiEmailConnection() {
                               type="text"
                               value={connectionForm.smtpPort}
                               onChange={(e) => setConnectionForm(prev => ({ ...prev, smtpPort: e.target.value }))}
-                              className="w-full p-2 border rounded"
+                              className="w-full p-2 border rounded bg-white text-gray-900"
                             />
                           </div>
                         </div>

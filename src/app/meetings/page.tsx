@@ -23,7 +23,7 @@ export default function MeetingsIndex() {
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <input className="border rounded px-2 py-1" placeholder="Titre de la réunion" value={title} onChange={e => setTitle(e.target.value)} />
+        <input className="border rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" placeholder="Titre de la réunion" value={title} onChange={e => setTitle(e.target.value)} />
         <button className="px-3 py-1 bg-black text-white rounded" onClick={create}>Créer</button>
       </div>
       <div className="divide-y">

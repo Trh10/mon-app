@@ -179,13 +179,13 @@ export default function OrgDashboard() {
                 value={newTask.title}
                 onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
                 placeholder="Titre de la tâche..."
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border rounded-md bg-white text-gray-900 placeholder-gray-400"
               />
               <textarea
                 value={newTask.description}
                 onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
                 placeholder="Description (optionnelle)..."
-                className="w-full px-3 py-2 border rounded-md h-20"
+                className="w-full px-3 py-2 border rounded-md h-20 bg-white text-gray-900 placeholder-gray-400"
               />
               <button
                 onClick={createTask}

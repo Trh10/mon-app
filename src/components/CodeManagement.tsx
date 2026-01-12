@@ -167,7 +167,7 @@ export function CodeManagement() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
                   placeholder="Prénom de l'employé"
                   required
                 />
@@ -180,7 +180,7 @@ export function CodeManagement() {
                 <select
                   value={formData.level}
                   onChange={(e) => setFormData(prev => ({ ...prev, level: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 >
                   {availableLevels.map(level => (
                     <option key={level.value} value={level.value}>
@@ -198,7 +198,7 @@ export function CodeManagement() {
                   type="text"
                   value={formData.customCode}
                   onChange={(e) => setFormData(prev => ({ ...prev, customCode: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
                   placeholder="4 chiffres (auto si vide)"
                   maxLength={4}
                 />

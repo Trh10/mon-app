@@ -126,7 +126,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                 type="email"
                 value={credentials.email}
                 onChange={(e) => handleEmailChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                 placeholder="votre@domaine.com"
                 autoComplete="email"
               />
@@ -144,7 +144,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                     ...prev, 
                     provider: e.target.value as 'gmail' | 'outlook' | 'yahoo' | 'custom'
                   }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
                 >
                   <option value="gmail">Gmail</option>
                   <option value="outlook">Outlook/Hotmail</option>
@@ -169,7 +169,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                       type="text"
                       value={credentials.imapHost || ''}
                       onChange={(e) => setCredentials(prev => ({ ...prev, imapHost: e.target.value }))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400"
                       placeholder="imap.domaine.com"
                     />
                   </div>
@@ -179,7 +179,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                       type="number"
                       value={credentials.imapPort || 993}
                       onChange={(e) => setCredentials(prev => ({ ...prev, imapPort: parseInt(e.target.value) }))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
                     />
                   </div>
                 </div>
@@ -191,7 +191,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                       type="text"
                       value={credentials.smtpHost || ''}
                       onChange={(e) => setCredentials(prev => ({ ...prev, smtpHost: e.target.value }))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-400"
                       placeholder="smtp.domaine.com"
                     />
                   </div>
@@ -201,7 +201,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                       type="number"
                       value={credentials.smtpPort || 587}
                       onChange={(e) => setCredentials(prev => ({ ...prev, smtpPort: parseInt(e.target.value) }))}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-white text-gray-900"
                     />
                   </div>
                 </div>
@@ -230,7 +230,7 @@ export function EmailLogin({ onConnect }: EmailLoginProps) {
                   type={showPassword ? "text" : "password"}
                   value={credentials.password}
                   onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                   placeholder="Votre mot de passe"
                   autoComplete="current-password"
                 />

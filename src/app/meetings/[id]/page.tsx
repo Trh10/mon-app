@@ -75,7 +75,7 @@ export default function MeetingRoom({ params }: { params: { id: string } }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link href="/" className="text-blue-600">← Retour</Link>
-          <input className="border rounded px-2 py-1" value={title} onChange={e => setTitle(e.target.value)} disabled={!canManage} />
+          <input className="border rounded px-2 py-1 bg-white text-gray-900" value={title} onChange={e => setTitle(e.target.value)} disabled={!canManage} />
           <span className={`text-xs px-2 py-0.5 rounded ${meeting.status === 'finalized' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{meeting.status === 'finalized' ? 'Finalisée' : 'Brouillon'}</span>
         </div>
         <div className="flex items-center gap-2">
