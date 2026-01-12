@@ -347,7 +347,7 @@ function CreateModal({
                     type="text"
                     value={demandeur}
                     onChange={(e) => setDemandeur(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     placeholder="Votre nom"
                   />
                 </div>
@@ -365,7 +365,7 @@ function CreateModal({
                   type="text"
                   value={titre}
                   onChange={(e) => setTitre(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                   placeholder="Ex: Fournitures de bureau"
                 />
               </div>
@@ -379,7 +379,7 @@ function CreateModal({
                   type="text"
                   value={demandeur}
                   onChange={(e) => setDemandeur(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                   placeholder="Votre nom complet"
                 />
               </div>
@@ -392,7 +392,7 @@ function CreateModal({
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all"
                   rows={2}
                   placeholder="Description du besoin..."
                 />
@@ -430,12 +430,12 @@ function CreateModal({
                 )}
 
                 {/* Formulaire ajout produit */}
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     value={newProduit.nom}
                     onChange={(e) => setNewProduit({ ...newProduit, nom: e.target.value })}
-                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                    className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     placeholder="Nom du produit"
                     onKeyDown={(e) => e.key === 'Enter' && handleAddProduit()}
                   />
@@ -445,7 +445,7 @@ function CreateModal({
                       type="number"
                       value={newProduit.prix}
                       onChange={(e) => setNewProduit({ ...newProduit, prix: e.target.value })}
-                      className="w-32 pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                      className="w-full sm:w-32 pl-8 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                       placeholder="Prix"
                       onKeyDown={(e) => e.key === 'Enter' && handleAddProduit()}
                     />
@@ -783,67 +783,67 @@ export default function EtatDeBesoinsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
+      {/* Header - RESPONSIVE */}
       <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                <Receipt className="w-10 h-10" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="p-2.5 sm:p-4 bg-white/20 rounded-xl sm:rounded-2xl backdrop-blur-sm flex-shrink-0">
+                <Receipt className="w-7 h-7 sm:w-10 sm:h-10" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">États de Besoin</h1>
-                <p className="text-emerald-100">Gérez vos demandes d&apos;achat</p>
+                <h1 className="text-xl sm:text-3xl font-bold">États de Besoin</h1>
+                <p className="text-emerald-100 text-sm sm:text-base">Gérez vos demandes d&apos;achat</p>
               </div>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-white text-emerald-600 rounded-xl hover:bg-emerald-50 transition-colors font-semibold shadow-lg"
+              className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-white text-emerald-600 rounded-xl hover:bg-emerald-50 transition-colors font-semibold shadow-lg text-sm sm:text-base"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
               Nouveau
             </button>
           </div>
 
-          {/* Statistiques */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 cursor-pointer hover:bg-white/20 transition-all"
+          {/* Statistiques - RESPONSIVE */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mt-4 sm:mt-6">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4 cursor-pointer hover:bg-white/20 transition-all"
                  onClick={() => setActiveFilter('all')}>
-              <div className="flex items-center gap-3">
-                <FileText className="w-8 h-8 text-white/80" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-white/80 flex-shrink-0" />
                 <div>
-                  <div className="text-3xl font-bold">{stats.total}</div>
-                  <div className="text-emerald-100 text-sm">Total</div>
+                  <div className="text-2xl sm:text-3xl font-bold">{stats.total}</div>
+                  <div className="text-emerald-100 text-xs sm:text-sm">Total</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 cursor-pointer hover:bg-white/20 transition-all"
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4 cursor-pointer hover:bg-white/20 transition-all"
                  onClick={() => setActiveFilter('soumis')}>
-              <div className="flex items-center gap-3">
-                <Clock className="w-8 h-8 text-yellow-300" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-300 flex-shrink-0" />
                 <div>
-                  <div className="text-3xl font-bold">{stats.soumis}</div>
-                  <div className="text-emerald-100 text-sm">En attente</div>
+                  <div className="text-2xl sm:text-3xl font-bold">{stats.soumis}</div>
+                  <div className="text-emerald-100 text-xs sm:text-sm">En attente</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 cursor-pointer hover:bg-white/20 transition-all"
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4 cursor-pointer hover:bg-white/20 transition-all"
                  onClick={() => setActiveFilter('approuve')}>
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-8 h-8 text-green-300" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-green-300 flex-shrink-0" />
                 <div>
-                  <div className="text-3xl font-bold">{stats.approuve}</div>
-                  <div className="text-emerald-100 text-sm">Approuvés</div>
+                  <div className="text-2xl sm:text-3xl font-bold">{stats.approuve}</div>
+                  <div className="text-emerald-100 text-xs sm:text-sm">Approuvés</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 cursor-pointer hover:bg-white/20 transition-all"
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 sm:p-4 cursor-pointer hover:bg-white/20 transition-all"
                  onClick={() => setActiveFilter('rejete')}>
-              <div className="flex items-center gap-3">
-                <XCircle className="w-8 h-8 text-red-300" />
+              <div className="flex items-center gap-2 sm:gap-3">
+                <XCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-300 flex-shrink-0" />
                 <div>
-                  <div className="text-3xl font-bold">{stats.rejete}</div>
-                  <div className="text-emerald-100 text-sm">Rejetés</div>
+                  <div className="text-2xl sm:text-3xl font-bold">{stats.rejete}</div>
+                  <div className="text-emerald-100 text-xs sm:text-sm">Rejetés</div>
                 </div>
               </div>
             </div>
@@ -851,10 +851,10 @@ export default function EtatDeBesoinsPage() {
         </div>
       </div>
 
-      {/* Filtres et recherche */}
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      {/* Filtres et recherche - RESPONSIVE */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Onglets de filtrage */}
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4 overflow-x-auto pb-1">
           {[
             { key: 'all', label: 'Tous', count: stats.total, color: 'gray' },
             { key: 'soumis', label: 'En attente', count: stats.soumis, color: 'blue' },
@@ -888,14 +888,14 @@ export default function EtatDeBesoinsPage() {
         </div>
 
         {/* Barre de recherche */}
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <div className="relative mb-4 sm:mb-6">
+          <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
           <input
             type="text"
             placeholder="Rechercher..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border-0 shadow-sm focus:ring-2 focus:ring-emerald-500"
+            className="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 bg-white text-gray-900 placeholder-gray-400 rounded-xl sm:rounded-2xl border-0 shadow-sm focus:ring-2 focus:ring-emerald-500"
           />
         </div>
 

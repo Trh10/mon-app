@@ -92,7 +92,7 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white text-gray-900 placeholder-gray-400"
                   placeholder="Nom de votre entreprise"
                   required={isFirstCompany}
                 />
@@ -116,7 +116,7 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white text-gray-900 placeholder-gray-400"
                 placeholder="Votre prénom"
                 required
               />
@@ -135,7 +135,7 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
                 id="role"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white text-gray-900"
                 required
               >
                 <option value="">Sélectionnez votre rôle</option>
@@ -161,7 +161,7 @@ export function LoginForm({ onLogin, loading, error }: LoginFormProps) {
                 type="password"
                 value={code}
                 onChange={(e) => handleCodeChange(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-center text-lg font-mono tracking-widest"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-center text-lg font-mono tracking-widest bg-white text-gray-900 placeholder-gray-400"
                 placeholder="••••"
                 maxLength={4}
                 required

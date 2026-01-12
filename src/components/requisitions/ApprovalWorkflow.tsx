@@ -124,21 +124,21 @@ export default function ApprovalWorkflow() {
             <p className="text-blue-800">Mode observation - Seul le DG peut approuver.</p>
           </div>
         )}
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold">{stats.total}</p><p className="text-xs text-gray-500">Total</p></div>
-          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold text-amber-600">{stats.enAttente}</p><p className="text-xs text-gray-500">En attente</p></div>
-          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold text-green-600">{stats.approuves}</p><p className="text-xs text-gray-500">Approuves</p></div>
-          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-2xl font-bold text-red-600">{stats.rejetes}</p><p className="text-xs text-gray-500">Rejetes</p></div>
-          <div className="bg-white rounded-xl p-4 shadow-sm"><p className="text-lg font-bold text-emerald-600">{formatMoney(stats.montantTotal)}</p><p className="text-xs text-gray-500">Approuve</p></div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 mb-6">
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold">{stats.total}</p><p className="text-[10px] sm:text-xs text-gray-500">Total</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold text-amber-600">{stats.enAttente}</p><p className="text-[10px] sm:text-xs text-gray-500">En attente</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold text-green-600">{stats.approuves}</p><p className="text-[10px] sm:text-xs text-gray-500">Approuves</p></div>
+          <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-xl sm:text-2xl font-bold text-red-600">{stats.rejetes}</p><p className="text-[10px] sm:text-xs text-gray-500">Rejetes</p></div>
+          <div className="col-span-2 sm:col-span-1 bg-white rounded-xl p-3 sm:p-4 shadow-sm"><p className="text-base sm:text-lg font-bold text-emerald-600">{formatMoney(stats.montantTotal)}</p><p className="text-[10px] sm:text-xs text-gray-500">Approuve</p></div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border mb-6 flex gap-4">
+        <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input type="text" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" />
+            <input type="text" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500" />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {["all", "soumis", "approuve", "rejete"].map((f) => (
-              <button key={f} onClick={() => setFilter(f)} className={filter === f ? "px-4 py-2 rounded-xl bg-purple-600 text-white" : "px-4 py-2 rounded-xl bg-gray-100"}>{f === "all" ? "Tous" : f}</button>
+              <button key={f} onClick={() => setFilter(f)} className={filter === f ? "px-3 sm:px-4 py-2 rounded-xl bg-purple-600 text-white text-sm" : "px-3 sm:px-4 py-2 rounded-xl bg-gray-100 text-gray-700 text-sm"}>{f === "all" ? "Tous" : f}</button>
             ))}
           </div>
         </div>
@@ -213,8 +213,8 @@ export default function ApprovalWorkflow() {
               {isDG && selectedBesoin.statut === "soumis" && (
                 <div className="border-t pt-6">
                   <h4 className="font-semibold mb-3 flex items-center gap-2"><Crown className="h-5 w-5 text-amber-500" />Decision DG</h4>
-                  <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className="w-full border rounded-lg p-3 mb-4" placeholder="Commentaire..." />
-                  <div className="flex gap-3">
+                  <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className="w-full border rounded-lg p-3 mb-4 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500" placeholder="Commentaire..." />
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <button onClick={() => handleDecision("approuve")} disabled={processing} className="flex-1 py-3 bg-green-600 text-white rounded-xl flex items-center justify-center gap-2"><CheckCircle className="h-5 w-5" />{processing ? "..." : "Approuver"}</button>
                     <button onClick={() => handleDecision("rejete")} disabled={processing} className="flex-1 py-3 bg-red-600 text-white rounded-xl flex items-center justify-center gap-2"><XCircle className="h-5 w-5" />{processing ? "..." : "Rejeter"}</button>
                   </div>

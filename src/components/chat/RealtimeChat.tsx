@@ -37,7 +37,7 @@ export default function RealtimeChat({ room, self }: { room: string; self: Membe
         <div ref={endRef} />
       </div>
       <div className="p-2 border-t flex gap-2">
-        <input className="flex-1 border rounded px-2 py-1" value={text} onChange={(e)=>setText(e.target.value)} placeholder="Votre message..." />
+        <input className="flex-1 border rounded px-2 py-1 bg-white text-gray-900 placeholder-gray-400" value={text} onChange={(e)=>setText(e.target.value)} placeholder="Votre message..." />
         <button className="px-4 py-1 rounded bg-blue-600 text-white" onClick={send}>Envoyer</button>
       </div>
     </div>

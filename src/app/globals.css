@@ -650,3 +650,175 @@
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* ========================================
+   CLASSES UTILITAIRES - INPUTS & RESPONSIVE
+   ======================================== */
+
+/* Input de base - garantit toujours texte visible */
+@layer components {
+  .input-base {
+    @apply w-full px-4 py-2 border rounded-lg 
+           bg-white text-gray-900 border-gray-300
+           dark:bg-gray-800 dark:text-white dark:border-gray-600
+           focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+           placeholder-gray-400 dark:placeholder-gray-500;
+  }
+  
+  .input-dark {
+    @apply w-full px-3 py-2 
+           bg-gray-700 text-white border border-gray-600 
+           rounded-lg focus:ring-2 focus:ring-purple-500
+           placeholder-gray-400;
+  }
+  
+  .input-light {
+    @apply w-full px-4 py-3 
+           bg-white text-gray-900 border border-gray-200 
+           rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200
+           placeholder-gray-400;
+  }
+  
+  .textarea-base {
+    @apply w-full px-4 py-3 border rounded-lg 
+           bg-white text-gray-900 border-gray-300
+           dark:bg-gray-800 dark:text-white dark:border-gray-600
+           focus:ring-2 focus:ring-blue-500 
+           placeholder-gray-400 dark:placeholder-gray-500
+           resize-none;
+  }
+  
+  .select-base {
+    @apply w-full px-4 py-2 border rounded-lg 
+           bg-white text-gray-900 border-gray-300
+           dark:bg-gray-800 dark:text-white dark:border-gray-600
+           focus:ring-2 focus:ring-blue-500
+           appearance-none cursor-pointer;
+  }
+}
+
+/* FIX GLOBAL: Tous les inputs doivent avoir un texte visible */
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="range"]),
+textarea,
+select {
+  color: inherit;
+}
+
+/* Fix spécifique pour les fonds sombres */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+.dark textarea,
+.dark select,
+[class*="bg-gray-8"] input,
+[class*="bg-gray-9"] input,
+[class*="bg-slate-8"] input,
+[class*="bg-slate-9"] input,
+[class*="bg-gray-8"] textarea,
+[class*="bg-gray-9"] textarea,
+[class*="bg-slate-8"] textarea,
+[class*="bg-slate-9"] textarea {
+  color: white !important;
+}
+
+/* Fix pour les fonds clairs */
+.bg-white input,
+.bg-gray-50 input,
+.bg-gray-100 input,
+.bg-white textarea,
+.bg-gray-50 textarea,
+.bg-gray-100 textarea {
+  color: #1f2937 !important;
+}
+
+/* Responsive Grid Utilities */
+@layer utilities {
+  .grid-responsive {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+  }
+  
+  .grid-stats {
+    @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4;
+  }
+  
+  .flex-responsive {
+    @apply flex flex-col sm:flex-row gap-3 sm:gap-4;
+  }
+  
+  .hide-mobile {
+    @apply hidden sm:flex;
+  }
+  
+  .show-mobile {
+    @apply flex sm:hidden;
+  }
+  
+  .text-responsive {
+    @apply text-sm sm:text-base;
+  }
+  
+  .heading-responsive {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+  
+  .p-responsive {
+    @apply p-3 sm:p-4 md:p-6;
+  }
+  
+  .gap-responsive {
+    @apply gap-2 sm:gap-3 md:gap-4;
+  }
+}
+
+/* Mobile-first responsive containers */
+@media (max-width: 640px) {
+  .modal-mobile {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    max-height: 95vh !important;
+  }
+  
+  .card-mobile {
+    padding: 1rem !important;
+    border-radius: 0.75rem !important;
+  }
+  
+  /* Stats grid on mobile */
+  .stats-grid-mobile {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+  
+  /* Sidebar masqué sur mobile */
+  aside.sidebar-desktop {
+    display: none !important;
+  }
+  
+  /* Header compact sur mobile */
+  header .header-actions {
+    gap: 0.5rem !important;
+  }
+  
+  header .header-title {
+    font-size: 1rem !important;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .tablet-2-cols {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .tablet-compact {
+    padding: 1rem !important;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1280px) {
+  .xl-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}

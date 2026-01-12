@@ -158,7 +158,7 @@ export default function ChangePINModal({ isOpen, onClose }: ChangePINModalProps)
                 type={showPINs.current ? "text" : "password"}
                 value={formData.currentPIN}
                 onChange={(e) => setFormData({ ...formData, currentPIN: e.target.value })}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                 placeholder="****"
                 required
               />
@@ -182,7 +182,7 @@ export default function ChangePINModal({ isOpen, onClose }: ChangePINModalProps)
                 type={showPINs.new ? "text" : "password"}
                 value={formData.newPIN}
                 onChange={(e) => setFormData({ ...formData, newPIN: e.target.value })}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                 placeholder="Nouveau PIN (min. 4 caractères)"
                 required
                 minLength={4}
@@ -207,7 +207,7 @@ export default function ChangePINModal({ isOpen, onClose }: ChangePINModalProps)
                 type={showPINs.confirm ? "text" : "password"}
                 value={formData.confirmPIN}
                 onChange={(e) => setFormData({ ...formData, confirmPIN: e.target.value })}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                 placeholder="Confirmer le nouveau PIN"
                 required
               />

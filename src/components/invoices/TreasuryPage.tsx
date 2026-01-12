@@ -195,46 +195,46 @@ export default function TreasuryPage({ company }: Props) {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
-      {/* Header */}
+      {/* Header - RESPONSIVE */}
       <header className="bg-gray-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href={`/invoices/${company}`} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link href="/invoices" className="p-2 hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div>
-                <h1 className="text-xl font-bold flex items-center gap-2">
-                  <Wallet className={`w-6 h-6 text-${accentColor}-500`} />
-                  Trésorerie - {companyName}
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold flex items-center gap-2">
+                  <Wallet className={`w-5 h-5 sm:w-6 sm:h-6 text-${accentColor}-500 flex-shrink-0`} />
+                  <span className="truncate">Trésorerie - {companyName}</span>
                 </h1>
-                <p className="text-sm text-gray-400">Suivi des entrées et dépenses</p>
+                <p className="text-xs sm:text-sm text-gray-400">Suivi des entrées et dépenses</p>
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => setShowManageCategories(true)}
-                className="px-3 py-2 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center gap-2"
+                className="px-2 sm:px-3 py-2 text-xs sm:text-sm bg-gray-700 hover:bg-gray-600 rounded-lg flex items-center gap-1 sm:gap-2"
               >
                 <Tag className="w-4 h-4" />
-                Catégories
+                <span className="hidden xs:inline">Catégories</span>
               </button>
               <button
                 onClick={() => setShowAddExpense(true)}
-                className={`px-4 py-2 bg-${accentColor}-600 hover:bg-${accentColor}-700 rounded-lg flex items-center gap-2 font-medium`}
+                className={`px-3 sm:px-4 py-2 bg-${accentColor}-600 hover:bg-${accentColor}-700 rounded-lg flex items-center gap-1 sm:gap-2 font-medium text-xs sm:text-sm`}
               >
                 <Plus className="w-4 h-4" />
-                Nouvelle dépense
+                <span className="hidden xs:inline">Nouvelle</span> dépense
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         {/* Sélecteur de mois */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
           <div className="flex items-center gap-2">
             <button
               onClick={goToPreviousMonth}
@@ -242,7 +242,7 @@ export default function TreasuryPage({ company }: Props) {
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div className="text-lg font-semibold min-w-[180px] text-center">
+            <div className="text-base sm:text-lg font-semibold min-w-[150px] sm:min-w-[180px] text-center">
               {MONTHS[month - 1]} {year}
             </div>
             <button
@@ -271,73 +271,73 @@ export default function TreasuryPage({ company }: Props) {
           </div>
         </div>
 
-        {/* Cartes de résumé */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Cartes de résumé - RESPONSIVE */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {/* Entrées */}
-          <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-gray-400 text-sm">Entrées (Factures payées)</span>
-              <div className="p-2 bg-green-500/20 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-500" />
+          <div className="bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-700">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-gray-400 text-xs sm:text-sm">Entrées (Factures payées)</span>
+              <div className="p-1.5 sm:p-2 bg-green-500/20 rounded-lg">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-green-500">
+            <div className="text-xl sm:text-2xl font-bold text-green-500">
               +{formatCurrency(summary?.totalIncome || 0)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
               {income.length} facture(s) encaissée(s)
             </div>
           </div>
 
           {/* Dépenses */}
-          <div className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-gray-400 text-sm">Dépenses</span>
-              <div className="p-2 bg-red-500/20 rounded-lg">
-                <TrendingDown className="w-5 h-5 text-red-500" />
+          <div className="bg-gray-800 rounded-xl p-4 sm:p-5 border border-gray-700">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-gray-400 text-xs sm:text-sm">Dépenses</span>
+              <div className="p-1.5 sm:p-2 bg-red-500/20 rounded-lg">
+                <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-red-500">
+            <div className="text-xl sm:text-2xl font-bold text-red-500">
               -{formatCurrency(summary?.totalExpenses || 0)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
               {expenses.length} dépense(s) ce mois
             </div>
           </div>
 
           {/* Solde */}
-          <div className={`bg-gray-800 rounded-xl p-5 border ${(summary?.balance || 0) >= 0 ? 'border-green-500/50' : 'border-red-500/50'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-gray-400 text-sm">Solde du mois</span>
-              <div className={`p-2 rounded-lg ${(summary?.balance || 0) >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                <DollarSign className={`w-5 h-5 ${(summary?.balance || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+          <div className={`bg-gray-800 rounded-xl p-4 sm:p-5 border ${(summary?.balance || 0) >= 0 ? 'border-green-500/50' : 'border-red-500/50'}`}>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-gray-400 text-xs sm:text-sm">Solde du mois</span>
+              <div className={`p-1.5 sm:p-2 rounded-lg ${(summary?.balance || 0) >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                <DollarSign className={`w-4 h-4 sm:w-5 sm:h-5 ${(summary?.balance || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`} />
               </div>
             </div>
-            <div className={`text-2xl font-bold ${(summary?.balance || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <div className={`text-xl sm:text-2xl font-bold ${(summary?.balance || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {(summary?.balance || 0) >= 0 ? '+' : ''}{formatCurrency(summary?.balance || 0)}
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-[10px] sm:text-xs text-gray-500 mt-1">
               Entrées - Dépenses
             </div>
           </div>
         </div>
 
-        {/* Contenu principal */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Contenu principal - RESPONSIVE */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Liste des transactions */}
           <div className="lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700">
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <h3 className="font-semibold">Transactions</h3>
-              <div className="flex gap-2">
+            <div className="p-3 sm:p-4 border-b border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h3 className="font-semibold text-sm sm:text-base">Transactions</h3>
+              <div className="flex gap-2 overflow-x-auto">
                 <button
                   onClick={() => setFilterType('all')}
-                  className={`px-3 py-1 text-xs rounded-full ${filterType === 'all' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}
+                  className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs rounded-full whitespace-nowrap ${filterType === 'all' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}
                 >
                   Tout
                 </button>
                 <button
                   onClick={() => setFilterType('income')}
-                  className={`px-3 py-1 text-xs rounded-full ${filterType === 'income' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}
+                  className={`px-2 sm:px-3 py-1 text-[10px] sm:text-xs rounded-full whitespace-nowrap ${filterType === 'income' ? 'bg-green-600 text-white' : 'text-gray-400 hover:bg-gray-700'}`}
                 >
                   Entrées
                 </button>
