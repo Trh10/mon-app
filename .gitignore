@@ -13,6 +13,12 @@ node_modules/
 # Production
 /build
 
+# Electron
+dist-electron/
+*.exe
+*.dmg
+*.AppImage
+
 # Misc
 .DS_Store
 *.pem

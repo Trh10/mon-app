@@ -1,7 +1,9 @@
 {
   "name": "icones-box",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "Application de gestion ICONES & ALL IN ONE",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",
@@ -10,7 +12,57 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev --name init",
-    "migrate:json": "tsx scripts/migrate-json-to-db.ts"
+    "migrate:json": "tsx scripts/migrate-json-to-db.ts",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:portable": "npm run build && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.icones.gestion",
+    "productName": "ICONES Gestion",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": ".",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".next/static",
+        "to": ".next/static"
+      },
+      {
+        "from": "public",
+        "to": "public"
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "electron/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ICONES Gestion"
+    },
+    "portable": {
+      "artifactName": "ICONES-Gestion-Portable.exe"
+    }
   },
   "dependencies": {
     "@prisma/client": "^6.16.2",
@@ -46,9 +98,13 @@
     "@types/react": "^18.2.79",
     "@types/react-dom": "^18.2.25",
     "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
     "postcss": "^8.4.38",
     "prisma": "^6.16.2",
     "tailwindcss": "^3.4.9",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "wait-on": "^7.2.0"
   }
 }

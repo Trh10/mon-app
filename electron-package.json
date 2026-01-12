@@ -1,0 +1,80 @@
+{
+  "name": "mon-app-desktop",
+  "version": "1.0.0",
+  "description": "Application de gestion ICONES / ALL IN ONE - Version Desktop",
+  "main": "electron/main.js",
+  "author": "ICONES & ALL IN ONE",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:build:portable": "npm run build && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.icones.monapp",
+    "productName": "ICONES Gestion",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": ".",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".next/static",
+        "to": ".next/static",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "public",
+        "to": "public",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "electron/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "electron/icon.ico",
+      "uninstallerIcon": "electron/icon.ico",
+      "installerHeaderIcon": "electron/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ICONES Gestion"
+    },
+    "portable": {
+      "artifactName": "ICONES-Gestion-Portable.exe"
+    }
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.9.1",
+    "wait-on": "^7.2.0"
+  }
+}
