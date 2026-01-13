@@ -5,7 +5,7 @@ import { getRealtimeClient } from "./provider";
 import { getNotificationManager } from "../notifications/manager";
 import { COMPANY_DEFAULT, LEGACY_COMPANY_IDS } from "@/config/branding";
 
-type Role = "chef" | "manager" | "assistant" | "employe";
+type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé" | string;
 type User = { id: string; name: string; role: Role };
 type UserStatus = "online" | "away" | "busy" | "offline";
 

@@ -1,7 +1,7 @@
 "use client";
 
 // Type local pour éviter les imports manquants
-type Role = "chef" | "manager" | "assistant" | "employe";
+type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé" | string;
 type User = { id: string; name: string; role: Role };
 type Handler = (data: any) => void;
 

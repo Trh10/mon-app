@@ -91,15 +91,22 @@ const EMOJI_CATEGORIES = {
 const EMOJI_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🚀"];
 
 const ROLE_CONFIG: Record<string, { color: string; label: string; icon: string; gradient: string }> = {
-  "Directeur Général": { color: "#f59e0b", label: "DG", icon: "👑", gradient: "from-amber-500 to-yellow-500" },
-  "Chef": { color: "#f59e0b", label: "Chef", icon: "⭐", gradient: "from-amber-500 to-orange-500" },
-  "Manager": { color: "#8b5cf6", label: "Manager", icon: "🎯", gradient: "from-violet-500 to-purple-500" },
+  // Nouveaux rôles
+  "Directeur Général": { color: "#f59e0b", label: "Directeur Général", icon: "👑", gradient: "from-amber-500 to-yellow-500" },
+  "Administration": { color: "#8b5cf6", label: "Administration", icon: "📋", gradient: "from-violet-500 to-purple-500" },
+  "Finance": { color: "#10b981", label: "Finance", icon: "💰", gradient: "from-emerald-500 to-green-500" },
+  "Comptable": { color: "#10b981", label: "Comptable", icon: "📊", gradient: "from-emerald-500 to-teal-500" },
   "Assistant": { color: "#3b82f6", label: "Assistant", icon: "💼", gradient: "from-blue-500 to-cyan-500" },
-  "Employé": { color: "#10b981", label: "Employé", icon: "👤", gradient: "from-emerald-500 to-green-500" },
-  "chef": { color: "#f59e0b", label: "Chef", icon: "⭐", gradient: "from-amber-500 to-orange-500" },
-  "manager": { color: "#8b5cf6", label: "Manager", icon: "🎯", gradient: "from-violet-500 to-purple-500" },
+  "Assistante": { color: "#3b82f6", label: "Assistante", icon: "💼", gradient: "from-blue-500 to-cyan-500" },
+  "Employé": { color: "#6b7280", label: "Employé", icon: "👤", gradient: "from-gray-500 to-gray-600" },
+  // Anciens rôles (compatibilité)
+  "Chef": { color: "#f59e0b", label: "Directeur Général", icon: "👑", gradient: "from-amber-500 to-orange-500" },
+  "Manager": { color: "#8b5cf6", label: "Manager", icon: "🎯", gradient: "from-violet-500 to-purple-500" },
+  "chef": { color: "#f59e0b", label: "Directeur Général", icon: "👑", gradient: "from-amber-500 to-orange-500" },
+  "manager": { color: "#8b5cf6", label: "Administration", icon: "📋", gradient: "from-violet-500 to-purple-500" },
   "assistant": { color: "#3b82f6", label: "Assistant", icon: "💼", gradient: "from-blue-500 to-cyan-500" },
-  "employe": { color: "#10b981", label: "Employé", icon: "👤", gradient: "from-emerald-500 to-green-500" },
+  "employe": { color: "#6b7280", label: "Employé", icon: "👤", gradient: "from-gray-500 to-gray-600" },
+  "admin": { color: "#f59e0b", label: "Directeur Général", icon: "👑", gradient: "from-amber-500 to-yellow-500" },
 };
 
 const STATUS_CONFIG = {

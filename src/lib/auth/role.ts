@@ -1,4 +1,4 @@
-export type Role = "chef" | "manager" | "assistant" | "employe";
+export type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé";
 
 export type Action =
   | "send_chat"
@@ -7,7 +7,16 @@ export type Action =
   | "view_audit"
   | "manage_project";
 
-const roleMatrix: Record<Role, Action[]> = {
+const roleMatrix: Record<string, Action[]> = {
+  // Nouveaux rôles
+  "Directeur Général": ["send_chat", "update_cursor", "assign_role", "view_audit", "manage_project"],
+  "Administration": ["send_chat", "update_cursor", "assign_role", "view_audit", "manage_project"],
+  "Finance": ["send_chat", "update_cursor", "view_audit"],
+  "Comptable": ["send_chat", "update_cursor", "view_audit"],
+  "Assistant": ["send_chat", "update_cursor", "view_audit"],
+  "Assistante": ["send_chat", "update_cursor", "view_audit"],
+  "Employé": ["send_chat", "update_cursor"],
+  // Anciens rôles (compatibilité)
   chef: ["send_chat", "update_cursor", "assign_role", "view_audit", "manage_project"],
   manager: ["send_chat", "update_cursor", "assign_role", "view_audit"],
   assistant: ["send_chat", "update_cursor", "view_audit"],

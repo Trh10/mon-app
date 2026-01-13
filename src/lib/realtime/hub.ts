@@ -1,4 +1,4 @@
-export type Role = "chef" | "manager" | "assistant" | "employe";
+export type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé" | string;
 export type RTUser = { id: string; name: string; role: Role };
 type SendFn = (event: string, data: any) => void;
 

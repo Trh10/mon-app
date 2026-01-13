@@ -1,7 +1,7 @@
-// Petit store mémoire pour l’historique des chats par "room".
+// Petit store mémoire pour l'historique des chats par "room".
 // Room peut être une room publique (ex: "room:demo-room") ou une room de DM (ex: "dm:u-a:u-b").
 
-export type Role = "chef" | "manager" | "assistant" | "employe";
+export type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé" | string;
 export type RTUser = { id: string; name: string; role: Role };
 
 export type ChatMessage = {

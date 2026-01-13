@@ -5,7 +5,7 @@ import { getNotificationManager } from "../../lib/notifications/manager";
 import { getRealtimeClient } from "../../lib/realtime/provider";
 import MemberPicker from "./MemberPicker";
 
-type Role = "chef" | "manager" | "assistant" | "employe";
+type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé";
 type Msg = { id: string; user: { id: string; name: string; role: Role }; text: string; ts: number };
 type FileEvt = { id: string; name: string; size: number; mime: string; url: string; message?: string; scope: "room" | "direct"; toUserId?: string; room?: string; };
 type TaskEvt = { task: { id: string; userId: string; title: string; project: string; status: "todo" | "in_progress" | "done"; updatedAt: number; createdAt: number; createdBy: { id: string; name: string }; dueAt?: number | null; }; };
@@ -671,7 +671,8 @@ export default function ChatPanel({
       <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 12px" }}>
         <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown}
           placeholder={mode === "room" ? "Écrire un message… (Entrée pour envoyer, Shift+Entrée pour nouvelle ligne)" : `Message privé à ${dmTarget?.name || "…"}`}
-          style={{ flex: 1, padding: 10, resize: "vertical", border: "1px solid #e5e7eb", borderRadius: 8 }}
+          style={{ flex: 1, padding: 10, resize: "vertical", border: "1px solid #e5e7eb", borderRadius: 8, backgroundColor: "#1a1a2e", color: "#ffffff" }}
+          className="placeholder-gray-400"
         />
         <div className="relative">
           <button 
