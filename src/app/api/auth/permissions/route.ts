@@ -68,6 +68,12 @@ function getRoleConfig(role: string) {
   if (lowerRole === 'admin' || lowerRole.includes('directeur') || lowerRole.includes('dg')) {
     return ROLE_CONFIG['Directeur Général'];
   }
+  if (lowerRole.includes('daf')) {
+    return ROLE_CONFIG['DAF'];
+  }
+  if (lowerRole.includes('juridique') || lowerRole.includes('legal') || lowerRole.includes('rh')) {
+    return ROLE_CONFIG['Juridique et RH'];
+  }
   if (lowerRole.includes('admin')) {
     return ROLE_CONFIG['Administration'];
   }

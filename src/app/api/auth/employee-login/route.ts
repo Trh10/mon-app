@@ -60,6 +60,16 @@ const ROLE_CONFIG: Record<string, { level: number; permissions: string[]; displa
     permissions: ['view_all', 'view_treasury', 'manage_treasury', 'create_invoices', 'delete_invoices', 'view_reports', 'manage_meetings'],
     displayName: 'Administration'
   },
+  'DAF': {
+    level: 85,
+    permissions: ['view_all', 'view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'delete_invoices', 'view_invoices', 'view_reports'],
+    displayName: 'Directeur Administratif et Financier'
+  },
+  'Juridique et RH': {
+    level: 75,
+    permissions: ['view_all', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_invoices', 'view_reports', 'manage_users', 'manage_meetings'],
+    displayName: 'Juridique et RH'
+  },
   'Finance': {
     level: 70,
     permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_reports'],
@@ -100,6 +110,12 @@ function getRoleConfig(role: string): { level: number; permissions: string[]; di
   const lowerRole = r.toLowerCase();
   if (lowerRole.includes('dg') || lowerRole.includes('directeur')) {
     return { ...ROLE_CONFIG['Directeur Général'], normalizedRole: 'Directeur Général' };
+  }
+  if (lowerRole.includes('daf')) {
+    return { ...ROLE_CONFIG['DAF'], normalizedRole: 'DAF' };
+  }
+  if (lowerRole.includes('juridique') || lowerRole.includes('legal') || lowerRole.includes('rh')) {
+    return { ...ROLE_CONFIG['Juridique et RH'], normalizedRole: 'Juridique et RH' };
   }
   if (lowerRole.includes('admin')) {
     return { ...ROLE_CONFIG['Administration'], normalizedRole: 'Administration' };

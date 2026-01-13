@@ -323,10 +323,11 @@ export const TAX_RATES = [
 
 // Rôles autorisés pour le module facturation (mots-clés)
 export const INVOICE_ALLOWED_KEYWORDS = [
-  'DG', 'DIRECTEUR', 'DIRECTOR', 'GENERAL',
+  'DG', 'DAF', 'DIRECTEUR', 'DIRECTOR', 'GENERAL',
   'FINANCE', 'FINANCIER', 'COMPTABLE', 'COMPTABILITE', 'ACCOUNTING',
   'ADMINISTRATION', 'ADMIN', 'ADMINISTRATEUR',
-  'MANAGER', 'GESTIONNAIRE', 'CEO', 'CFO', 'COO'
+  'JURIDIQUE', 'LEGAL', 'RH', 'HR',
+  'MANAGER', 'GESTIONNAIRE', 'CEO', 'CFO', 'COO', 'ASSISTANT'
 ];
 
 // Normaliser une chaîne en supprimant les accents
