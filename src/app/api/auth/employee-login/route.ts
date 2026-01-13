@@ -48,13 +48,79 @@ async function setAuthSession(req: NextRequest, res: NextResponse, userData: any
   });
 }
 
+// Configuration des rôles et permissions
+const ROLE_CONFIG: Record<string, { level: number; permissions: string[]; displayName: string }> = {
+  'Directeur Général': {
+    level: 100,
+    permissions: ['all', 'view_all', 'manage_users', 'manage_company', 'view_treasury', 'manage_treasury', 'create_invoices', 'delete_invoices', 'view_reports'],
+    displayName: 'Directeur Général'
+  },
+  'Administration': {
+    level: 80,
+    permissions: ['view_all', 'view_treasury', 'manage_treasury', 'create_invoices', 'delete_invoices', 'view_reports', 'manage_meetings'],
+    displayName: 'Administration'
+  },
+  'Finance': {
+    level: 70,
+    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_reports'],
+    displayName: 'Finance'
+  },
+  'Comptable': {
+    level: 70,
+    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_reports'],
+    displayName: 'Comptable'
+  },
+  'Assistant': {
+    level: 40,
+    permissions: ['create_invoices', 'view_invoices', 'manage_meetings', 'view_team'],
+    displayName: 'Assistant(e)'
+  },
+  'Assistante': {
+    level: 40,
+    permissions: ['create_invoices', 'view_invoices', 'manage_meetings', 'view_team'],
+    displayName: 'Assistante'
+  },
+  'Employé': {
+    level: 10,
+    permissions: ['view_own', 'view_team'],
+    displayName: 'Employé'
+  }
+};
+
+// Fonction pour normaliser et obtenir la config d'un rôle
+function getRoleConfig(role: string): { level: number; permissions: string[]; displayName: string; normalizedRole: string } {
+  const r = role.trim();
+  
+  // Chercher une correspondance exacte
+  if (ROLE_CONFIG[r]) {
+    return { ...ROLE_CONFIG[r], normalizedRole: r };
+  }
+  
+  // Sinon, chercher par mot-clé
+  const lowerRole = r.toLowerCase();
+  if (lowerRole.includes('dg') || lowerRole.includes('directeur')) {
+    return { ...ROLE_CONFIG['Directeur Général'], normalizedRole: 'Directeur Général' };
+  }
+  if (lowerRole.includes('admin')) {
+    return { ...ROLE_CONFIG['Administration'], normalizedRole: 'Administration' };
+  }
+  if (lowerRole.includes('finance')) {
+    return { ...ROLE_CONFIG['Finance'], normalizedRole: 'Finance' };
+  }
+  if (lowerRole.includes('comptab')) {
+    return { ...ROLE_CONFIG['Comptable'], normalizedRole: 'Comptable' };
+  }
+  if (lowerRole.includes('assistant')) {
+    return { ...ROLE_CONFIG['Assistant'], normalizedRole: 'Assistant' };
+  }
+  
+  // Par défaut: Employé
+  return { ...ROLE_CONFIG['Employé'], normalizedRole: 'Employé' };
+}
+
 // Fonction pour calculer le niveau d'un rôle
 function getRoleLevel(role: string): number {
-  const r = role.toLowerCase();
-  if (r.includes('directeur') || r.includes('dg') || r === 'admin') return 100;
-  if (r.includes('manager') || r.includes('responsable')) return 50;
-  if (r.includes('finance') || r.includes('comptable')) return 40;
-  return 10;
+  return getRoleConfig(role).level;
 }
 
 // Vérifier si un PIN est trop simple
@@ -133,20 +199,17 @@ export async function POST(req: NextRequest) {
         data: { updatedAt: new Date() }
       });
       
-      // Convertir le rôle pour l'affichage
-      let displayRole = existingUser.role;
-      if (existingUser.role === 'admin') displayRole = 'Directeur Général';
-      else if (existingUser.role === 'manager') displayRole = 'Manager';
-      else if (existingUser.role === 'member') displayRole = 'Employé';
+      // Obtenir la configuration du rôle stocké
+      const roleConfig = getRoleConfig(existingUser.role);
       
       const userData = {
         id: existingUser.id,
         name: existingUser.displayName || existingUser.name,
-        role: displayRole,
-        level: getRoleLevel(existingUser.role),
+        role: roleConfig.displayName,
+        level: roleConfig.level,
         organizationId: org.id,
         companyCode: org.slug.toUpperCase(),
-        permissions: ['read', 'write']
+        permissions: roleConfig.permissions
       };
       
       await setAuthSession(req, res, userData);
@@ -165,12 +228,15 @@ export async function POST(req: NextRequest) {
     // Création d'un nouvel utilisateur
     const loweredRole = String(role).toLowerCase();
     
+    // Obtenir la configuration du rôle demandé
+    const roleConfig = getRoleConfig(role);
+    
     // Interdire création d'un rôle DG si un DG existe déjà
-    if (/dg|directeur/i.test(role)) {
+    if (roleConfig.normalizedRole === 'Directeur Général') {
       const existingDG = await prisma.user.findFirst({
         where: {
           organizationId: org.id,
-          role: 'admin'
+          role: 'Directeur Général'
         }
       });
       if (existingDG) {
@@ -178,11 +244,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Déterminer le rôle Prisma
-    let prismaRole = 'member';
-    if (/dg|directeur|admin/i.test(role)) prismaRole = 'admin';
-    else if (/manager|responsable/i.test(role)) prismaRole = 'manager';
-    else if (/finance|comptable/i.test(role)) prismaRole = 'manager';
+    // Le rôle normalisé sera stocké directement (ex: 'Administration', 'Finance', etc.)
+    const normalizedRole = roleConfig.normalizedRole;
 
     try {
       const newUser = await prisma.user.create({
@@ -190,23 +253,20 @@ export async function POST(req: NextRequest) {
           organizationId: org.id,
           name: name.trim(),
           displayName: name.trim(),
-          role: prismaRole,
+          role: normalizedRole, // Stocker le rôle exact: 'Administration', 'Finance', etc.
           pinHash: hashPin(pin),
           externalId: `emp_${org.id}_${Date.now()}`,
         }
       });
 
-      // Convertir le rôle pour l'affichage
-      let displayRole = role;
-      
       const userData = {
         id: newUser.id,
         name: newUser.displayName || newUser.name,
-        role: displayRole,
-        level: getRoleLevel(role),
+        role: roleConfig.displayName,
+        level: roleConfig.level,
         organizationId: org.id,
         companyCode: org.slug.toUpperCase(),
-        permissions: ['read', 'write']
+        permissions: roleConfig.permissions
       };
       
       await setAuthSession(req, res, userData);

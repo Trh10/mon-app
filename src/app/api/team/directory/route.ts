@@ -125,12 +125,38 @@ export async function GET(req: NextRequest) {
       ]
     });
 
+    // Configuration des rôles pour obtenir le niveau
+    const ROLE_LEVELS: Record<string, number> = {
+      'Directeur Général': 100,
+      'Administration': 80,
+      'Finance': 70,
+      'Comptable': 70,
+      'Assistant': 40,
+      'Assistante': 40,
+      'Employé': 10,
+      'admin': 100,  // Fallback pour anciens rôles
+      'manager': 50,
+      'member': 10
+    };
+
     // Fonction pour obtenir le nom d'affichage correct
     const getDisplayName = (user: any) => {
       if (user.displayName) return user.displayName;
       if (user.name) return user.name;
       if (user.email) return user.email.split('@')[0];
       return 'Utilisateur';
+    };
+
+    // Fonction pour obtenir le rôle d'affichage
+    const getDisplayRole = (role: string) => {
+      // Si c'est déjà un rôle d'affichage, le retourner tel quel
+      if (ROLE_LEVELS[role] !== undefined && !['admin', 'manager', 'member'].includes(role)) {
+        return role;
+      }
+      // Sinon convertir les anciens rôles
+      if (role === 'admin') return 'Directeur Général';
+      if (role === 'manager') return 'Manager';
+      return 'Employé';
     };
 
     // Considérer un utilisateur "en ligne" s'il s'est connecté dans les 10 dernières minutes
@@ -141,13 +167,14 @@ export async function GET(req: NextRequest) {
     const items = users.map(u => {
       const lastActivity = u.updatedAt ? new Date(u.updatedAt).getTime() : 0;
       const isOnline = (now - lastActivity) < TEN_MINUTES;
+      const displayRole = getDisplayRole(u.role);
       
       return {
         id: String(u.id),
         name: getDisplayName(u),
         role: u.role,
-        displayRole: u.role === 'admin' ? 'Directeur Général' : u.role === 'DG' ? 'Directeur Général' : u.role || 'Employé',
-        level: (u.role === 'admin' || u.role === 'DG') ? 10 : 3,
+        displayRole: displayRole,
+        level: ROLE_LEVELS[u.role] || ROLE_LEVELS[displayRole] || 10,
         isOnline: isOnline,
         lastSeen: u.updatedAt.toISOString(),
         activeTasks: 0,
@@ -155,7 +182,7 @@ export async function GET(req: NextRequest) {
         companyId: String(u.organizationId),
         joinedAt: u.createdAt.toISOString(),
         email: u.email,
-        title: u.role === 'admin' ? 'Administrateur' : u.role || 'Employé'
+        title: displayRole
       };
     });
 
