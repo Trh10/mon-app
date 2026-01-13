@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { findCompanyByName, findUserByName, publicUser, getUsers } from '@/lib/auth/store';
+import { prisma } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,14 +18,52 @@ export async function POST(req: NextRequest) {
     if (!companyName || !name) {
       return NextResponse.json({ error: 'Champs requis' }, { status: 400 });
     }
-    const company = findCompanyByName(companyName);
-    if (!company) return NextResponse.json({ error: 'Entreprise inconnue' }, { status: 404 });
-    const user = findUserByName(company.id, name);
+    
+    const normalizedCompany = companyName.trim().toLowerCase();
+    const org = await prisma.organization.findFirst({
+      where: {
+        OR: [
+          { slug: normalizedCompany },
+          { name: { contains: companyName.trim(), mode: 'insensitive' } }
+        ]
+      }
+    });
+    
+    if (!org) {
+      return NextResponse.json({ error: 'Entreprise inconnue' }, { status: 404 });
+    }
+    
+    const normalizedName = name.trim().toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: {
+        organizationId: org.id,
+        OR: [
+          { name: { equals: name.trim(), mode: 'insensitive' } },
+          { displayName: { equals: name.trim(), mode: 'insensitive' } }
+        ]
+      }
+    });
+    
     if (user) {
-      return NextResponse.json({ exists: true, user: publicUser(user) });
+      // Convertir le rôle admin en "Directeur Général" pour l'affichage
+      let displayRole = user.role;
+      if (user.role === 'admin') displayRole = 'Directeur Général';
+      else if (user.role === 'manager') displayRole = 'Manager';
+      else if (user.role === 'member') displayRole = 'Employé';
+      
+      return NextResponse.json({ 
+        exists: true, 
+        user: {
+          id: user.id,
+          name: user.displayName || user.name,
+          role: displayRole,
+          level: user.role === 'admin' ? 'founder' : 'employee'
+        }
+      });
     }
     return NextResponse.json({ exists: false });
   } catch (e) {
+    console.error('Erreur check-user:', e);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
