@@ -5,8 +5,8 @@ import { getNotificationManager } from "../../lib/notifications/manager";
 import { getRealtimeClient } from "../../lib/realtime/provider";
 import MemberPicker from "./MemberPicker";
 
-type Role = "chef" | "manager" | "assistant" | "employe" | "Directeur Général" | "Administration" | "Finance" | "Comptable" | "Assistant" | "Assistante" | "Employé";
-type Msg = { id: string; user: { id: string; name: string; role: Role }; text: string; ts: number };
+type Role = string; // Accepte tous les rôles
+type Msg = { id: string; user: { id: string; name: string; role: string }; text: string; ts: number };
 type FileEvt = { id: string; name: string; size: number; mime: string; url: string; message?: string; scope: "room" | "direct"; toUserId?: string; room?: string; };
 type TaskEvt = { task: { id: string; userId: string; title: string; project: string; status: "todo" | "in_progress" | "done"; updatedAt: number; createdAt: number; createdBy: { id: string; name: string }; dueAt?: number | null; }; };
 

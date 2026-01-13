@@ -19,11 +19,21 @@ const STATUS_CONFIG = {
   offline: { label: "Hors ligne", color: "bg-gray-400", emoji: "⚫" }
 };
 
-const ROLE_ICONS = {
+const ROLE_ICONS: Record<string, string> = {
+  // Nouveaux rôles
+  "Directeur Général": "👑",
+  "Administration": "📋",
+  "Finance": "💰",
+  "Comptable": "📊",
+  "Assistant": "🤝",
+  "Assistante": "🤝",
+  "Employé": "👤",
+  // Anciens rôles
   chef: "👑",
   manager: "📊", 
   assistant: "🤝",
-  employe: "👤"
+  employe: "👤",
+  admin: "👑"
 };
 
 export default function UnifiedTeamPanel({ 

@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         kind: recipientId ? 'dm' : 'chat',
         channel: room || 'general',
         content: text.trim(),
-        metadata: recipientId ? { recipientId, recipientRoom: `dm:${Math.min(session.id, recipientId)}:${Math.max(session.id, recipientId)}` } : null
+        metadata: recipientId ? { recipientId, recipientRoom: `dm:${Math.min(session.id, recipientId)}:${Math.max(session.id, recipientId)}` } : undefined
       },
       include: {
         user: {
