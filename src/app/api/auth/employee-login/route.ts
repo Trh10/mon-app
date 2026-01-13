@@ -169,16 +169,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Entreprise inconnue' }, { status: 404 });
     }
 
-    // Chercher l'utilisateur existant
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        organizationId: org.id,
-        OR: [
-          { name: { equals: name.trim(), mode: 'insensitive' } },
-          { displayName: { equals: name.trim(), mode: 'insensitive' } }
-        ]
-      }
+    // Chercher l'utilisateur existant (recherche insensible à la casse)
+    const allUsers = await prisma.user.findMany({
+      where: { organizationId: org.id }
     });
+    
+    const normalizedName = name.trim().toLowerCase();
+    const existingUser = allUsers.find(u => 
+      (u.name && u.name.toLowerCase() === normalizedName) ||
+      (u.displayName && u.displayName.toLowerCase() === normalizedName)
+    );
 
     const res = new NextResponse();
     

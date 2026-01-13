@@ -33,16 +33,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Entreprise inconnue' }, { status: 404 });
     }
     
-    const normalizedName = name.trim().toLowerCase();
-    const user = await prisma.user.findFirst({
-      where: {
-        organizationId: org.id,
-        OR: [
-          { name: { equals: name.trim(), mode: 'insensitive' } },
-          { displayName: { equals: name.trim(), mode: 'insensitive' } }
-        ]
-      }
+    // Recherche insensible à la casse - on récupère tous les users et on compare en lowercase
+    const allUsers = await prisma.user.findMany({
+      where: { organizationId: org.id }
     });
+    
+    const normalizedName = name.trim().toLowerCase();
+    const user = allUsers.find(u => 
+      (u.name && u.name.toLowerCase() === normalizedName) ||
+      (u.displayName && u.displayName.toLowerCase() === normalizedName)
+    );
     
     if (user) {
       // Configuration des niveaux par rôle
