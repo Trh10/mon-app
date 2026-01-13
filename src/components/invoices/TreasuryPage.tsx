@@ -63,7 +63,8 @@ const MONTHS = [
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
 ];
 
-const DEFAULT_CATEGORIES = [
+// Catégories par défaut pour ICONES
+const DEFAULT_CATEGORIES_ICONES = [
   { name: 'Loyer & Charges', color: '#ef4444', icon: 'home' },
   { name: 'Salaires', color: '#f97316', icon: 'users' },
   { name: 'Fournitures', color: '#eab308', icon: 'box' },
@@ -72,6 +73,20 @@ const DEFAULT_CATEGORIES = [
   { name: 'Marketing', color: '#8b5cf6', icon: 'megaphone' },
   { name: 'Équipement', color: '#ec4899', icon: 'monitor' },
   { name: 'Services', color: '#06b6d4', icon: 'briefcase' },
+  { name: 'Impôts & Taxes', color: '#64748b', icon: 'landmark' },
+  { name: 'Autres', color: '#6b7280', icon: 'more' }
+];
+
+// Catégories par défaut pour ALL IN ONE
+const DEFAULT_CATEGORIES_ALLINONE = [
+  { name: 'Paie Personnel', color: '#ef4444', icon: 'users' },
+  { name: 'Consultant', color: '#f97316', icon: 'briefcase' },
+  { name: 'Soins Médicaux', color: '#22c55e', icon: 'heart' },
+  { name: 'Rétrocession Partenaire', color: '#3b82f6', icon: 'handshake' },
+  { name: 'Commission Apporteur d\'Affaire', color: '#8b5cf6', icon: 'percent' },
+  { name: 'Loyer & Charges', color: '#ec4899', icon: 'home' },
+  { name: 'Transport', color: '#06b6d4', icon: 'car' },
+  { name: 'Fournitures', color: '#eab308', icon: 'box' },
   { name: 'Impôts & Taxes', color: '#64748b', icon: 'landmark' },
   { name: 'Autres', color: '#6b7280', icon: 'more' }
 ];
@@ -131,7 +146,10 @@ export default function TreasuryPage({ company }: Props) {
   };
 
   const createDefaultCategories = async () => {
-    for (const cat of DEFAULT_CATEGORIES) {
+    // Utiliser les catégories appropriées selon l'entreprise
+    const defaultCats = company === 'allinone' ? DEFAULT_CATEGORIES_ALLINONE : DEFAULT_CATEGORIES_ICONES;
+    
+    for (const cat of defaultCats) {
       await fetch('/api/treasury', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

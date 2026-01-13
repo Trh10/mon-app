@@ -63,8 +63,8 @@ export function Sidebar({ onFolderChange, currentFolder, isConnected, userInfo, 
           <Link href="/requisitions/my-requests" className="block"><PremiumNavItem icon={<User className="w-4 h-4" />} label="Mes demandes" onHover={setHoveredItem} id="my-requests" hoveredItem={hoveredItem} accentColor="from-sky-400 to-blue-500" isLink /></Link>
           {user && [5, 6, 7, 8, 9, 10].includes(user.level || 0) && (<Link href="/requisitions/approvals" className="block"><PremiumNavItem icon={<CheckSquare className="w-4 h-4" />} label="Approbations" onHover={setHoveredItem} id="approvals" hoveredItem={hoveredItem} accentColor="from-amber-400 to-orange-500" isLink premium /></Link>)}
         </div>
-        {/* Module Facturation - accès DG, Finance, Administration, Assistant, Comptable, Financier */}
-        {user && ['DG', 'FINANCE', 'FINANCIER', 'ADMINISTRATION', 'ADMIN', 'DIRECTEUR GENERAL', 'DIRECTEUR', 'ASSISTANT', 'ASSISTANTE', 'COMPTABLE'].some(r => (user.role || '').toUpperCase().includes(r)) && (
+        {/* Module Facturation - accès DG, Finance, Administration, Assistant, Comptable, Financier, DAF, Juridique */}
+        {user && ['DG', 'DAF', 'FINANCE', 'FINANCIER', 'ADMINISTRATION', 'ADMIN', 'DIRECTEUR GENERAL', 'DIRECTEUR', 'ASSISTANT', 'ASSISTANTE', 'COMPTABLE', 'JURIDIQUE'].some(r => (user.role || '').toUpperCase().includes(r)) && (
           <div className="mb-4">
             <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500"><Receipt className="w-3 h-3" /><span>Facturation</span></div>
             <Link href="/invoices" className="block"><PremiumNavItem icon={<Receipt className="w-4 h-4" />} label="Factures & Clients" onHover={setHoveredItem} id="invoices" hoveredItem={hoveredItem} accentColor="from-emerald-400 to-teal-500" isLink premium /></Link>
