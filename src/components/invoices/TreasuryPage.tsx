@@ -705,6 +705,66 @@ function CategoriesModal({
   const [newCategory, setNewCategory] = useState({ name: '', color: '#6366f1' });
   const [loading, setLoading] = useState(false);
 
+  // Catégories par défaut selon l'entreprise
+  const getDefaultCategories = () => {
+    if (company === 'allinone') {
+      return [
+        { name: 'Paie Personnel', color: '#ef4444', icon: 'users' },
+        { name: 'Consultant', color: '#f97316', icon: 'briefcase' },
+        { name: 'Soins Médicaux', color: '#22c55e', icon: 'heart' },
+        { name: 'Rétrocession Partenaire', color: '#3b82f6', icon: 'handshake' },
+        { name: "Commission Apporteur d'Affaire", color: '#8b5cf6', icon: 'percent' },
+        { name: 'Loyer & Charges', color: '#ec4899', icon: 'home' },
+        { name: 'Transport', color: '#06b6d4', icon: 'car' },
+        { name: 'Fournitures', color: '#eab308', icon: 'box' },
+        { name: 'Impôts & Taxes', color: '#64748b', icon: 'landmark' },
+        { name: 'Autres', color: '#6b7280', icon: 'more' }
+      ];
+    }
+    return [
+      { name: 'Loyer & Charges', color: '#ef4444', icon: 'home' },
+      { name: 'Salaires', color: '#f97316', icon: 'users' },
+      { name: 'Fournitures', color: '#eab308', icon: 'box' },
+      { name: 'Transport', color: '#22c55e', icon: 'car' },
+      { name: 'Communication', color: '#3b82f6', icon: 'phone' },
+      { name: 'Marketing', color: '#8b5cf6', icon: 'megaphone' },
+      { name: 'Équipement', color: '#ec4899', icon: 'monitor' },
+      { name: 'Services', color: '#06b6d4', icon: 'briefcase' },
+      { name: 'Impôts & Taxes', color: '#64748b', icon: 'landmark' },
+      { name: 'Autres', color: '#6b7280', icon: 'more' }
+    ];
+  };
+
+  const handleResetCategories = async () => {
+    if (!confirm('Voulez-vous remplacer toutes les catégories par les catégories par défaut ?')) return;
+    setLoading(true);
+    try {
+      // Supprimer toutes les catégories existantes
+      for (const cat of categories) {
+        await fetch(`/api/treasury?id=${cat.id}&type=category`, { method: 'DELETE' });
+      }
+      // Créer les catégories par défaut
+      for (const cat of getDefaultCategories()) {
+        await fetch('/api/treasury', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'category',
+            company,
+            name: cat.name,
+            color: cat.color,
+            icon: cat.icon
+          })
+        });
+      }
+      onSuccess();
+    } catch (error) {
+      console.error('Erreur:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddCategory = async () => {
     if (!newCategory.name) return;
     setLoading(true);
@@ -792,6 +852,15 @@ function CategoriesModal({
               </div>
             ))}
           </div>
+
+          {/* Bouton réinitialiser */}
+          <button
+            onClick={handleResetCategories}
+            disabled={loading}
+            className="w-full mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {loading ? 'Chargement...' : '🔄 Réinitialiser catégories par défaut'}
+          </button>
         </div>
       </div>
     </div>
