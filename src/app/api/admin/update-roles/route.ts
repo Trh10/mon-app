@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         role: true,
-        company: true
+        organizationId: true
       },
       orderBy: { name: 'asc' }
     });
