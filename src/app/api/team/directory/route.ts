@@ -160,13 +160,14 @@ export async function GET(req: NextRequest) {
     };
 
     // Considérer un utilisateur "en ligne" s'il s'est connecté dans les 10 dernières minutes
-    const TEN_MINUTES = 10 * 60 * 1000;
+    // Considérer "en ligne" si actif dans les 3 dernières minutes
+    const THREE_MINUTES = 3 * 60 * 1000;
     const now = Date.now();
 
     // Formater pour le frontend
     const items = users.map(u => {
       const lastActivity = u.updatedAt ? new Date(u.updatedAt).getTime() : 0;
-      const isOnline = (now - lastActivity) < TEN_MINUTES;
+      const isOnline = (now - lastActivity) < THREE_MINUTES;
       const displayRole = getDisplayRole(u.role);
       
       return {

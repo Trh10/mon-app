@@ -32,8 +32,8 @@ export function usePresenceHeartbeat(enabled: boolean = true) {
     // Envoyer immédiatement au montage
     sendHeartbeat();
 
-    // Puis toutes les 2 minutes
-    intervalRef.current = setInterval(sendHeartbeat, 2 * 60 * 1000);
+    // Puis toutes les 1 minute pour une meilleure réactivité
+    intervalRef.current = setInterval(sendHeartbeat, 60 * 1000);
 
     // Cleanup
     return () => {

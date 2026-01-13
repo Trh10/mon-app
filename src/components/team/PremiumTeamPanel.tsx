@@ -162,6 +162,11 @@ export default function PremiumTeamPanel({ onClose, onStartPrivateChat, onStartC
 
   useEffect(() => {
     loadMembers();
+    
+    // Rafraîchir automatiquement toutes les 30 secondes pour la présence
+    const interval = setInterval(loadMembers, 30 * 1000);
+    
+    return () => clearInterval(interval);
   }, [loadMembers]);
 
   // Filtrer les membres par recherche
