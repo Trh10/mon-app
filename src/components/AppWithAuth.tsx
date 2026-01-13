@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useCodeAuth } from './auth/CodeAuthContext';
 import { APP_NAME } from '@/config/branding';
 import { LoginForm } from './auth/LoginForm';
+import { usePresenceHeartbeat } from '@/hooks/usePresenceHeartbeat';
 
 interface AppWithAuthProps {
   children: React.ReactNode;
@@ -13,6 +14,9 @@ export function AppWithAuth({ children }: AppWithAuthProps) {
   const { user, login, logout, loading } = useCodeAuth();
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+
+  // Activer le heartbeat de présence quand l'utilisateur est connecté
+  usePresenceHeartbeat(!!user);
 
   const handleLogin = async (code: string, name?: string, companyName?: string) => {
     setLoginLoading(true);

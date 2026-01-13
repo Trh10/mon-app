@@ -133,22 +133,31 @@ export async function GET(req: NextRequest) {
       return 'Utilisateur';
     };
 
+    // Considérer un utilisateur "en ligne" s'il s'est connecté dans les 10 dernières minutes
+    const TEN_MINUTES = 10 * 60 * 1000;
+    const now = Date.now();
+
     // Formater pour le frontend
-    const items = users.map(u => ({
-      id: String(u.id),
-      name: getDisplayName(u),
-      role: u.role,
-      displayRole: u.role === 'admin' ? 'Directeur Général' : 'Employé',
-      level: u.role === 'admin' ? 10 : 3,
-      isOnline: false,
-      lastSeen: u.updatedAt.toISOString(),
-      activeTasks: 0,
-      completedTasks: 0,
-      companyId: String(u.organizationId),
-      joinedAt: u.createdAt.toISOString(),
-      email: u.email,
-      title: u.role === 'admin' ? 'Administrateur' : 'Employé'
-    }));
+    const items = users.map(u => {
+      const lastActivity = u.updatedAt ? new Date(u.updatedAt).getTime() : 0;
+      const isOnline = (now - lastActivity) < TEN_MINUTES;
+      
+      return {
+        id: String(u.id),
+        name: getDisplayName(u),
+        role: u.role,
+        displayRole: u.role === 'admin' ? 'Directeur Général' : u.role === 'DG' ? 'Directeur Général' : u.role || 'Employé',
+        level: (u.role === 'admin' || u.role === 'DG') ? 10 : 3,
+        isOnline: isOnline,
+        lastSeen: u.updatedAt.toISOString(),
+        activeTasks: 0,
+        completedTasks: 0,
+        companyId: String(u.organizationId),
+        joinedAt: u.createdAt.toISOString(),
+        email: u.email,
+        title: u.role === 'admin' ? 'Administrateur' : u.role || 'Employé'
+      };
+    });
 
     return NextResponse.json({
       items,

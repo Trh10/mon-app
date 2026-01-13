@@ -127,6 +127,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'PIN incorrect' }, { status: 401 });
       }
       
+      // Mettre à jour updatedAt pour la présence en ligne
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { updatedAt: new Date() }
+      });
+      
       // Convertir le rôle pour l'affichage
       let displayRole = existingUser.role;
       if (existingUser.role === 'admin') displayRole = 'Directeur Général';
