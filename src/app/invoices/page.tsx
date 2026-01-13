@@ -15,9 +15,11 @@ import {
   X,
   Calendar,
   ArrowRight,
+  ArrowLeft,
   User,
   LogOut,
-  Wallet
+  Wallet,
+  Home
 } from 'lucide-react';
 import Link from 'next/link';
 import ClientsList from '@/components/invoices/ClientsList';
@@ -271,6 +273,15 @@ export default function InvoicesPage() {
   if (!selectedCompany) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        {/* Bouton Retour à l'accueil */}
+        <Link 
+          href="/"
+          className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-white rounded-xl border border-slate-600 hover:border-slate-500 transition-all duration-200 backdrop-blur-sm shadow-lg hover:shadow-xl group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="font-medium">Retour</span>
+        </Link>
+
         <div className="w-full max-w-4xl">
           <div className="text-center mb-12">
             <div className="w-20 h-20 bg-gradient-to-br from-gray-700 to-gray-800 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl border border-gray-600">
