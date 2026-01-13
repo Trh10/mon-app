@@ -739,24 +739,30 @@ function CategoriesModal({
     if (!confirm('Voulez-vous remplacer toutes les catégories par les catégories par défaut ?')) return;
     setLoading(true);
     try {
-      // Supprimer toutes les catégories existantes
-      for (const cat of categories) {
-        await fetch(`/api/treasury?id=${cat.id}&type=category`, { method: 'DELETE' });
-      }
-      // Créer les catégories par défaut
-      for (const cat of getDefaultCategories()) {
-        await fetch('/api/treasury', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'category',
-            company,
-            name: cat.name,
-            color: cat.color,
-            icon: cat.icon
+      // Supprimer toutes les catégories existantes en parallèle
+      await Promise.all(
+        categories.map(cat => 
+          fetch(`/api/treasury?id=${cat.id}&type=category`, { method: 'DELETE' })
+        )
+      );
+      
+      // Créer les catégories par défaut en parallèle
+      await Promise.all(
+        getDefaultCategories().map(cat =>
+          fetch('/api/treasury', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'category',
+              company,
+              name: cat.name,
+              color: cat.color,
+              icon: cat.icon
+            })
           })
-        });
-      }
+        )
+      );
+      
       onSuccess();
     } catch (error) {
       console.error('Erreur:', error);
