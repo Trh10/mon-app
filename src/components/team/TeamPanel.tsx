@@ -87,24 +87,24 @@ export default function TeamPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:w-[420px] md:w-[480px] lg:w-[520px] bg-white dark:bg-slate-900 border-l border-gray-300 dark:border-slate-700 shadow-2xl z-50 flex flex-col">
       <div className="flex items-center justify-between px-3 sm:px-4 py-3 border-b dark:border-slate-700">
-        <div className="font-semibold">Équipe</div>
-        <button onClick={onClose} className="px-2 py-1 rounded-md hover:bg-gray-100">✕</button>
+        <div className="font-semibold text-gray-900 dark:text-white">Équipe</div>
+        <button onClick={onClose} className="px-2 py-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300">✕</button>
       </div>
 
-      <div className="p-3 border-b">
+      <div className="p-3 border-b dark:border-slate-700">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher par nom, email, rôle, poste…"
-          className="w-full border rounded-md px-2 py-1"
+          className="w-full border dark:border-slate-600 rounded-md px-2 py-1 bg-white dark:bg-slate-800 text-gray-900 dark:text-white placeholder-gray-400"
         />
       </div>
 
       <div className="p-3 overflow-auto">
-        {loading && <div className="text-sm text-gray-500">Chargement…</div>}
+        {loading && <div className="text-sm text-gray-500 dark:text-gray-400">Chargement…</div>}
         {error && <div className="text-sm text-red-600">⚠️ {error}</div>}
         {!loading && !error && filtered.length === 0 && (
-          <div className="text-sm text-gray-500">Aucun membre.</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Aucun membre.</div>
         )}
         {!loading && !error && filtered.length > 0 && (
           <ul className="space-y-2">
@@ -112,14 +112,14 @@ export default function TeamPanel({ onClose }: { onClose: () => void }) {
               <li key={m.id}>
                 <button
                   onClick={() => setActive(m)}
-                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 text-left"
+                  className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800 text-left"
                 >
-                  <span className={`w-2 h-2 rounded-full ${m.isOnline ? 'bg-green-500' : 'bg-gray-300'}`} title={m.isOnline ? 'En ligne' : 'Hors ligne'} />
+                  <span className={`w-2 h-2 rounded-full ${m.isOnline ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} title={m.isOnline ? 'En ligne' : 'Hors ligne'} />
                   <div className="flex-1">
-                    <div className="font-medium">{m.name} <span className="text-xs text-gray-500">· {m.role}</span></div>
+                    <div className="font-medium text-gray-900 dark:text-white">{m.name} <span className="text-xs text-gray-500">· {m.role}</span></div>
                     <div className="text-xs text-gray-500">{m.title} — {m.email}</div>
                   </div>
-                  {m.isOnline && <span className="text-xs text-green-600">En ligne</span>}
+                  {m.isOnline && <span className="text-xs text-green-600 dark:text-green-400">En ligne</span>}
                 </button>
               </li>
             ))}

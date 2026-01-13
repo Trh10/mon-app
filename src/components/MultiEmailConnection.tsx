@@ -260,7 +260,7 @@ export default function MultiEmailConnection() {
       {/* Liste des comptes connectés */}
       <div className="bg-white rounded-lg border">
         <div className="p-4 border-b">
-          <h3 className="font-semibold">Comptes connectés</h3>
+          <h3 className="font-semibold text-gray-900">Comptes connectés</h3>
         </div>
         
         <div className="divide-y">
@@ -283,7 +283,7 @@ export default function MultiEmailConnection() {
                     {account.provider.icon}
                   </div>
                   <div>
-                    <div className="font-medium">{account.email}</div>
+                    <div className="font-medium text-gray-900">{account.email}</div>
                     <div className="text-sm text-gray-600 flex items-center space-x-2">
                       <span>{account.provider.name}</span>
                       {account.isConnected ? (

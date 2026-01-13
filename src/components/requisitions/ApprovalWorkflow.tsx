@@ -145,7 +145,7 @@ export default function ApprovalWorkflow() {
         {loading ? (
           <div className="flex justify-center py-20"><div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full"></div></div>
         ) : filteredBesoins.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center"><FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" /><p>Aucun resultat</p></div>
+          <div className="bg-white rounded-xl p-12 text-center"><FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" /><p className="text-gray-600">Aucun resultat</p></div>
         ) : (
           <div className="space-y-4">
             {filteredBesoins.map((besoin) => {
@@ -154,9 +154,9 @@ export default function ApprovalWorkflow() {
                 <div key={besoin.id} className="bg-white rounded-xl shadow-sm border p-6">
                   <div className="flex justify-between mb-4">
                     <div>
-                      <span className="text-lg font-bold">{besoin.reference}</span>
+                      <span className="text-lg font-bold text-gray-900">{besoin.reference}</span>
                       <span className={`ml-3 px-3 py-1 rounded-full text-xs ${status.color}`}>{status.label}</span>
-                      <h3 className="text-xl font-semibold mt-1">{besoin.titre}</h3>
+                      <h3 className="text-xl font-semibold mt-1 text-gray-800">{besoin.titre}</h3>
                     </div>
                     <div className="text-right"><p className="text-2xl font-bold text-purple-600">{formatMoney(besoin.total)}</p></div>
                   </div>
@@ -193,26 +193,26 @@ export default function ApprovalWorkflow() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b flex justify-between">
-              <div><h2 className="text-xl font-bold">{selectedBesoin.reference}</h2><p className="text-gray-600">{selectedBesoin.titre}</p></div>
+              <div><h2 className="text-xl font-bold text-gray-900">{selectedBesoin.reference}</h2><p className="text-gray-600">{selectedBesoin.titre}</p></div>
               <button onClick={() => { setSelectedBesoin(null); setComment(""); }} className="p-2 hover:bg-gray-100 rounded-lg"><XCircle className="h-6 w-6 text-gray-400" /></button>
             </div>
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4"><p className="text-sm text-gray-500">Demandeur</p><p className="font-semibold">{selectedBesoin.demandeur}</p></div>
-                <div className="bg-gray-50 rounded-lg p-4"><p className="text-sm text-gray-500">Date</p><p className="font-semibold">{formatDate(selectedBesoin.dateCreation)}</p></div>
+                <div className="bg-gray-50 rounded-lg p-4"><p className="text-sm text-gray-500">Demandeur</p><p className="font-semibold text-gray-900">{selectedBesoin.demandeur}</p></div>
+                <div className="bg-gray-50 rounded-lg p-4"><p className="text-sm text-gray-500">Date</p><p className="font-semibold text-gray-900">{formatDate(selectedBesoin.dateCreation)}</p></div>
               </div>
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50"><tr><th className="text-left p-3">Designation</th><th className="text-center p-3">Qte</th><th className="text-right p-3">P.U.</th><th className="text-right p-3">Total</th></tr></thead>
+                  <thead className="bg-gray-50"><tr><th className="text-left p-3 text-gray-700">Designation</th><th className="text-center p-3 text-gray-700">Qte</th><th className="text-right p-3 text-gray-700">P.U.</th><th className="text-right p-3 text-gray-700">Total</th></tr></thead>
                   <tbody>
-                    {selectedBesoin.produits.map((p, i) => (<tr key={i} className="border-t"><td className="p-3">{p.designation}</td><td className="text-center p-3">{p.quantite}</td><td className="text-right p-3">{formatMoney(p.prixUnitaire)}</td><td className="text-right p-3 font-medium">{formatMoney(p.total)}</td></tr>))}
+                    {selectedBesoin.produits.map((p, i) => (<tr key={i} className="border-t"><td className="p-3 text-gray-900">{p.designation}</td><td className="text-center p-3 text-gray-900">{p.quantite}</td><td className="text-right p-3 text-gray-900">{formatMoney(p.prixUnitaire)}</td><td className="text-right p-3 font-medium text-gray-900">{formatMoney(p.total)}</td></tr>))}
                   </tbody>
-                  <tfoot className="bg-purple-50"><tr><td colSpan={3} className="p-3 text-right font-semibold">Total:</td><td className="p-3 text-right font-bold text-purple-600">{formatMoney(selectedBesoin.total)}</td></tr></tfoot>
+                  <tfoot className="bg-purple-50"><tr><td colSpan={3} className="p-3 text-right font-semibold text-gray-700">Total:</td><td className="p-3 text-right font-bold text-purple-600">{formatMoney(selectedBesoin.total)}</td></tr></tfoot>
                 </table>
               </div>
               {isDG && selectedBesoin.statut === "soumis" && (
                 <div className="border-t pt-6">
-                  <h4 className="font-semibold mb-3 flex items-center gap-2"><Crown className="h-5 w-5 text-amber-500" />Decision DG</h4>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2 text-gray-900"><Crown className="h-5 w-5 text-amber-500" />Decision DG</h4>
                   <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} className="w-full border rounded-lg p-3 mb-4 bg-white text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-purple-500" placeholder="Commentaire..." />
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button onClick={() => handleDecision("approuve")} disabled={processing} className="flex-1 py-3 bg-green-600 text-white rounded-xl flex items-center justify-center gap-2"><CheckCircle className="h-5 w-5" />{processing ? "..." : "Approuver"}</button>

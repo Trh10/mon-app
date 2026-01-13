@@ -136,7 +136,7 @@ export function SmartSummary({
       <div className="p-4">
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            <div className="font-medium">❌ Erreur d'analyse</div>
+            <div className="font-medium text-red-700">❌ Erreur d'analyse</div>
             <div>{error}</div>
             <button 
               onClick={generateSummary}
@@ -155,10 +155,10 @@ export function SmartSummary({
                 📧 Email sélectionné !
               </div>
               <div className="text-purple-600 text-sm mb-4">
-                Sujet: <span className="font-medium">{emailSubject}</span>
+                Sujet: <span className="font-medium text-purple-800">{emailSubject}</span>
               </div>
               <div className="text-purple-600 text-sm mb-4">
-                De: <span className="font-medium">{emailFrom}</span>
+                De: <span className="font-medium text-purple-800">{emailFrom}</span>
               </div>
               <button 
                 onClick={generateSummary}
