@@ -42,7 +42,7 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "electron/icon.png",
+      "icon": "electron/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {

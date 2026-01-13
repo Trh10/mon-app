@@ -82,8 +82,24 @@ if (!gotTheLock) {
       alwaysOnTop: true,
       skipTaskbar: true,
       resizable: false,
+      icon: path.join(__dirname, 'icon.png'),
       webPreferences: { nodeIntegration: false }
     });
+
+    // Charger le logo en base64
+    let logoBase64 = '';
+    const logoPath = path.join(__dirname, '..', 'public', 'logo.png');
+    const localIconPath = path.join(__dirname, 'icon.png');
+    
+    try {
+      if (fs.existsSync(logoPath)) {
+        logoBase64 = fs.readFileSync(logoPath).toString('base64');
+      } else if (fs.existsSync(localIconPath)) {
+        logoBase64 = fs.readFileSync(localIconPath).toString('base64');
+      }
+    } catch (e) {
+      console.log('Logo non trouvé, utilisation du fallback');
+    }
 
     const splashHTML = `
       <!DOCTYPE html>
@@ -105,8 +121,8 @@ if (!gotTheLock) {
             }
             .container { text-align: center; padding: 30px; }
             .logo-container {
-              width: 120px;
-              height: 120px;
+              width: 140px;
+              height: 140px;
               background: white;
               border-radius: 30px;
               margin: 0 auto 25px;
@@ -114,7 +130,10 @@ if (!gotTheLock) {
               align-items: center;
               justify-content: center;
               box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+              overflow: hidden;
+              padding: 15px;
             }
+            .logo-img { max-width: 100%; max-height: 100%; object-fit: contain; }
             .logo-text { font-size: 48px; font-weight: bold; color: #667eea; }
             h1 { font-size: 26px; margin-bottom: 8px; font-weight: 600; }
             .subtitle { opacity: 0.7; font-size: 13px; margin-bottom: 30px; }
@@ -138,10 +157,13 @@ if (!gotTheLock) {
         <body>
           <div class="container">
             <div class="logo-container">
-              <span class="logo-text">IC</span>
+              ${logoBase64 
+                ? `<img src="data:image/png;base64,${logoBase64}" class="logo-img" alt="ICONES" />`
+                : `<span class="logo-text">ICONES</span>`
+              }
             </div>
             <h1>${APP_NAME}</h1>
-            <p class="subtitle">Application de gestion professionnelle</p>
+            <p class="subtitle">ICONES Stratégie & Créa - ALL IN ONE</p>
             <p class="status">Vérification de la connexion<span class="dots"></span></p>
             <div class="loader"></div>
           </div>

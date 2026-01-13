@@ -18,12 +18,17 @@ const ROLE_CONFIG: Record<string, { level: number; permissions: string[]; displa
   },
   'Finance': {
     level: 70,
-    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_reports'],
+    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_invoices', 'view_reports'],
     displayName: 'Finance'
+  },
+  'Financier': {
+    level: 70,
+    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_invoices', 'view_reports'],
+    displayName: 'Financier'
   },
   'Comptable': {
     level: 70,
-    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_reports'],
+    permissions: ['view_finances', 'view_treasury', 'manage_treasury', 'create_invoices', 'view_invoices', 'view_reports'],
     displayName: 'Comptable'
   },
   'Assistant': {
@@ -55,6 +60,9 @@ function getRoleConfig(role: string) {
   }
   if (lowerRole.includes('admin')) {
     return ROLE_CONFIG['Administration'];
+  }
+  if (lowerRole.includes('financier')) {
+    return ROLE_CONFIG['Financier'];
   }
   if (lowerRole.includes('finance') || lowerRole.includes('comptab')) {
     return ROLE_CONFIG['Finance'];
