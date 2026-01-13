@@ -56,6 +56,9 @@ export default function ChatPanel({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   
+  // Rafraîchissement automatique des messages (polling)
+  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
+  
   // États pour drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragCounter, setDragCounter] = useState(0);
@@ -171,11 +174,31 @@ export default function ChatPanel({
       const key = mode === "room" ? roomKey : dmRoomKey;
       if (!key) { setMsgs([]); setFiles([]); return; }
       try {
-        const res = await fetch(`/api/realtime/history?room=${encodeURIComponent(key)}`, { cache: "no-store" });
-        const data = await res.json();
-        const items: Msg[] = (data?.items || []).map((m: any) => ({ id: m.id, text: m.text, ts: m.ts, user: m.user }));
-        seenIds.current = new Set(items.map((m) => m.id));
-        setMsgs(items);
+        // Charger depuis la base de données Prisma d'abord
+        const dbUrl = mode === "dm" && dmTarget 
+          ? `/api/chat/messages?room=${encodeURIComponent(key)}&recipientId=${dmTarget.id}`
+          : `/api/chat/messages?room=${encodeURIComponent(key)}`;
+        
+        const dbRes = await fetch(dbUrl, { cache: "no-store" });
+        const dbData = await dbRes.json();
+        
+        if (dbData?.success && dbData?.messages?.length > 0) {
+          const items: Msg[] = dbData.messages.map((m: any) => ({ 
+            id: m.id, 
+            text: m.text, 
+            ts: m.ts, 
+            user: m.user 
+          }));
+          seenIds.current = new Set(items.map((m) => m.id));
+          setMsgs(items);
+        } else {
+          // Fallback vers l'ancien historique realtime
+          const res = await fetch(`/api/realtime/history?room=${encodeURIComponent(key)}`, { cache: "no-store" });
+          const data = await res.json();
+          const items: Msg[] = (data?.items || []).map((m: any) => ({ id: m.id, text: m.text, ts: m.ts, user: m.user }));
+          seenIds.current = new Set(items.map((m) => m.id));
+          setMsgs(items);
+        }
         requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight }));
       } catch (e: any) {
         setLastError(e?.message || "Impossible de charger l'historique");
@@ -196,6 +219,43 @@ export default function ChatPanel({
         } catch {}
       }
     })();
+    
+    // Polling pour synchronisation des messages (toutes les 5 secondes)
+    refreshInterval.current = setInterval(async () => {
+      const key = mode === "room" ? roomKey : dmRoomKey;
+      if (!key) return;
+      
+      try {
+        const dbUrl = mode === "dm" && dmTarget 
+          ? `/api/chat/messages?room=${encodeURIComponent(key)}&recipientId=${dmTarget.id}`
+          : `/api/chat/messages?room=${encodeURIComponent(key)}`;
+        
+        const dbRes = await fetch(dbUrl, { cache: "no-store" });
+        const dbData = await dbRes.json();
+        
+        if (dbData?.success && dbData?.messages?.length > 0) {
+          const newMsgs: Msg[] = dbData.messages.filter((m: any) => !seenIds.current.has(m.id)).map((m: any) => ({ 
+            id: m.id, 
+            text: m.text, 
+            ts: m.ts, 
+            user: m.user 
+          }));
+          
+          if (newMsgs.length > 0) {
+            newMsgs.forEach(m => seenIds.current.add(m.id));
+            setMsgs((prev) => { 
+              const next = [...prev, ...newMsgs].slice(-200);
+              requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" }));
+              return next; 
+            });
+          }
+        }
+      } catch {}
+    }, 5000);
+    
+    return () => {
+      if (refreshInterval.current) clearInterval(refreshInterval.current);
+    };
   }, [mode, roomKey, dmRoomKey, userId, dmTarget]);
 
   // Abonnements temps réel
@@ -297,7 +357,22 @@ export default function ChatPanel({
     setMsgs((prev) => { const next = [...prev, optimistic].slice(-200); requestAnimationFrame(() => scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" })); return next; });
     setText(""); setLastError(null);
 
-    try { if (mode === "room") { await rt.trigger(roomKey, "chat", { id, text: txt }); } else if (dmTarget) { await rt.trigger(dmRoomKey, "dm", { id, text: txt, toUserId: dmTarget.id }); } }
+    try { 
+      // Sauvegarder en base de données via l'API
+      await fetch('/api/chat/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          room: mode === "room" ? roomKey : dmRoomKey,
+          text: txt,
+          recipientId: dmTarget?.id || null
+        })
+      });
+      
+      // Trigger realtime pour les autres utilisateurs
+      if (mode === "room") { await rt.trigger(roomKey, "chat", { id, text: txt }); } 
+      else if (dmTarget) { await rt.trigger(dmRoomKey, "dm", { id, text: txt, toUserId: dmTarget.id }); } 
+    }
     catch (e: any) { setLastError(e?.message || "Échec de l'envoi"); }
   }
 
