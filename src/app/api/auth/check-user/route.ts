@@ -45,11 +45,28 @@ export async function POST(req: NextRequest) {
     });
     
     if (user) {
-      // Convertir le rôle admin en "Directeur Général" pour l'affichage
+      // Configuration des niveaux par rôle
+      const ROLE_LEVELS: Record<string, number> = {
+        'Directeur Général': 100,
+        'Administration': 80,
+        'Finance': 70,
+        'Comptable': 70,
+        'Assistant': 40,
+        'Assistante': 40,
+        'Employé': 10,
+        'admin': 100,
+        'manager': 50,
+        'member': 10
+      };
+      
+      // Le rôle est maintenant stocké directement (ex: 'Administration', 'Directeur Général')
+      // Fallback pour les anciens rôles
       let displayRole = user.role;
       if (user.role === 'admin') displayRole = 'Directeur Général';
       else if (user.role === 'manager') displayRole = 'Manager';
       else if (user.role === 'member') displayRole = 'Employé';
+      
+      const level = ROLE_LEVELS[user.role] || ROLE_LEVELS[displayRole] || 10;
       
       return NextResponse.json({ 
         exists: true, 
@@ -57,7 +74,7 @@ export async function POST(req: NextRequest) {
           id: user.id,
           name: user.displayName || user.name,
           role: displayRole,
-          level: user.role === 'admin' ? 'founder' : 'employee'
+          level: level
         }
       });
     }

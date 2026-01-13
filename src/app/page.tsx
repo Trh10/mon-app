@@ -82,6 +82,39 @@ function SmartLoginComponent() {
   const [existingUser, setExistingUser] = useState<null | { id: string; role: string; level: number }>(null);
   const [checkingUser, setCheckingUser] = useState(false);
 
+  // Vérification automatique de l'utilisateur quand le nom change
+  useEffect(() => {
+    if (!userInfo.name.trim() || !checkResult?.companyName || checkResult?.screenType === 'founder-setup') {
+      setExistingUser(null);
+      return;
+    }
+    
+    // Debounce de 500ms
+    const timer = setTimeout(async () => {
+      setCheckingUser(true);
+      try {
+        const resp = await fetch('/api/auth/check-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName: checkResult.companyName, name: userInfo.name.trim() })
+        });
+        const data = await resp.json();
+        if (data.exists) {
+          setExistingUser({ id: data.user.id, role: data.user.role, level: data.user.level });
+          setUserInfo(u => ({ ...u, role: data.user.role }));
+        } else {
+          setExistingUser(null);
+        }
+      } catch (e) {
+        console.error('Erreur vérification utilisateur:', e);
+      } finally {
+        setCheckingUser(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [userInfo.name, checkResult?.companyName, checkResult?.screenType]);
+
   const roleOptions = [
     { value: 'Directeur Général', label: '👑 Directeur Général', level: 10 },
     { value: 'Administration', label: '📋 Administration', level: 8 },
@@ -377,22 +410,12 @@ function SmartLoginComponent() {
                 onChange={(e) => setUserInfo({...userInfo, name: e.target.value})}
                 className="w-full px-4 py-3.5 bg-[#0a1628]/80 border border-cyan-500/30 rounded-xl text-white placeholder-cyan-200/30 focus:ring-2 focus:ring-cyan-500 focus:border-transparent focus:bg-[#0a1628] transition-all outline-none"
                 placeholder={checkResult.screenType === 'founder-setup' ? 'Jean Dupont' : 'Marie'}
-                onBlur={async () => {
-                  if (!userInfo.name.trim() || checkResult?.screenType === 'founder-setup') { setExistingUser(null); return; }
-                  setCheckingUser(true);
-                  try {
-                    const resp = await fetch('/api/auth/check-user', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ companyName: checkResult.companyName, name: userInfo.name.trim() }) });
-                    const data = await resp.json();
-                    if (data.exists) {
-                      setExistingUser({ id: data.user.id, role: data.user.role, level: data.user.level });
-                      setUserInfo(u => ({ ...u, role: data.user.role }));
-                    } else setExistingUser(null);
-                  } catch {}
-                  finally { setCheckingUser(false); }
-                }}
               />
               {checkingUser && <p className="text-xs text-cyan-300 mt-2 flex items-center gap-1"><div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div> Vérification...</p>}
-              {existingUser && <p className="text-xs text-fuchsia-300 mt-2 flex items-center gap-1"><UserCheck className="w-3 h-3" /> Compte existant (rôle: <span className="font-semibold">{existingUser.role}</span>)</p>}
+              {existingUser && <p className="text-xs text-green-400 mt-2 flex items-center gap-1"><UserCheck className="w-3 h-3" /> ✅ Compte trouvé ! Rôle: <span className="font-semibold">{existingUser.role}</span> - Entrez votre PIN</p>}
+              {!existingUser && !checkingUser && userInfo.name.trim().length > 2 && checkResult?.screenType !== 'founder-setup' && (
+                <p className="text-xs text-yellow-400 mt-2 flex items-center gap-1"><UserPlus className="w-3 h-3" /> Nouveau compte - Choisissez votre rôle et PIN</p>
+              )}
             </div>
 
             {/* Sélecteur de rôle */}
