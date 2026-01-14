@@ -585,16 +585,19 @@ function ExpenseModal({
     { name: 'Autres', color: '#6b7280' }
   ];
 
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
   // Créer et sélectionner une catégorie prédéfinie
   const handleSelectPredefined = async (cat: { name: string; color: string }) => {
     // Vérifier si elle existe déjà
     const existing = localCategories.find(c => c.name.toLowerCase() === cat.name.toLowerCase());
     if (existing) {
-      setFormData({ ...formData, categoryId: existing.id });
+      setFormData(prev => ({ ...prev, categoryId: existing.id }));
       return;
     }
 
     // Créer la catégorie
+    setCreatingCategory(true);
     try {
       const res = await fetch('/api/treasury', {
         method: 'POST',
@@ -608,12 +611,16 @@ function ExpenseModal({
         })
       });
       const data = await res.json();
+      console.log('Catégorie créée:', data);
       if (data.success && data.category) {
-        setLocalCategories([...localCategories, data.category]);
-        setFormData({ ...formData, categoryId: data.category.id });
+        const newCat = data.category;
+        setLocalCategories(prev => [...prev, newCat]);
+        setFormData(prev => ({ ...prev, categoryId: newCat.id }));
       }
     } catch (error) {
       console.error('Erreur création catégorie:', error);
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -695,9 +702,12 @@ function ExpenseModal({
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Catégorie</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              Catégorie {creatingCategory && <span className="text-orange-400 text-xs">(création...)</span>}
+            </label>
             <select
               value={formData.categoryId}
+              disabled={creatingCategory}
               onChange={e => {
                 const value = e.target.value;
                 // Si c'est une catégorie prédéfinie (commence par "new_")
@@ -708,16 +718,16 @@ function ExpenseModal({
                     handleSelectPredefined(predefined);
                   }
                 } else {
-                  setFormData({ ...formData, categoryId: value });
+                  setFormData(prev => ({ ...prev, categoryId: value }));
                 }
               }}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 text-white"
+              className={`w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 text-white ${creatingCategory ? 'opacity-50' : ''}`}
             >
               <option value="">-- Sélectionner une catégorie --</option>
               
               {/* Catégories existantes */}
               {localCategories.length > 0 && (
-                <optgroup label="Vos catégories">
+                <optgroup label="✓ Vos catégories">
                   {localCategories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
