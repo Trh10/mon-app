@@ -912,7 +912,3 @@ function CategoriesModal({
     </div>
   );
 }
-      </div>
-    </div>
-  );
-}
