@@ -696,49 +696,45 @@ function ExpenseModal({
 
           <div>
             <label className="block text-sm text-gray-400 mb-1">Catégorie</label>
-            {localCategories.length > 0 ? (
-              <select
-                value={formData.categoryId}
-                onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 text-white"
-              >
-                <option value="">Sélectionner une catégorie</option>
-                {localCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-sm text-gray-500 italic mb-2">Aucune catégorie. Cliquez ci-dessous pour en ajouter :</p>
-            )}
-            
-            {/* Badges catégories prédéfinies */}
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {predefinedCategories.map(cat => {
-                const isSelected = localCategories.some(c => 
-                  c.name.toLowerCase() === cat.name.toLowerCase() && c.id === formData.categoryId
-                );
-                const exists = localCategories.some(c => c.name.toLowerCase() === cat.name.toLowerCase());
-                return (
-                  <button
-                    key={cat.name}
-                    type="button"
-                    onClick={() => handleSelectPredefined(cat)}
-                    className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
-                      isSelected 
-                        ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-800' 
-                        : 'opacity-70 hover:opacity-100'
-                    }`}
-                    style={{ 
-                      backgroundColor: cat.color + '30', 
-                      color: cat.color,
-                      border: `1px solid ${cat.color}50`
-                    }}
-                  >
-                    {exists ? '✓ ' : '+ '}{cat.name}
-                  </button>
-                );
-              })}
-            </div>
+            <select
+              value={formData.categoryId}
+              onChange={e => {
+                const value = e.target.value;
+                // Si c'est une catégorie prédéfinie (commence par "new_")
+                if (value.startsWith('new_')) {
+                  const catName = value.replace('new_', '');
+                  const predefined = predefinedCategories.find(c => c.name === catName);
+                  if (predefined) {
+                    handleSelectPredefined(predefined);
+                  }
+                } else {
+                  setFormData({ ...formData, categoryId: value });
+                }
+              }}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 text-white"
+            >
+              <option value="">-- Sélectionner une catégorie --</option>
+              
+              {/* Catégories existantes */}
+              {localCategories.length > 0 && (
+                <optgroup label="Vos catégories">
+                  {localCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </optgroup>
+              )}
+              
+              {/* Catégories prédéfinies à créer */}
+              <optgroup label="➕ Ajouter une catégorie">
+                {predefinedCategories
+                  .filter(pc => !localCategories.some(lc => lc.name.toLowerCase() === pc.name.toLowerCase()))
+                  .map(cat => (
+                    <option key={`new_${cat.name}`} value={`new_${cat.name}`}>
+                      + {cat.name}
+                    </option>
+                  ))}
+              </optgroup>
+            </select>
           </div>
 
           <div>
