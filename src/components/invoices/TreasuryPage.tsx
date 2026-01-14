@@ -551,6 +551,7 @@ function ExpenseModal({
   onSuccess: () => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [localCategories, setLocalCategories] = useState<ExpenseCategory[]>(categories);
   const [formData, setFormData] = useState({
     description: expense?.description || '',
     amount: expense?.amount?.toString() || '',
@@ -560,6 +561,61 @@ function ExpenseModal({
     paymentMethod: expense?.paymentMethod || '',
     notes: ''
   });
+
+  // Catégories prédéfinies selon l'entreprise
+  const predefinedCategories = company === 'allinone' ? [
+    { name: 'Paie Personnel', color: '#ef4444' },
+    { name: 'Consultant', color: '#f97316' },
+    { name: 'Soins Médicaux', color: '#22c55e' },
+    { name: 'Rétrocession Partenaire', color: '#3b82f6' },
+    { name: "Commission Apporteur d'Affaire", color: '#8b5cf6' },
+    { name: 'Loyer & Charges', color: '#ec4899' },
+    { name: 'Transport', color: '#06b6d4' },
+    { name: 'Fournitures', color: '#eab308' },
+    { name: 'Autres', color: '#6b7280' }
+  ] : [
+    { name: 'Loyer & Charges', color: '#ef4444' },
+    { name: 'Salaires', color: '#f97316' },
+    { name: 'Fournitures', color: '#eab308' },
+    { name: 'Transport', color: '#22c55e' },
+    { name: 'Communication', color: '#3b82f6' },
+    { name: 'Marketing', color: '#8b5cf6' },
+    { name: 'Équipement', color: '#ec4899' },
+    { name: 'Services', color: '#06b6d4' },
+    { name: 'Autres', color: '#6b7280' }
+  ];
+
+  // Créer et sélectionner une catégorie prédéfinie
+  const handleSelectPredefined = async (cat: { name: string; color: string }) => {
+    // Vérifier si elle existe déjà
+    const existing = localCategories.find(c => c.name.toLowerCase() === cat.name.toLowerCase());
+    if (existing) {
+      setFormData({ ...formData, categoryId: existing.id });
+      return;
+    }
+
+    // Créer la catégorie
+    try {
+      const res = await fetch('/api/treasury', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'category',
+          company,
+          name: cat.name,
+          color: cat.color,
+          icon: 'tag'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.category) {
+        setLocalCategories([...localCategories, data.category]);
+        setFormData({ ...formData, categoryId: data.category.id });
+      }
+    } catch (error) {
+      console.error('Erreur création catégorie:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -640,16 +696,49 @@ function ExpenseModal({
 
           <div>
             <label className="block text-sm text-gray-400 mb-1">Catégorie</label>
-            <select
-              value={formData.categoryId}
-              onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 text-white"
-            >
-              <option value="">Sélectionner une catégorie</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-            </select>
+            {localCategories.length > 0 ? (
+              <select
+                value={formData.categoryId}
+                onChange={e => setFormData({ ...formData, categoryId: e.target.value })}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 text-white"
+              >
+                <option value="">Sélectionner une catégorie</option>
+                {localCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-gray-500 italic mb-2">Aucune catégorie. Cliquez ci-dessous pour en ajouter :</p>
+            )}
+            
+            {/* Badges catégories prédéfinies */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {predefinedCategories.map(cat => {
+                const isSelected = localCategories.some(c => 
+                  c.name.toLowerCase() === cat.name.toLowerCase() && c.id === formData.categoryId
+                );
+                const exists = localCategories.some(c => c.name.toLowerCase() === cat.name.toLowerCase());
+                return (
+                  <button
+                    key={cat.name}
+                    type="button"
+                    onClick={() => handleSelectPredefined(cat)}
+                    className={`px-2 py-1 rounded-full text-xs font-medium transition-all ${
+                      isSelected 
+                        ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-800' 
+                        : 'opacity-70 hover:opacity-100'
+                    }`}
+                    style={{ 
+                      backgroundColor: cat.color + '30', 
+                      color: cat.color,
+                      border: `1px solid ${cat.color}50`
+                    }}
+                  >
+                    {exists ? '✓ ' : '+ '}{cat.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div>
