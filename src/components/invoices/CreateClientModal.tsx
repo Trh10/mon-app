@@ -30,8 +30,8 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess, company 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.companyName || !formData.email) {
-      setError('Le nom de l\'entreprise et l\'email sont requis');
+    if (!formData.companyName || !formData.phone) {
+      setError('Le nom de l\'entreprise et le téléphone sont requis');
       return;
     }
     
@@ -140,11 +140,28 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess, company 
               </div>
             </div>
             
-            {/* Email & Téléphone */}
+            {/* Téléphone (obligatoire) & Email (optionnel) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
+                  Téléphone *
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    placeholder="+243 XXX XXX XXX"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -154,23 +171,6 @@ export default function CreateClientModal({ isOpen, onClose, onSuccess, company 
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     placeholder="email@exemple.com"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Téléphone
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                    placeholder="(XXX) XXX-XXXX"
                   />
                 </div>
               </div>
