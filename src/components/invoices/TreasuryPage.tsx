@@ -803,9 +803,37 @@ function CategoriesModal({
     }
   };
 
+  // Ajouter une catégorie prédéfinie en un clic
+  const handleAddPredefined = async (cat: { name: string; color: string; icon: string }) => {
+    // Vérifier si elle existe déjà
+    if (categories.some(c => c.name.toLowerCase() === cat.name.toLowerCase())) {
+      alert('Cette catégorie existe déjà !');
+      return;
+    }
+    setLoading(true);
+    try {
+      await fetch('/api/treasury', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'category',
+          company,
+          name: cat.name,
+          color: cat.color,
+          icon: cat.icon
+        })
+      });
+      onSuccess();
+    } catch (error) {
+      console.error('Erreur:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl w-full max-w-md border border-gray-700">
+      <div className="bg-gray-800 rounded-xl w-full max-w-md border border-gray-700 max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h3 className="font-semibold text-white">Catégories de dépenses</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white">
@@ -813,8 +841,8 @@ function CategoriesModal({
           </button>
         </div>
 
-        <div className="p-4">
-          {/* Ajouter une catégorie */}
+        <div className="p-4 overflow-y-auto flex-1">
+          {/* Ajouter une catégorie personnalisée */}
           <div className="flex gap-2 mb-4">
             <input
               type="text"
@@ -838,36 +866,52 @@ function CategoriesModal({
             </button>
           </div>
 
-          {/* Liste des catégories */}
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {categories.map(cat => (
-              <div key={cat.id} className="flex items-center justify-between p-2 bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <span 
-                    className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="text-sm">{cat.name}</span>
-                </div>
-                <button
-                  onClick={() => handleDeleteCategory(cat.id)}
-                  className="p-1 hover:bg-gray-600 rounded text-red-400"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+          {/* Catégories existantes */}
+          {categories.length > 0 && (
+            <>
+              <p className="text-xs text-gray-400 mb-2">Vos catégories :</p>
+              <div className="space-y-2 mb-4">
+                {categories.map(cat => (
+                  <div key={cat.id} className="flex items-center justify-between p-2 bg-gray-700 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <span className="text-sm">{cat.name}</span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="p-1 hover:bg-gray-600 rounded text-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
 
-          {/* Bouton réinitialiser */}
-          <button
-            onClick={handleResetCategories}
-            disabled={loading}
-            className="w-full mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? 'Chargement...' : '🔄 Réinitialiser catégories par défaut'}
-          </button>
+          {/* Suggestions prédéfinies */}
+          <p className="text-xs text-gray-400 mb-2">📋 Ajouter une catégorie prédéfinie :</p>
+          <div className="flex flex-wrap gap-2">
+            {getDefaultCategories()
+              .filter(cat => !categories.some(c => c.name.toLowerCase() === cat.name.toLowerCase()))
+              .map(cat => (
+                <button
+                  key={cat.name}
+                  onClick={() => handleAddPredefined(cat)}
+                  disabled={loading}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium border border-gray-600 hover:border-gray-400 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  style={{ backgroundColor: cat.color + '20', color: cat.color, borderColor: cat.color + '50' }}
+                >
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                  {cat.name}
+                </button>
+              ))}
+          </div>
         </div>
+      </div>
+    </div>
+  );
+}
       </div>
     </div>
   );
