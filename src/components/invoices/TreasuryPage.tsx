@@ -106,6 +106,7 @@ export default function TreasuryPage({ company }: Props) {
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Transaction | null>(null);
+  const [preselectedCategoryId, setPreselectedCategoryId] = useState<string>('');
 
   useEffect(() => {
     fetchData();
@@ -486,13 +487,16 @@ export default function TreasuryPage({ company }: Props) {
           company={company}
           categories={categories}
           expense={editingExpense}
+          preselectedCategoryId={preselectedCategoryId}
           onClose={() => {
             setShowAddExpense(false);
             setEditingExpense(null);
+            setPreselectedCategoryId('');
           }}
           onSuccess={() => {
             setShowAddExpense(false);
             setEditingExpense(null);
+            setPreselectedCategoryId('');
             fetchData();
           }}
         />
@@ -505,6 +509,11 @@ export default function TreasuryPage({ company }: Props) {
           categories={categories}
           onClose={() => setShowManageCategories(false)}
           onSuccess={fetchCategories}
+          onSelectCategory={(categoryId: string) => {
+            setShowManageCategories(false);
+            setPreselectedCategoryId(categoryId);
+            setShowAddExpense(true);
+          }}
         />
       )}
     </div>
@@ -530,12 +539,14 @@ function ExpenseModal({
   company, 
   categories, 
   expense, 
+  preselectedCategoryId,
   onClose, 
   onSuccess 
 }: { 
   company: string;
   categories: ExpenseCategory[];
   expense: Transaction | null;
+  preselectedCategoryId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -544,7 +555,7 @@ function ExpenseModal({
     description: expense?.description || '',
     amount: expense?.amount?.toString() || '',
     expenseDate: expense?.date ? new Date(expense.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    categoryId: '',
+    categoryId: preselectedCategoryId || '',
     vendor: expense?.vendor || '',
     paymentMethod: expense?.paymentMethod || '',
     notes: ''
@@ -695,12 +706,14 @@ function CategoriesModal({
   company, 
   categories, 
   onClose, 
-  onSuccess 
+  onSuccess,
+  onSelectCategory
 }: { 
   company: string;
   categories: ExpenseCategory[];
   onClose: () => void;
   onSuccess: () => void;
+  onSelectCategory?: (categoryId: string) => void;
 }) {
   const [newCategory, setNewCategory] = useState({ name: '', color: '#6366f1' });
   const [loading, setLoading] = useState(false);
@@ -803,16 +816,21 @@ function CategoriesModal({
     }
   };
 
-  // Ajouter une catégorie prédéfinie en un clic
+  // Ajouter une catégorie prédéfinie en un clic et ouvrir le formulaire de dépense
   const handleAddPredefined = async (cat: { name: string; color: string; icon: string }) => {
     // Vérifier si elle existe déjà
-    if (categories.some(c => c.name.toLowerCase() === cat.name.toLowerCase())) {
-      alert('Cette catégorie existe déjà !');
+    const existingCat = categories.find(c => c.name.toLowerCase() === cat.name.toLowerCase());
+    if (existingCat) {
+      // Si elle existe, ouvrir directement le formulaire avec cette catégorie
+      if (onSelectCategory) {
+        onSelectCategory(existingCat.id);
+      }
       return;
     }
+    
     setLoading(true);
     try {
-      await fetch('/api/treasury', {
+      const res = await fetch('/api/treasury', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -823,7 +841,14 @@ function CategoriesModal({
           icon: cat.icon
         })
       });
-      onSuccess();
+      const data = await res.json();
+      
+      // Si la création a réussi et qu'on a un callback, ouvrir le formulaire
+      if (data.success && data.category && onSelectCategory) {
+        onSelectCategory(data.category.id);
+      } else {
+        onSuccess();
+      }
     } catch (error) {
       console.error('Erreur:', error);
     } finally {
