@@ -7,18 +7,22 @@ async function checkAccess(request: NextRequest): Promise<{ authorized: boolean;
   try {
     const userSessionCookie = request.cookies.get('user-session')?.value;
     if (!userSessionCookie) {
+      console.log('[Clients API] Pas de cookie session');
       return { authorized: false };
     }
     
     const userData = JSON.parse(userSessionCookie);
     const userRole = userData.role || '';
     
+    console.log('[Clients API] User:', userData.name, 'Role:', userRole, 'canAccess:', canAccessInvoices(userRole));
+    
     if (!canAccessInvoices(userRole)) {
       return { authorized: false };
     }
     
     return { authorized: true, userId: userData.id, userRole };
-  } catch {
+  } catch (err) {
+    console.error('[Clients API] Erreur checkAccess:', err);
     return { authorized: false };
   }
 }
